@@ -47,7 +47,23 @@ if($Mode -ne 'no-approval'){
  switch($Mode){'wrong-approval-pid' {$approval.helperPid=$PID+1};'wrong-approval-token' {$approval.token='22222222-2222-4222-8222-222222222222'};'wrong-approval-parent' {$approval.parentPid=1};'false-approval' {$approval.approved=$false}}
  [IO.File]::WriteAllText([IO.Path]::Combine($approvalPlan.stageDir,'install-approved.json'),($approval|ConvertTo-Json))
 }
-try { Invoke-VrcUpdate $ManifestFile 180; exit 0 } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 7 }
+try { Invoke-VrcUpdate $ManifestFile 180; exit 0 } catch {
+ [Console]::Error.WriteLine($_.Exception.Message)
+ $receiptFile=[IO.Path]::Combine($approvalPlan.stageDir,'startup-ready.json')
+ try {
+  [Console]::Error.WriteLine('Synthetic host: '+(@{powershell=$PSVersionTable.PSVersion.ToString();culture=[Threading.Thread]::CurrentThread.CurrentCulture.Name}|ConvertTo-Json -Compress))
+  if(Test-Path -LiteralPath $receiptFile){
+   $info=Get-Item -LiteralPath $receiptFile -Force
+   [Console]::Error.WriteLine('Synthetic receipt file: '+(@{length=$info.Length;directory=$info.PSIsContainer}|ConvertTo-Json -Compress))
+   [Console]::Error.WriteLine('Synthetic receipt: '+[IO.File]::ReadAllText($receiptFile))
+   [Console]::Error.WriteLine('Synthetic plan: '+($approvalPlan|ConvertTo-Json -Compress))
+   $parsed=Get-Content -LiteralPath $receiptFile -Raw -Encoding UTF8|ConvertFrom-Json
+   $expected=@{schema=1;token=$approvalPlan.token;target=$approvalPlan.target;sha256=$approvalPlan.sha256;size=$approvalPlan.size;version=$approvalPlan.version;pid=2147483645;parentPid=2147483646;startupReady=$true}
+   foreach($field in $expected.Keys){$actual=$parsed.$field;$value=$expected[$field];$type=if($null -eq $actual){'null'}else{$actual.GetType().FullName};[Console]::Error.WriteLine('Synthetic field: '+(@{field=$field;actual=$actual;actualType=$type;expected=$value;expectedType=$value.GetType().FullName;equal=($actual -ceq $value)}|ConvertTo-Json -Compress))}
+  }
+ } catch {[Console]::Error.WriteLine('Synthetic diagnostics: '+$_.Exception.Message)}
+ exit 7
+}
 `);t.after(()=>fs.rmSync(root,{recursive:true,force:true}));return {root,data,stage,source,target,staged,manifest,plan,launchLog,run(mode='success'){fs.writeFileSync(manifest,JSON.stringify(plan));return spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',harness,'-Helper',helper,'-ManifestFile',manifest,'-Mode',mode,'-LaunchLog',launchLog],{encoding:'utf8',windowsHide:true,timeout:15000,env:{...process.env,PORTABLE_EXECUTABLE_FILE:target}})}}}
 test('helper verifies and swaps synthetic executables on the same volume, with restart stubbed',t=>{const f=fixture(t),result=f.run();assert.equal(result.status,0,result.stderr);assert.deepEqual(fs.readFileSync(f.target),exe(2));assert.equal(JSON.parse(fs.readFileSync(path.join(f.stage,'result.json'),'utf8').replace(/^\uFEFF/,'')).status,'completed');assert.equal(fs.readFileSync(f.launchLog,'utf8').trim(),f.target);assert(!fs.existsSync(path.join(f.root,'.vrc-update-'+token+'.rollback.exe')))});
 test('helper restores original bytes when the synthetic restart fails and retains an error record',t=>{const f=fixture(t),result=f.run('fail-first');assert.equal(result.status,7);assert.match(result.stderr,/Synthetic restart failure/);assert.deepEqual(fs.readFileSync(f.target),exe(1));const report=JSON.parse(fs.readFileSync(path.join(f.stage,'result.json'),'utf8').replace(/^\uFEFF/,''));assert.equal(report.status,'error');assert(!fs.existsSync(path.join(f.root,'.vrc-update-'+token+'.new.exe')));assert(!fs.existsSync(path.join(f.root,'.vrc-update-'+token+'.rollback.exe')))});
