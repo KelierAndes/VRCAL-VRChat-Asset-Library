@@ -1,0 +1,40 @@
+name: 程序错误
+description: 报告崩溃、界面或数据行为问题
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "请先搜索已有问题。安全漏洞使用私密报告入口；不要附带个人资料库、Cookie 或付费素材。"
+  - type: input
+    id: version
+    attributes:
+      label: 程序版本与 Windows 版本
+      placeholder: "例如：1.9.0，Windows 11 x64"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 请说明从哪个页面开始，以及每一步操作。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 脱敏截图或必要错误信息
+      description: 遮住用户名、私人路径、账号及购买信息。
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索已有问题，并检查附件不含凭证、个人资料库或未获授权的素材。
+          required: true

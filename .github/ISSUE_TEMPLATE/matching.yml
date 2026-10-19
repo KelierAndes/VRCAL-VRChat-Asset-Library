@@ -1,0 +1,46 @@
+name: 匹配或分类不正确
+description: 提供最小化样例，帮助改进 BOOTH 匹配规则
+title: "[Matching] "
+labels: [matching]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: 程序版本
+    validations:
+      required: true
+  - type: textarea
+    id: filename
+    attributes:
+      label: 本地文件／文件夹名称
+      description: 保留作者、编号、版本和适配信息；不需要完整私人路径或素材内容。
+    validations:
+      required: true
+  - type: input
+    id: booth
+    attributes:
+      label: 正确的公开 BOOTH 商品链接
+      placeholder: "https://booth.pm/zh-cn/items/商品编号"
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: 当前结果与预期结果
+      description: 说明未找到、选错商品或分类错误；可附脱敏的匹配依据截图。
+    validations:
+      required: true
+  - type: dropdown
+    id: manual
+    attributes:
+      label: 是否曾手动指定来源或分类
+      options: [没有, 有, 不确定]
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我只提供检索线索和公开链接，没有上传付费包、凭证或个人数据库。
+          required: true

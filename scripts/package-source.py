@@ -4,8 +4,8 @@ import zipfile
 project = Path(__file__).resolve().parent.parent
 destination = project / 'outputs' / 'VRC-Asset-Library-Source.zip'
 destination.parent.mkdir(exist_ok=True)
-folders = ('src', 'assets', 'tests', 'scripts', 'docs')
-files = ('package.json', 'package-lock.json', 'tsconfig.main.json', 'tsconfig.renderer.json', 'vite.config.mjs', 'README.md', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md', '.gitignore', '.gitattributes')
+folders = ('src', 'assets', 'tests', 'scripts', 'docs', '.github')
+files = ('package.json', 'package-lock.json', 'tsconfig.main.json', 'tsconfig.renderer.json', 'vite.config.mjs', 'README.md', 'CHANGELOG.md', 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md', 'CONTRIBUTING.md', 'GOVERNANCE.md', 'CODE_OF_CONDUCT.md', 'SECURITY.md', '.gitignore', '.gitattributes')
 with zipfile.ZipFile(destination, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
     for name in files:
         file = project / name

@@ -2,6 +2,15 @@
   "name": "vrchat-asset-library",
   "version": "1.9.0",
   "private": true,
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NecoAya/VRCAL-VRChat-Asset-Library.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/issues"
+  },
+  "homepage": "https://github.com/NecoAya/VRCAL-VRChat-Asset-Library#readme",
   "description": "本地 VRChat 素材库",
   "author": "Local Library",
   "main": "dist/main/main/main.js",
@@ -46,7 +55,10 @@
       "assets/xianyu.html",
       "assets/xianyu.css",
       "assets/fonts/**/*",
-      "package.json"
+      "package.json",
+      "LICENSE",
+      "NOTICE",
+      "THIRD_PARTY_NOTICES.md"
     ],
     "asar": true,
     "win": {

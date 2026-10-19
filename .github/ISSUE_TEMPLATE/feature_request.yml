@@ -1,0 +1,27 @@
+name: 功能建议
+description: 说明想解决的问题与使用场景
+title: "[Feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解决什么问题
+      description: 请描述真实使用场景，以及现有操作哪里不方便。
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 期望的使用方式
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 已尝试的办法或其他方案
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: 你希望怎样参与
+      options: [提供建议, 协助测试或补充样例, 尝试提交修改, 暂不确定]

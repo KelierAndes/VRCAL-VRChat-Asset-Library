@@ -4,11 +4,15 @@
 
 一个中文 Windows 桌面应用，把散落的 VRChat 素材整理成可搜索的封面图库。接入 BOOTH 自动查找商品；匹配不明确时，在内置浏览器里搜索、核对并点击「应用此商品」。
 
+**这是一个采用 GPL-3.0 的社区开源项目，欢迎所有人共同维护。** 不会写代码也可以参与：提供匹配样例、反馈问题、翻译、测试和改善文档都能帮助项目变好。
+
+[![Windows CI](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/actions/workflows/ci.yml/badge.svg)](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/actions/workflows/ci.yml) · [贡献指南](CONTRIBUTING.md) · [社区讨论](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/discussions) · [路线图](docs/ROADMAP.md)
+
 **原素材和 Unity 工程保持原样。** 整理信息、封面缓存和备份保存在用户选择的位置。
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.9.0](https://github.com/NecoAya/VRChat-Asset-Library/releases/download/v1.9.0/VRC-Asset-Library-1.9.0-x64.exe)** · [所有版本](https://github.com/NecoAya/VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md)
+**[下载 Windows x64 免安装版 v1.9.0](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.9.0/VRC-Asset-Library-1.9.0-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md)
 
 1. 下载 `VRC-Asset-Library-1.9.0-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
@@ -60,8 +64,19 @@ npm run package
 
 输出目录为仓库相邻的 `build-stage`。运行用户无需下载开发依赖。更多行为说明和隔离验收入口见 [完整使用与开发说明](docs/USER_GUIDE.md)。
 
-## 反馈与许可
+## 一起维护
 
-问题可通过 [Issues](https://github.com/NecoAya/VRChat-Asset-Library/issues) 提交。匹配问题请附素材文件名、预期 BOOTH 链接和脱敏截图；不要上传登录凭证或整份个人资料库。
+- 使用问题、经验分享和方向讨论：[Discussions](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/discussions)。
+- 程序错误、匹配／分类错误和功能建议：[选择反馈模板](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/issues/new/choose)。
+- 文档、设计、翻译、测试与代码：[贡献指南](CONTRIBUTING.md)，通过 Fork 和 PR 参与。
+- 待讨论的改进方向：[社区路线图](docs/ROADMAP.md)。
 
-维护者：[NecoAya／八云绫](https://github.com/NecoAya)。本仓库暂未指定项目源码的开源许可证。第三方依赖与字体遵循各自许可证，见 [第三方说明](THIRD_PARTY_NOTICES.md)。BOOTH、VRChat、闲鱼及商品名称属于各自权利人，本项目与这些平台或商品作者没有官方隶属关系。
+匹配问题请附素材文件名、预期 BOOTH 链接和脱敏截图；不要上传登录凭证、付费素材或整份个人资料库。安全问题请按 [安全报告说明](SECURITY.md) 私下提交。
+
+初始维护者：[NecoAya／八云绫](https://github.com/NecoAya)。任何人都可以提出修改，维护者负责评审、合并和发布；持续参与的贡献者可申请承担维护职责。详见 [社区治理](GOVERNANCE.md) 与 [行为准则](CODE_OF_CONDUCT.md)。
+
+## 许可
+
+项目自有代码采用 **[GNU GPL v3.0 only](LICENSE)**（`GPL-3.0-only`）。分发修改版时，应依 GPL 提供对应源码并保留许可与版权声明；仅供自己使用的私下修改无需公开发布。具体义务以许可证原文为准。
+
+贡献者保留各自版权。第三方依赖与字体遵循各自许可证，见 [第三方说明](THIRD_PARTY_NOTICES.md)。BOOTH、VRChat、闲鱼及商品名称属于各自权利人，商品封面与素材内容不属于本项目的开源授权范围；本项目与这些平台或商品作者没有官方隶属关系。

@@ -1,5 +1,10 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {samePreviewProduct}=require('../dist/main/main/preview');
+// These URL policy checks do not use native windows. Avoid loading Electron's
+// executable locator, which downloads a runtime in a clean Node-only checkout.
+const Module=require('node:module'),originalLoad=Module._load;
+Module._load=function(request,...args){return request==='electron'?{}:originalLoad.call(this,request,...args)};
+let samePreviewProduct;
+try{({samePreviewProduct}=require('../dist/main/main/preview'))}finally{Module._load=originalLoad}
 
 test('preview confirmation follows the originally authorized BOOTH item across locale/shop pages',()=>{
   const source='https://zaicrifice.booth.pm/items/6454372';
