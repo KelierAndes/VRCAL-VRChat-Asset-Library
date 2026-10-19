@@ -41,6 +41,12 @@ function Get-VrcLiveProcess($Identity){
  $process|Add-Member -MemberType ScriptMethod -Name WaitForExit -Value {param($Timeout) return $true}
  return $process
 }
+$approvalPlan=Get-Content -LiteralPath $ManifestFile -Raw | ConvertFrom-Json
+if($Mode -ne 'no-approval'){
+ $approval=@{schema=1;token=$approvalPlan.token;parentPid=$approvalPlan.parentPid;helperPid=$PID;approved=$true}
+ switch($Mode){'wrong-approval-pid' {$approval.helperPid=$PID+1};'wrong-approval-token' {$approval.token='22222222-2222-4222-8222-222222222222'};'wrong-approval-parent' {$approval.parentPid=1};'false-approval' {$approval.approved=$false}}
+ [IO.File]::WriteAllText([IO.Path]::Combine($approvalPlan.stageDir,'install-approved.json'),($approval|ConvertTo-Json))
+}
 try { Invoke-VrcUpdate $ManifestFile 180; exit 0 } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 7 }
 `);t.after(()=>fs.rmSync(root,{recursive:true,force:true}));return {root,data,stage,source,target,staged,manifest,plan,launchLog,run(mode='success'){fs.writeFileSync(manifest,JSON.stringify(plan));return spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',harness,'-Helper',helper,'-ManifestFile',manifest,'-Mode',mode,'-LaunchLog',launchLog],{encoding:'utf8',windowsHide:true,timeout:15000,env:{...process.env,PORTABLE_EXECUTABLE_FILE:target}})}}}
 test('helper verifies and swaps synthetic executables on the same volume, with restart stubbed',t=>{const f=fixture(t),result=f.run();assert.equal(result.status,0,result.stderr);assert.deepEqual(fs.readFileSync(f.target),exe(2));assert.equal(JSON.parse(fs.readFileSync(path.join(f.stage,'result.json'),'utf8').replace(/^\uFEFF/,'')).status,'completed');assert.equal(fs.readFileSync(f.launchLog,'utf8').trim(),f.target);assert(!fs.existsSync(path.join(f.root,'.vrc-update-'+token+'.rollback.exe')))});
@@ -74,3 +80,5 @@ finally {foreach($child in @($owned,$other)){try{if(-not $child.HasExited){$chil
 `);
  const result=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',script,'-Helper',helper],{encoding:'utf8',windowsHide:true,timeout:15000});assert.equal(result.status,0,result.stderr);
 });
+
+test('missing or mismatched install approval preserves the original launcher after parent exit',t=>{for(const mode of ['no-approval','wrong-approval-pid','wrong-approval-token','wrong-approval-parent','false-approval']){const f=fixture(t),result=f.run(mode);assert.equal(result.status,7,mode+': '+result.stderr);assert.deepEqual(fs.readFileSync(f.target),exe(1));assert(!fs.existsSync(f.launchLog));assert(!fs.existsSync(path.join(f.root,'.vrc-update-'+token+'.rollback.exe')))}});

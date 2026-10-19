@@ -198,6 +198,15 @@ function Invoke-VrcUpdate([string]$ManifestPath, [int]$StartupTimeoutMillisecond
             if ([DateTime]::UtcNow -gt $deadline) { throw 'The application did not exit before the update deadline.' }
             Start-Sleep -Milliseconds 250
         }
+        # Read approval only after parent exit, so a failed launch/quit can revoke it.
+        # A helper that escaped the old app's process job must never apply by itself.
+        $approval = Assert-VrcWritePath ([IO.Path]::Combine([string]$plan.stageDir, 'install-approved.json')) $plan
+        $approvalInfo = Get-Item -LiteralPath $approval -Force
+        if ($approvalInfo.PSIsContainer -or $approvalInfo.Length -gt 4096) { throw 'Invalid update install approval.' }
+        $approved = Get-Content -LiteralPath $approval -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($approved.schema -ne 1 -or $approved.token -cne $plan.token -or $approved.parentPid -ne $plan.parentPid -or $approved.helperPid -ne $PID -or $approved.approved -isnot [bool] -or -not $approved.approved) { throw 'Invalid update install approval.' }
+        $null = Assert-VrcWritePath $approval $plan
+        [IO.File]::Delete($approval)
         while ($true) {
             try {
                 $lock = [IO.File]::Open($target, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)

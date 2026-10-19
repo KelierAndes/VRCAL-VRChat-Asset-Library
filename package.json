@@ -19,7 +19,7 @@
     "build": "tsc -p tsconfig.main.json && vite build",
     "check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "test": "tsc -p tsconfig.main.json && node --test --test-concurrency=4 tests/*.test.cjs",
-    "package": "npm run build && install-electron && electron-builder --win portable --x64"
+    "package": "npm run build && install-electron && electron-builder --win portable --x64 && node scripts/verify-package.cjs"
   },
   "dependencies": {
     "cheerio": "1.1.2",
@@ -28,6 +28,7 @@
     "yauzl": "3.2.0"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -58,7 +59,8 @@
       "NOTICE",
       "THIRD_PARTY_NOTICES.md",
       "assets/local-i18n.js",
-      "assets/update-helper.ps1"
+      "assets/update-helper.ps1",
+      "assets/update-launcher.ps1"
     ],
     "asar": true,
     "win": {

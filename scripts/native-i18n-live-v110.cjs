@@ -6,7 +6,8 @@ const checks=[];let workspace,preview,currentTheme='nasa',currentLanguage='zh-CN
 const wait=async predicate=>{const deadline=Date.now()+12000;while(Date.now()<deadline){if(await predicate())return;await new Promise(resolve=>setTimeout(resolve,30))}throw new Error('Native toolbar fixture timed out')};
 const response=()=>new Response('<!doctype html><html><head><title>Private product fixture</title></head><body style="background:#ffffff;color:#000000"><h1>本地离线商品验收页</h1></body></html>',{headers:{'content-type':'text/html;charset=utf-8'}});
 app.whenReady().then(async()=>{
- const {BoothWorkspace}=require('../dist/main/main/booth-workspace'),{ProductPreview}=require('../dist/main/main/preview');
+ const codeRoot=process.env.VRC_NATIVE_ASAR||path.resolve(__dirname,'..');
+ const {BoothWorkspace}=require(path.join(codeRoot,'dist/main/main/booth-workspace')),{ProductPreview}=require(path.join(codeRoot,'dist/main/main/preview'));
  workspace=new BoothWorkspace({parent:()=>null,getTheme:()=>currentTheme,getLanguage:()=>currentLanguage,dataDir:profile,roots:()=>[path.join(profile,'protected')],getDownloadDir:()=>undefined,canNetwork:()=>true,validateAsset:()=>({title:'本地素材验收'}),applyProduct:async()=>{},onChanged(){},onDownloaded:async()=>({})});
  workspace.publicHost=async()=>{};await workspace.initialize();await workspace.remoteSession.protocol.handle('https',response);
  await workspace.open({tab:'search',query:'Veil Breeze',assetId:'fixture-item'});await wait(()=>workspace.entry?.loaded);

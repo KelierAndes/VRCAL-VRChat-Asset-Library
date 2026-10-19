@@ -27,19 +27,30 @@ function officialRelease(raw:unknown,tag:string):string {if(typeof raw!=='string
 function officialAsset(raw:unknown,tag:string,name:string):string {if(typeof raw!=='string')throw new Error('更新下载地址无效。');const url=https(raw);if(url.hostname!=='github.com'||decodeURIComponent(url.pathname)!=='/'+REPOSITORY+'/releases/download/'+tag+'/'+name||url.search||url.hash)throw new Error('更新文件不属于官方仓库。');return url.href}
 async function sha256(file:string):Promise<string> {const hash=createHash('sha256');for await(const chunk of fs.createReadStream(file))hash.update(chunk);return hash.digest('hex')}
 function portableHeader(file:string):void {const fd=fs.openSync(file,'r');try{const header=Buffer.alloc(64);if(fs.readSync(fd,header,0,64,0)!==64||header.toString('ascii',0,2)!=='MZ')throw new Error('更新文件不是有效的 Windows 程序。');const offset=header.readUInt32LE(60),signature=Buffer.alloc(4);if(offset<64||offset>16*1024*1024||offset+4>fs.fstatSync(fd).size||fs.readSync(fd,signature,0,4,offset)!==4||!signature.equals(Buffer.from([80,69,0,0])))throw new Error('更新文件不是有效的 Windows 程序。')}finally{fs.closeSync(fd)}}
-async function launch(script:string,manifest:string):Promise<void> {
+async function launch(script:string,manifest:string):Promise<number> {
  const powershell=path.join(process.env.SystemRoot||'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
- const child=spawn(powershell,['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',script,'-Manifest',manifest],{detached:true,stdio:'ignore',windowsHide:true});
- let failure:Error|undefined,exited=false;child.once('error',error=>{failure=error});child.once('exit',()=>{exited=true});
+ const stage=path.dirname(manifest),launcher=assertSafeWrite(path.join(stage,'update-launcher.ps1'),stage,[]),receipt=path.join(stage,'helper-ready.json'),deadline=Date.now()+10000;
+ await fsp.writeFile(launcher,await fsp.readFile(path.resolve(__dirname,'../../../assets/update-launcher.ps1')),{flag:'wx'});
+ // The relay runs normally; Start-Process gives its hidden helper an independent lifetime.
+ const child=spawn(powershell,['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',launcher,'-Helper',script,'-Manifest',manifest],{detached:false,stdio:['ignore','pipe','pipe'],windowsHide:true});
+ const failed=()=>new Error('无法启动更新助手，当前版本保持不变。');
  try{
-  await new Promise<void>((resolve,reject)=>{child.once('error',reject);child.once('spawn',resolve)});
-  const stage=path.dirname(manifest),receipt=path.join(stage,'helper-ready.json'),deadline=Date.now()+10000;
+  const output=await new Promise<string>((resolve,reject)=>{
+   let text='';const timer=setTimeout(()=>reject(failed()),10000);
+   const finish=(error?:Error)=>{clearTimeout(timer);if(error)reject(error);else resolve(text)};
+   child.once('error',error=>finish(error));child.once('close',code=>finish(code===0?undefined:failed()));
+   child.stdout!.setEncoding('utf8');child.stdout!.on('data',(chunk:string)=>{text+=chunk;if(Buffer.byteLength(text)>4096)finish(failed())});
+   child.stderr!.resume();
+  });
+  const started=JSON.parse(output.replace(/^\uFEFF/,''));
+  if(!started||started.token!==path.basename(stage)||started.parentPid!==process.pid||!Number.isSafeInteger(started.helperPid)||started.helperPid<1||started.helperPid>2147483647||started.helperPid===process.pid||started.helperPid===child.pid)throw failed();
   while(true){
-   if(failure||exited||Date.now()>deadline)throw failure??new Error('无法启动更新助手，当前版本保持不变。');
-   try{assertSafeWrite(receipt,stage,[]);const stat=await fsp.lstat(receipt);if(!stat.isFile()||stat.size>4096)throw new Error('更新助手的启动确认无效。');const ready=JSON.parse((await fsp.readFile(receipt,'utf8')).replace(/^\uFEFF/,''));if(ready.token!==path.basename(stage)||ready.parentPid!==process.pid||ready.helperPid!==child.pid)throw new Error('更新助手的启动确认无效。');break}catch(error:any){if(error.code!=='ENOENT')throw error}
+   if(Date.now()>deadline)throw failed();
+   try{assertSafeWrite(receipt,stage,[]);const stat=await fsp.lstat(receipt);if(!stat.isFile()||stat.nlink!==1||stat.size>4096)throw new Error('更新助手的启动确认无效。');const ready=JSON.parse((await fsp.readFile(receipt,'utf8')).replace(/^\uFEFF/,''));if(ready.token!==started.token||ready.parentPid!==process.pid||ready.helperPid!==started.helperPid)throw new Error('更新助手的启动确认无效。');break}catch(error:any){if(error.code!=='ENOENT')throw error}
    await new Promise(resolve=>setTimeout(resolve,40));
   }
   child.unref();
+  return started.helperPid;
  }catch(error){try{child.kill()}catch{/* Only the helper started by this operation is managed here. */}throw error}
 }
 
@@ -102,14 +113,21 @@ export class AppUpdater {
  }
  async install():Promise<UpdateState> {
   this.requireSupported();if(this.closed||this.operation||this.current.status!=='ready'||!this.asset||!this.staged||!this.stageDir||!this.baselineDigest)throw new Error('请先下载并校验更新。');
+  let approval:string|undefined;
   try{
    const target=assertSafeWrite(this.target,this.deps.dataDir,this.deps.roots(),true),staged=assertSafeWrite(this.staged,this.deps.dataDir,this.deps.roots());if(identity(staged).size!==this.asset.size||await sha256(staged)!==this.asset.sha256)throw new Error('已下载的更新文件发生变化，请重新下载。');portableHeader(staged);
    if(!this.supported()||await sha256(target)!==this.baselineDigest)throw new Error('当前程序文件已变化，已停止更新。');await fsp.access(path.dirname(target),fs.constants.W_OK);
    const token=path.basename(this.stageDir),script=assertSafeWrite(path.join(this.stageDir,'update-helper.ps1'),this.deps.dataDir,this.deps.roots()),manifest=assertSafeWrite(path.join(this.stageDir,'install.json'),this.deps.dataDir,this.deps.roots());
    await fsp.writeFile(script,await fsp.readFile(path.resolve(__dirname,'../../../assets/update-helper.ps1')),{flag:'wx'});
    await fsp.writeFile(manifest,JSON.stringify({schema:1,version:this.asset.version,token,target,staged,stageDir:this.stageDir,dataDir:path.resolve(this.deps.dataDir),protectedRoots:this.deps.roots().map(root=>path.resolve(root)),sha256:this.asset.sha256,size:this.asset.size,expectedTargetSha256:this.baselineDigest,expectedTargetSize:this.owned!.size,parentPid:process.pid}),{flag:'wx'});
-   this.publish({status:'installing',downloadBps:0,message:'正在退出并应用更新；程序将自动重新打开。'});await (this.deps.launchHelper??launch)(script,manifest);await this.deps.quit();
-  }catch(error){this.publish({status:'error',message:error instanceof Error?error.message:'无法启动更新助手，当前版本保持不变。'});throw error}
+   this.publish({status:'installing',downloadBps:0,message:'正在退出并应用更新；程序将自动重新打开。'});
+   if(this.deps.launchHelper)await this.deps.launchHelper(script,manifest);
+   else{
+    const helperPid=await launch(script,manifest),file=assertSafeWrite(path.join(this.stageDir,'install-approved.json'),this.deps.dataDir,this.deps.roots()),handle=await fsp.open(file,'wx');approval=file;
+    try{await handle.writeFile(JSON.stringify({schema:1,token,parentPid:process.pid,helperPid,approved:true}),'utf8');await handle.sync()}finally{await handle.close()}
+   }
+   await this.deps.quit();
+  }catch(error){if(approval)try{assertSafeWrite(approval,this.deps.dataDir,this.deps.roots());await fsp.unlink(approval)}catch{/* A helper without a matching approval must stop before changing any executable. */}this.publish({status:'error',message:error instanceof Error?error.message:'无法启动更新助手，当前版本保持不变。'});throw error}
   return this.state();
  }
  cancel():void {if(this.current.status==='installing')return;this.operation?.abort(new DOMException('已取消更新操作。','AbortError'))}
