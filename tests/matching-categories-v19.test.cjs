@@ -1,0 +1,90 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+process.env.NODE_ENV='test';
+const {candidateScore,extractBoothIds,searchQueries}=require('../dist/main/main/matching');
+const {EnrichmentQueue,parseProduct,parseSearch}=require('../dist/main/main/online');
+const {inferProductCategory,inferCategory}=require('../dist/main/main/hints');
+const {Store}=require('../dist/main/main/store');
+const url=id=>'https://booth.pm/zh-cn/items/'+id;
+const product=(id,title,extra={})=>'<script type="application/ld+json">'+JSON.stringify({'@type':'Product',url:url(id),name:title,brand:{name:'Shop',url:'https://shop.booth.pm/'},...extra})+'</script>';
+// Compact public-page regression: https://li-ne.booth.pm/items/7643173, inspected 2026-10-19.
+const lovely=product('7643173','ラブリーロングヘア',{brand:{name:'Li-ne_Shop',url:'https://li-ne.booth.pm/'},description:'2025.11.13\nLovely Long Hair\nラブリーロングヘア\nUnity 2022バージョンをご使用ください。\n使用衣装\nOther Pretty Dress'});
+const html=body=>new Response(body,{headers:{'content-type':'text/html'}});
+function fixture(t,name,fetch,extra={}){const base=fs.mkdtempSync(path.join(os.tmpdir(),'vrc-v19-private-')),root=path.join(base,'synthetic-materials'),data=path.join(base,'app-data');fs.mkdirSync(root);const item={id:'a',path:path.join(root,name),name,group:'synthetic',kind:'archive',size:1,mtimeMs:0,missing:false,localCategory:'未分类',localAvatars:[],hintUrls:[],manual:{},online:{status:'pending'},createdAt:'',updatedAt:'',...extra},calls=[];const deps={dataDir:data,roots:()=>[root],all:()=>[item],get:id=>id==='a'?item:null,updateOnline:(_id,patch)=>item.online={...item.online,...patch},fetch:async target=>{calls.push(target);return fetch(target)},testing:{intervalMs:0,lookup:async()=>['93.184.216.34']}};fs.mkdirSync(data);const q=new EnrichmentQueue(deps);t.after(async()=>{q.stop();await q.waitIdle();fs.rmSync(base,{recursive:true,force:true})});return {q,item,calls,base,root,data,deps};}
+async function idle(q){for(let i=0;i<500;i++){if(!q.progress.running)return;await new Promise(r=>setTimeout(r,5))}throw Error('not idle')}
+
+test('observed Lovely Long Hair opening title alias verifies Li-ne prefixes while credits never become aliases',()=>{
+ const p=parseProduct(lovely,'https://li-ne.booth.pm/items/7643173');assert(p.titleAliases.includes('Lovely Long Hair'));assert(!p.titleAliases.includes('Other Pretty Dress'));
+ for(const name of ['Li-ne_Lovely Long Hair_v1.0.8.zip','Li-ne Lovely Long Hair v1.0.8.zip','Li-ne - Lovely Long Hair.zip','Li-neLovelyLongHair.zip'])assert.equal(candidateScore(name,p),1,name);
+ assert(candidateScore('UnknownLovelyLongHair.zip',p)<.95);
+ assert(candidateScore('Li-ne_Lovely Long Hair.zip',{...p,author:'Other',authorAliases:[]})<.95);
+ assert.equal(candidateScore('Li-neLovelyLongHair.zip',{...p,author:'Li',authorAliases:['Li','Li-ne']}),1,'longest verified prefix wins');
+});
+test('search variants preserve internal author hyphens and cap unique variants at three',()=>{
+ assert.deepEqual(searchQueries('Li-ne_Lovely Long Hair_v1.0.8.zip'),['Lovely Long Hair Li-ne','Lovely Long Hair','Li-ne Lovely Long Hair']);
+ assert.deepEqual(searchQueries('Li-ne Lovely Long Hair_v1.0.8.zip'),['Lovely Long Hair Li-ne','Lovely Long Hair','Li-ne Lovely Long Hair']);
+ assert.deepEqual(extractBoothIds('v1.1234567_20261019.zip'),[]);
+});
+test('same product official narrow category overrides title and tags; clothing texture companions remain clothing',()=>{
+ assert.equal(inferProductCategory({title:'Skin Texture',categories:['3D Models','3D Clothing'],tags:['Hair']}),'服装');
+ assert.equal(inferProductCategory({title:'Cozy Sweater Texture PNG Materials',tags:['Hair']}),'服装');
+ for(const name of ['Shoes Texture PNG','Socks Materials','衣装 Texture'])assert.equal(inferCategory(name),'服装');
+ assert.equal(inferProductCategory({title:'Opaque',description:'This outfit includes a dress.',tags:['Hair']}),'服装');
+});
+test('search category evidence belongs only to exact result item rather than recommendation cards',()=>{
+ const page='<div class="market-items"><div class="item-card" data-product-id="8801382"><a class="item-card__title" href="/en/items/8801382">Lily\'s Whisper</a><a href="/en/browse/3D%20Clothing">3D Clothing</a></div><div class="recommended-items"><div class="item-card" data-product-id="8801382"><a class="item-card__title" href="/en/items/8801382">Lily\'s Whisper</a><a href="/en/browse/3D%20Hair">3D Hair</a></div></div></div>';
+ const results=parseSearch(page,'https://booth.pm/en/search/Lily%27s%20Whisper');assert.equal(results[0].category,'服装');assert.equal(results[0].categoryEvidence.itemId,'8801382');assert.equal(results[0].categoryEvidence.rawCategory,'3D Clothing');
+});
+test('ID archive/version/copy follows direct Chinese item URL without title score',async t=>{
+ for(const name of ['7643173.zip','7643173_v1.0.8 (2).zip']){const f=fixture(t,name,async()=>html(lovely));await f.q.enqueue();await idle(f.q);assert.equal(f.item.online.status,'matched');assert.equal(f.calls[0],url('7643173'));assert.equal(f.item.online.matchEvidence.method,'filename-id');assert(f.item.online.titleAliases.includes('Lovely Long Hair'));}
+});
+test('wrong redirected IDs, multiple IDs and obvious author or title conflicts require review',async t=>{
+ for(const name of ['7643173_8801382.zip','Other Dress@Other_7643173.zip']){const f=fixture(t,name,async target=>html(target.includes('/search/')?'<div class="no-results">No results</div>':lovely));await f.q.enqueue();await idle(f.q);assert.equal(f.item.online.status,'review',name)}
+ const f=fixture(t,'7643173.zip',async target=>target===url('7643173')?new Response(null,{status:302,headers:{location:url('8801382')}}):html(product('8801382','Different')));await f.q.enqueue();await idle(f.q);assert.equal(f.item.online.status,'review');
+});
+test('missing product category uses exact search result evidence and never JSON endpoint',async t=>{
+ const f=fixture(t,'8801382.zip',async target=>html(target.includes('/search/')?'<div class="item-card" data-product-id="8801382"><a class="item-card__title" href="/en/items/8801382">Lily\'s Whisper</a><a href="/en/browse/clothing">3D Clothing</a></div>':product('8801382',"Lily's Whisper")));await f.q.enqueue();await idle(f.q);assert.equal(f.item.online.category,'服装');assert.equal(f.item.online.categoryEvidence.itemId,'8801382');assert(!f.calls.some(target=>target.includes('.json')));
+});
+test('official title/author aliases and strong category evidence survive raw, restart, export and import',t=>{
+ const base=fs.mkdtempSync(path.join(os.tmpdir(),'vrc-category-persist-')),root=path.join(base,'synthetic'),data=path.join(base,'data'),stores=[];fs.mkdirSync(root);t.after(()=>{for(const s of stores)try{s.close()}catch{}fs.rmSync(base,{recursive:true,force:true})});const open=d=>{const s=new Store(d,[root]);stores.push(s);return s};let s=open(data),a=s.upsertScan({path:path.join(root,'opaque.zip'),name:'opaque.zip',group:'synthetic',kind:'archive',size:1,mtimeMs:0,localCategory:'未分类',localAvatars:[],hintUrls:[]});
+ const evidence={rawCategory:'3D Clothing',sourceUrl:'https://booth.pm/en/search/Lily%27s%20Whisper',itemId:'8801382',ruleVersion:'1.9.0'};
+ s.updateOnline(a.id,{status:'matched',url:url('8801382'),title:'Skin Texture',titleAliases:["Lily's Whisper"],authorAliases:['shop'],category:'服装',categoryEvidence:evidence,candidates:[{url:url('8801382'),title:'Skin Texture',titleAliases:["Lily's Whisper"],authorAliases:['shop'],category:'服装',categoryEvidence:evidence}]});
+ const verify=store=>{const v=store.getRaw(a.id).online;assert.equal(v.category,'服装');assert.deepEqual(v.categoryEvidence,evidence);assert.deepEqual(v.titleAliases,["Lily's Whisper"]);assert.deepEqual(v.authorAliases,['shop']);assert.deepEqual(v.candidates[0].categoryEvidence,evidence);assert.deepEqual(v.candidates[0].titleAliases,["Lily's Whisper"])};verify(s);s.updateOnline(a.id,{status:'failed',url:url('7643173'),metadataSourceUrl:url('8801382')});verify(s);s.close();s=open(data);verify(s);const backup=path.join(base,'backup.json');s.exportData(backup);const other=open(path.join(base,'other'));other.importData(backup);verify(other);
+});
+test('legacy automatic correction preserves prior metadata on failed refresh and manual category override',async t=>{
+ const evidence={method:'filename-id',signals:[],ruleVersion:'1.6.0',recordedAt:''},f=fixture(t,'7643173.zip',async()=>{throw Error('offline')},{manual:{category:'饰品'},online:{status:'matched',title:'Prior title',url:url('7643173'),category:'头发',coverFile:'prior.png',matchEvidence:evidence}});await f.q.enqueue();await idle(f.q);assert(f.calls.length>0);assert.equal(f.item.online.status,'matched');assert.equal(f.item.online.title,'Prior title');assert.equal(f.item.online.coverFile,'prior.png');assert.equal(f.item.manual.category,'饰品');
+});
+test('persisted wrapper metadata survives rescan, reload and backup while invalid chains are discarded',t=>{
+ const base=fs.mkdtempSync(path.join(os.tmpdir(),'vrc-wrapper-store-')),root=path.join(base,'synthetic'),data=path.join(base,'data'),stores=[];fs.mkdirSync(root);t.after(()=>{for(const s of stores)try{s.close()}catch{}fs.rmSync(base,{recursive:true,force:true})});const open=d=>{const s=new Store(d,[root]);stores.push(s);return s},outer=path.join(root,'opaque'),leaf=path.join(outer,'product'),wrapper={contentRoot:leaf,chain:[outer,leaf]},input={path:outer,name:'opaque',group:'synthetic',kind:'folder',size:1,mtimeMs:0,localCategory:'未分类',localAvatars:[],hintUrls:[]};fs.mkdirSync(leaf,{recursive:true});let s=open(data),a=s.upsertScan({...input,wrapper});assert.deepEqual(s.getRaw(a.id).wrapper,wrapper);s.upsertScan(input);assert.deepEqual(s.getRaw(a.id).wrapper,wrapper);s.close();s=open(data);assert.deepEqual(s.getRaw(a.id).wrapper,wrapper);const backup=path.join(base,'backup.json');s.exportData(backup);const other=open(path.join(base,'other'));other.importData(backup);assert.deepEqual(other.getRaw(a.id).wrapper,wrapper);s.upsertScan({...input,wrapper:{contentRoot:root,chain:[outer,root]}});assert.equal(s.getRaw(a.id).wrapper,undefined);
+});
+test('restored sibling queue IDs collapse to the current binding and explicit accepted source wins',async t=>{
+ const f=fixture(t,'7643173.zip',async()=>html(lovely),{manual:{sourceUrl:url('7643173')}});f.q.stop();await f.q.waitIdle();fs.writeFileSync(path.join(f.data,'queue.json'),JSON.stringify({tasks:[{id:'inner'},{id:'a',url:url('8801382'),accept:true},{id:'inner',url:url('7643173'),accept:true,manualRequest:true}],activeTasks:[{id:'a'}],paused:true,completed:0}));const q=new EnrichmentQueue({...f.deps,canonicalId:id=>id==='inner'?'a':id});t.after(async()=>{q.stop();await q.waitIdle()});assert.equal(q.progress.pending,1);await q.resume();await idle(q);assert.equal(f.item.online.status,'matched');assert.equal(f.item.online.confirmedSource,true);assert.equal(f.item.online.url,url('7643173'));assert.equal(q.progress.completed,1);
+});
+test('missing official category supplements misleading inferred texture and marks a successful empty lookup current',async t=>{
+ const f=fixture(t,'8801382.zip',async target=>html(target.includes('/search/')?'<div class="item-card" data-product-id="8801382"><a class="item-card__title" href="/en/items/8801382">Skin Texture</a><a href="/en/browse/clothing">3D Clothing</a></div>':product('8801382','Skin Texture')));await f.q.enqueue();await idle(f.q);assert.equal(f.item.online.category,'服装');assert.equal(f.item.online.classificationCheckedVersion,'1.9.0');
+ const empty=fixture(t,'7643173.zip',async target=>html(target.includes('/search/')?'<div class="no-results">No results</div>':lovely));await empty.q.enqueue();await idle(empty.q);assert.equal(empty.item.online.classificationCheckedVersion,'1.9.0');const count=empty.calls.length;await empty.q.enqueue();await idle(empty.q);assert.equal(empty.calls.length,count,'successful empty category evidence does not create endless startup corrections');
+});
+test('recommendation card IDs cannot authenticate a different primary product page',()=>{
+ assert.throws(()=>parseProduct('<meta property="og:title" content="Wrong primary - Shop - BOOTH">'+product('8801382','Wrong primary')+'<div class="recommended-items"><div class="item-card" data-product-id="7643173">Suggested product</div></div>',url('7643173')));
+});
+test('Japanese search cards with the verified Li-ne shop are read before their English opening aliases are known',async t=>{
+ for(const name of ['Li-ne_Lovely Long Hair_v1.0.8.zip','Li-neLovelyLongHair.zip']){const f=fixture(t,name,async target=>html(target.includes('/search/')?'<div class="item-card"><a class="item-card__title" href="/ja/items/7643173">ラブリーロングヘア</a><a class="item-card__shop-name-anchor" href="https://li-ne.booth.pm/">Li-ne_Shop</a></div>':lovely));await f.q.enqueue();await idle(f.q);assert.equal(f.item.online.status,'matched',name);assert.equal(f.item.online.title,'ラブリーロングヘア');assert(f.item.online.titleAliases.includes('Lovely Long Hair'));}
+});
+test('failed optional category evidence preserves prior classification and persists a delayed bounded correction',async t=>{
+ const f=fixture(t,'8801382.zip',async target=>target.includes('/search/')?new Response('',{status:503}):html(product('8801382','Skin Texture')),{manual:{category:'饰品'},online:{status:'matched',title:'Prior',url:url('8801382'),category:'服装'}});await f.q.enqueue();await f.q.waitIdle();assert.equal(f.item.online.status,'matched');assert.equal(f.item.online.category,'服装');assert.equal(f.item.manual.category,'饰品');assert.equal(f.item.online.classificationCheckedVersion,undefined);assert.equal(f.q.progress.pending,1);const pending=JSON.parse(fs.readFileSync(path.join(f.data,'queue.json'),'utf8')).tasks;assert.equal(pending.length,1);assert(pending[0].notBefore>Date.now()+50000);assert.equal(pending[0].attempts,1);f.q.stop();
+});
+test('description browse links cannot become the product own category evidence',()=>{
+ for(const description of ['<div class="item-description">Recommended clothes <a href="/en/browse/3D%20Clothing">3D Clothing</a></div>','<div class="description"><nav aria-label="breadcrumb"><a href="/en/browse/3D%20Clothing">3D Clothing</a></nav></div>']){const parsed=parseProduct(lovely+'<article class="market-item-detail-article">'+description+'</article>',url('7643173'));assert.equal(parsed.category,'头发');assert.equal(parsed.categoryEvidence,undefined);}
+ const parsed=parseProduct(lovely+'<article class="market-item-detail-article"><nav aria-label="breadcrumb"><a href="/en/browse/3D%20Models">3D Models</a><a href="/en/browse/3D%20Hair">3D Hair</a></nav><div class="description">Recommended clothes <a href="/en/browse/3D%20Clothing">3D Clothing</a></div></article>',url('7643173'));assert.equal(parsed.category,'头发');assert.equal(parsed.categoryEvidence.rawCategory,'3D Hair');
+});
+test('ordinary opening prose never becomes a title alias while dated bilingual and explicitly labeled titles remain supported',()=>{
+ for(const description of ['Beautiful clothes for your next adventure','Soft clothes for you','EN: Beautiful clothes for your next adventure','2025.11.13\nBeautiful clothes for your next adventure\nラブリーロングヘア']){const parsed=parseProduct(product('7643173','ラブリーロングヘア',{description}),url('7643173'));assert.deepEqual(parsed.titleAliases,[]);assert(candidateScore('Beautiful clothes for your next adventure.zip',parsed)<.95);}
+ const labeled=parseProduct(product('7643173','ラブリーロングヘア',{description:'EN: Lovely Long Hair\nJP: ラブリーロングヘア\nUnity 2022 required'}),url('7643173'));assert.deepEqual(labeled.titleAliases,['Lovely Long Hair']);assert.equal(candidateScore('Lovely Long Hair.zip',labeled),1);
+ assert.deepEqual(parseProduct(lovely,url('7643173')).titleAliases,['Lovely Long Hair']);
+});
+test('broad BOOTH model parents and unknown leaves do not override product identity or create strong category evidence',()=>{
+ for(const categories of [['3D Models'],['3D Models','Other goods']])for(const [title,want] of [['Lovely Long Hair','头发'],['Winter Dress','服装']]){assert.equal(inferProductCategory({title,categories}),want);const links=categories.map(text=>'<a href="/en/browse/'+encodeURIComponent(text)+'">'+text+'</a>').join(''),parsed=parseProduct(product('7643173',title)+'<article class="market-item-detail-article"><div class="item-category">'+links+'</div></article>',url('7643173'));assert.equal(parsed.category,want);assert.equal(parsed.categoryEvidence,undefined);}
+ assert.equal(inferProductCategory({title:'Opaque',categories:['3D Models','3D Characters']}),'模型');
+});
+test('real Store retains previous classification through a failed evidence lookup and restart',async t=>{
+ const base=fs.mkdtempSync(path.join(os.tmpdir(),'vrc-real-category-failure-')),root=path.join(base,'synthetic'),dataDir=path.join(base,'data'),file=path.join(root,'opaque.zip');fs.mkdirSync(root);fs.writeFileSync(file,'private synthetic');let store=new Store(dataDir,[root]);const item=store.upsertScan({path:file,name:'opaque.zip',kind:'archive',group:'synthetic',size:1,mtimeMs:0,localCategory:'未分类',localAvatars:[],hintUrls:[]});store.updateOnline(item.id,{status:'matched',title:'Opaque',url:url('8801382'),category:'服装'});store.updateManual([item.id],{category:'饰品'});const q=new EnrichmentQueue({dataDir,roots:()=>[root],all:()=>store.all(),get:id=>store.getRaw(id),updateOnline:(id,patch)=>store.updateOnline(id,patch),fetch:async target=>target.includes('/search/')?new Response('',{status:503}):html(product('8801382','Skin Texture')),testing:{intervalMs:0,lookup:async()=>['93.184.216.34']}});t.after(async()=>{q.stop();await q.waitIdle();store.close();fs.rmSync(base,{recursive:true,force:true})});await q.enqueue();await q.waitIdle();assert.equal(store.getRaw(item.id).online.category,'服装');assert.equal(store.getRaw(item.id).manual.category,'饰品');q.stop();await q.waitIdle();store.close();store=new Store(dataDir,[root]);assert.equal(store.getRaw(item.id).online.category,'服装');assert.equal(store.getRaw(item.id).manual.category,'饰品');
+});

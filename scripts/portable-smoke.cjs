@@ -1,0 +1,10 @@
+const fs=require('node:fs');const path=require('node:path');const {spawn}=require('node:child_process');
+const binary=path.resolve(process.argv[2]);
+const base=process.env.VRC_SMOKE_RUN_DIR?path.resolve(process.env.VRC_SMOKE_RUN_DIR):path.resolve(__dirname,'..','..');const data=path.join(base,'portable-smoke-data');const root=path.join(base,'portable-smoke-materials');
+fs.mkdirSync(root,{recursive:true});fs.mkdirSync(data,{recursive:true});
+const ready=path.join(data,'smoke-ready.json');if(fs.existsSync(ready))fs.unlinkSync(ready);
+const child=spawn(binary,[],{windowsHide:true,stdio:['ignore','pipe','pipe'],env:{...process.env,VRC_LIBRARY_DATA_DIR:data,VRC_LIBRARY_ROOT:root,VRC_LIBRARY_NO_NETWORK:'1',VRC_LIBRARY_NO_AUTOSCAN:'1',VRC_LIBRARY_TEST_HIDDEN:'1',VRC_LIBRARY_SMOKE:'1',VRC_LIBRARY_SMOKE_EXIT:'1'}});
+let log='';child.stderr.on('data',d=>log+=d);child.stdout.on('data',d=>log+=d);
+const timer=setTimeout(()=>{child.kill();console.error('Portable startup timed out',log.slice(-2000));process.exitCode=1},90000);
+child.on('error',e=>{clearTimeout(timer);console.error(e);process.exitCode=1});
+child.on('exit',code=>{clearTimeout(timer);if(!fs.existsSync(ready)){console.error('No readiness report',code,log.slice(-2000));process.exitCode=1;return}const report=JSON.parse(fs.readFileSync(ready,'utf8'));if(!report.packaged||!report.sqlite){console.error(report);process.exitCode=1;return}console.log(JSON.stringify({portableStartup:true,...report}));fs.writeFileSync(path.join(base,'portable-smoke-result.json'),JSON.stringify(report,null,2))});

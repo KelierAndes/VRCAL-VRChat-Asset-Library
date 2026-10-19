@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build-stage/
+outputs/
+test-artifacts/
+tests/.fixtures*/
+*.log
+*.sqlite*
+*.db
+.env
+.env.*
+!.env.example
+VRC-library-location.json
+booth-session/
+xianyu-session/
+__pycache__/
+*.pyc

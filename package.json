@@ -1,0 +1,69 @@
+{
+  "name": "vrchat-asset-library",
+  "version": "1.9.0",
+  "private": true,
+  "description": "本地 VRChat 素材库",
+  "author": "Local Library",
+  "main": "dist/main/main/main.js",
+  "scripts": {
+    "dev": "npm run build && electron .",
+    "build": "tsc -p tsconfig.main.json && vite build",
+    "check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "test": "tsc -p tsconfig.main.json && node --test --test-concurrency=4 tests/*.test.cjs",
+    "package": "npm run build && install-electron && electron-builder --win portable --x64"
+  },
+  "dependencies": {
+    "cheerio": "1.1.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "yauzl": "3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/yauzl": "^2.10.3",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "typescript": "^5.9.0",
+    "vite": "^7.0.0",
+    "playwright": "^1.56.0"
+  },
+  "build": {
+    "appId": "local.vrchat.assetlibrary",
+    "productName": "VRC素材库",
+    "directories": {
+      "output": "../build-stage"
+    },
+    "electronDist": "node_modules/electron/dist",
+    "files": [
+      "dist/**/*",
+      "assets/library.png",
+      "assets/preview.html",
+      "assets/booth-workspace.html",
+      "assets/window-themes.css",
+      "assets/xianyu.html",
+      "assets/xianyu.css",
+      "assets/fonts/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/library.ico",
+      "signExecutable": false
+    },
+    "portable": {
+      "artifactName": "VRC-Asset-Library-${version}-x64.exe",
+      "requestExecutionLevel": "user"
+    }
+  }
+}

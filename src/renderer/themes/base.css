@@ -1,0 +1,944 @@
+/* Shared light foundations. Loaded after legacy layout and before each theme. */
+@font-face{font-family:Inter;src:url('../../../assets/fonts/Inter-Regular.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap}
+@font-face{font-family:Inter;src:url('../../../assets/fonts/Inter-Bold.woff2') format('woff2');font-style:normal;font-weight:700;font-display:swap}
+html[data-theme]{--paper:#ece5d6;--surface:#f7f2e6;--ink:#252b2b;--muted:#65665f;--line:#b7b0a2;--accent:#d63a2c;--accent-contrast:#fff;--bg:var(--paper);--panel:var(--surface);--cyan:#4c5a68;color-scheme:light;color:var(--ink);background:var(--paper);font-family:Inter,Helvetica,Arial,'Microsoft YaHei UI',sans-serif;font-synthesis:none;font-weight:400}
+html[data-theme='swiss']{--paper:var(--swiss-paper,#f1eee5);--surface:var(--swiss-paper,#f1eee5);--ink:var(--swiss-ink,#111);--accent-contrast:var(--swiss-paper,#f1eee5)}
+html[data-theme] body{background:var(--bg);color:var(--ink)}
+html[data-theme] .app-shell{min-width:0;min-height:0}
+html[data-theme] :is(.workspace,.sidebar){min-height:0}
+html[data-theme] .top-actions{min-width:0;flex-wrap:wrap;align-items:center}
+html[data-theme] :is(button,input,select,textarea){min-width:0}
+html[data-theme] :is(button,input,select,textarea,[tabindex]):focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+html[data-theme] .theme-wordmark-nasa{display:block}
+html[data-theme] .theme-wordmark-swiss{display:none}
+html[data-theme] .theme-switch{display:inline-flex;align-items:center;gap:8px;min-width:0;font-size:10px;color:var(--muted)}
+html[data-theme] .theme-switch>span{white-space:nowrap}
+html[data-theme] .theme-switch select{min-width:0;max-width:170px;min-height:32px;padding:5px 8px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:2px;font-size:10px}
+html[data-theme] .theme-settings{margin:18px 0 20px;padding-top:18px;border-top:1px solid var(--line)}
+html[data-theme] .theme-settings>h3{margin:0 0 8px;font-size:14px;font-weight:700;color:var(--ink)}
+html[data-theme] .theme-settings>p{margin:0 0 13px;font-size:11px;line-height:1.7;color:var(--muted)}
+html[data-theme] .modal:has(.theme-settings){width:720px}
+html[data-theme] .theme-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px}
+html[data-theme] .theme-option{display:flex;flex-direction:column;align-items:stretch;gap:13px;min-width:0;padding:12px;border:1px solid var(--line);border-radius:2px;background:var(--surface);color:var(--ink);text-align:left}
+html[data-theme] .theme-option:hover{border-color:var(--ink)}
+html[data-theme] .theme-option[aria-pressed='true']{border-color:var(--ink);outline:1px solid var(--ink);outline-offset:-4px}
+html[data-theme] .theme-preview{display:flex;flex-direction:column;justify-content:space-between;flex:0 0 108px;min-height:108px;padding:10px;overflow:hidden;border:1px solid var(--line);text-align:left;background:var(--paper);color:var(--ink)}
+html[data-theme] .theme-preview>span{font-size:8px;line-height:1.3;letter-spacing:.08em}
+html[data-theme] .theme-preview>strong{font-size:24px;line-height:1;font-weight:700;letter-spacing:-.04em}
+html[data-theme] .theme-preview>small{font-size:7px;line-height:1.5}
+html[data-theme] .theme-preview-nasa{border-radius:2px;border-color:#96968b;background:#ece5d6;color:#252b2b;font-family:Consolas,monospace}
+html[data-theme] .theme-preview-nasa>span{padding-top:4px;border-top:3px solid #4c5a68}
+html[data-theme] .theme-preview-nasa>small{border-top:1px solid #96968b;padding-top:4px}
+html[data-theme] .theme-preview-swiss{border-radius:0;border-color:#111;background:#f1eee5;color:#111;font-family:Inter,Helvetica,Arial,sans-serif}
+html[data-theme] .theme-preview-swiss>span{letter-spacing:0}
+html[data-theme] .theme-preview-swiss>strong{font-size:34px;color:#da291c}
+html[data-theme] .theme-preview-x{border-radius:10px;border-color:#2f3336;background:#000000;color:#e7e9ea;font-family:Inter,'Microsoft YaHei UI',sans-serif}
+html[data-theme] .theme-preview-x>span{letter-spacing:0;color:#71767b}
+html[data-theme] .theme-preview-x>strong{font-size:24px;color:#e7e9ea}
+html[data-theme] .theme-preview-x>small{align-self:flex-start;border-radius:999px;padding:3px 8px;background:#1d9bf0;color:#000000}
+html[data-theme] .theme-option-copy{min-width:0;flex:1;align-self:stretch;display:flex;flex-direction:column;gap:7px}
+html[data-theme] .theme-option-copy>strong{font-size:12px;font-weight:700;line-height:1.5}
+html[data-theme] .theme-option-copy>span{font-size:10px;color:var(--muted);line-height:1.7}
+@media(max-width:760px){html[data-theme] .theme-switch{gap:5px}html[data-theme] .theme-switch select{max-width:145px}}
+/* Static palette bridge: legacy selectors keep their layout and state behavior.
+   Hard-coded dark/purple colours become semantic theme variables; no runtime rewriting. */
+html[data-theme] {color:var(--ink);background:var(--paper)
+}
+html[data-theme] button:focus-visible,html[data-theme] input:focus-visible,html[data-theme] select:focus-visible,html[data-theme] textarea:focus-visible,html[data-theme] [tabindex]:focus-visible {outline:2px solid var(--ink)
+}
+html[data-theme] ::-webkit-scrollbar-thumb {background:var(--surface)
+}
+html[data-theme] ::selection {background:var(--ink);color:var(--paper)
+}
+html[data-theme] .sidebar {background:var(--paper)
+}
+html[data-theme] .brand-mark {color:var(--ink);background:var(--surface);box-shadow:none
+}
+html[data-theme] .sidebar-label {color:var(--muted)
+}
+html[data-theme] .nav-item {color:var(--ink)
+}
+html[data-theme] .nav-item small {color:var(--ink)
+}
+html[data-theme] .nav-item:hover,html[data-theme] .category-item:hover {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .nav-item.active {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .nav-item.active small {color:var(--ink)
+}
+html[data-theme] .nav-pending {background:var(--surface)
+}
+html[data-theme] .category-label button {color:var(--muted)
+}
+html[data-theme] .category-item {color:var(--ink)
+}
+html[data-theme] .category-item small {color:var(--muted)
+}
+html[data-theme] .category-item.active {color:var(--ink);background:var(--surface)
+}
+html[data-theme] .category-dot {background:var(--surface)
+}
+html[data-theme] .dot-模型 {background:var(--ink)
+}
+html[data-theme] .dot-服装 {background:var(--ink)
+}
+html[data-theme] .dot-头发 {background:var(--ink)
+}
+html[data-theme] .dot-饰品 {background:var(--ink)
+}
+html[data-theme] .dot-贴图 {background:var(--ink)
+}
+html[data-theme] .dot-未分类 {background:var(--surface)
+}
+html[data-theme] .source-note {color:var(--ink)
+}
+html[data-theme] .safe-dot {background:var(--ink)
+}
+html[data-theme] .tiny-pill {border:1px solid var(--line);color:var(--muted)
+}
+html[data-theme] .topbar {border-bottom:1px solid var(--line);background:var(--paper)
+}
+html[data-theme] .breadcrumb {color:var(--muted)
+}
+html[data-theme] .breadcrumb strong {color:var(--ink)
+}
+html[data-theme] .breadcrumb>span {color:var(--muted)
+}
+html[data-theme] .button {border:1px solid var(--line);background:var(--surface);color:var(--ink)
+}
+html[data-theme] .button:hover:not(:disabled) {background:var(--surface);border-color:var(--line)
+}
+html[data-theme] .button.primary {background:var(--accent);border-color:var(--accent);color:var(--accent-contrast)
+}
+html[data-theme] .button.primary:hover:not(:disabled) {background:var(--accent);border-color:var(--accent)
+}
+html[data-theme] .eyebrow {color:var(--muted)
+}
+html[data-theme] h1 {color:var(--ink)
+}
+html[data-theme] h1>span {color:var(--ink);background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .workspace-heading p {color:var(--muted)
+}
+html[data-theme] .online-switch {color:var(--ink)
+}
+html[data-theme] .switch-track {background:var(--surface)
+}
+html[data-theme] .switch-track:before {background:var(--ink)
+}
+html[data-theme] .online-switch>input:checked+.switch-track {background:var(--surface)
+}
+html[data-theme] .online-switch>input:checked+.switch-track:before {background:var(--ink)
+}
+html[data-theme] .search-field {background:var(--surface);border:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .search-field:focus-within {border-color:var(--line)
+}
+html[data-theme] .search-field input {color:var(--ink)
+}
+html[data-theme] .search-field input::placeholder {color:var(--muted)
+}
+html[data-theme] .search-field kbd {color:var(--muted);border:1px solid var(--line)
+}
+html[data-theme] .icon-button {color:var(--ink)
+}
+html[data-theme] .icon-button:hover {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .icon-button.active {color:var(--ink);background:var(--surface)
+}
+html[data-theme] .filter-row {color:var(--muted)
+}
+html[data-theme] .filter-row select {color:var(--ink);background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .result-caption {color:var(--muted)
+}
+html[data-theme] .activity-strip {border:1px solid var(--line);background:var(--surface);color:var(--ink)
+}
+html[data-theme] .activity-strip span {color:var(--muted)
+}
+html[data-theme] .text-button {color:var(--ink)
+}
+html[data-theme] .text-button:hover {color:var(--ink)
+}
+html[data-theme] .selection-bar {background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .selection-bar label {color:var(--ink)
+}
+html[data-theme] .selection-bar button {color:var(--ink)
+}
+html[data-theme] .selection-clear {color:var(--ink)!important
+}
+html[data-theme] input[type=checkbox] {accent-color:var(--ink)
+}
+html[data-theme] .content-layout {border-top:1px solid var(--line)
+}
+html[data-theme] .asset-card {background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .asset-card:hover {border-color:var(--line);box-shadow:none
+}
+html[data-theme] .asset-card.focused {border-color:var(--line);box-shadow:none
+}
+html[data-theme] .asset-card.selected {border-color:var(--line)
+}
+html[data-theme] .card-cover {background:var(--surface)
+}
+html[data-theme] .cover-placeholder {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .cover-placeholder>span {color:var(--muted)
+}
+html[data-theme] .cover-服装,html[data-theme] .cover-饰品 {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .cover-贴图,html[data-theme] .cover-工具 {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .placeholder-orbit {border:1px solid var(--line)
+}
+html[data-theme] .placeholder-orbit:after {border:1px solid var(--line)
+}
+html[data-theme] .card-category {background:var(--surface);backdrop-filter:none;border:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .card-select>span {border:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .card-select input:checked+span {background:var(--ink);color:var(--paper);border-color:var(--line)
+}
+html[data-theme] .card-select input:focus-visible+span {outline:2px solid var(--ink)
+}
+html[data-theme] .card-favorite {background:var(--surface);backdrop-filter:none;color:var(--ink)
+}
+html[data-theme] .is-favorite {color:var(--ink)!important
+}
+html[data-theme] .is-favorite svg {fill:var(--accent)
+}
+html[data-theme] .card-badge {background:var(--surface);border:1px solid var(--line);color:var(--ink);backdrop-filter:none
+}
+html[data-theme] .card-badge.project-badge {color:var(--ink);background:var(--surface);border-color:var(--line)
+}
+html[data-theme] .danger {color:var(--accent)!important;background:var(--surface)!important
+}
+html[data-theme] .card-body h3 {color:var(--ink)
+}
+html[data-theme] .card-author {color:var(--muted)
+}
+html[data-theme] .card-tags>span {color:var(--ink);background:var(--surface)
+}
+html[data-theme] .card-tags .muted-tag {color:var(--muted);background:var(--surface)
+}
+html[data-theme] .card-footer {border-top:1px solid var(--line);color:var(--muted)
+}
+html[data-theme] .card-footer>button {color:var(--ink)
+}
+html[data-theme] .card-footer>button:hover {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .gallery-footnote {color:var(--muted)
+}
+html[data-theme] .empty-symbol {color:var(--ink);background:var(--surface);border:1px solid var(--line);box-shadow:none
+}
+html[data-theme] .empty-state h2 {color:var(--ink)
+}
+html[data-theme] .empty-state p {color:var(--muted)
+}
+html[data-theme] .detail-panel {border-left:1px solid var(--line);background:var(--paper)
+}
+html[data-theme] .detail-header {border-bottom:1px solid var(--line)
+}
+html[data-theme] .detail-header strong {color:var(--ink)
+}
+html[data-theme] .detail-cover {background:var(--surface)
+}
+html[data-theme] .cover-change {background:var(--surface);backdrop-filter:none;border:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .cover-change:hover {background:var(--surface)
+}
+html[data-theme] .detail-title h2 {color:var(--ink)
+}
+html[data-theme] .detail-subtitle {color:var(--ink)
+}
+html[data-theme] .detail-subtitle span {color:var(--muted)
+}
+html[data-theme] .detail-tabs {border-bottom:1px solid var(--line)
+}
+html[data-theme] .detail-tabs>button {color:var(--muted)
+}
+html[data-theme] .detail-tabs>button.active {color:var(--ink);border-bottom-color:var(--line)
+}
+html[data-theme] .detail-section {border-bottom:1px solid var(--line)
+}
+html[data-theme] .section-label {color:var(--ink)
+}
+html[data-theme] .section-label>span {color:var(--muted)
+}
+html[data-theme] .metadata-row>span {color:var(--muted)
+}
+html[data-theme] .metadata-row>strong {color:var(--ink)
+}
+html[data-theme] .path-box {background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .path-box>span {color:var(--ink)
+}
+html[data-theme] .path-box .text-button {color:var(--ink)
+}
+html[data-theme] .avatar-block>span {color:var(--muted)
+}
+html[data-theme] .chips>span {color:var(--ink);background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .online-avatars .chips>span {color:var(--ink);background:var(--surface);border-color:var(--line)
+}
+html[data-theme] .help-text {color:var(--muted)
+}
+html[data-theme] .source-link {color:var(--ink);background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .source-link:hover {background:var(--surface)
+}
+html[data-theme] .status-label {background:var(--surface);color:var(--ink)!important
+}
+html[data-theme] .status-matched {background:var(--surface);color:var(--ink)!important
+}
+html[data-theme] .status-review {background:var(--surface);color:var(--ink)!important
+}
+html[data-theme] .field {color:var(--ink)
+}
+html[data-theme] .field input,html[data-theme] .field textarea,html[data-theme] .field select {background:var(--surface);border:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .field input:focus,html[data-theme] .field textarea:focus,html[data-theme] .field select:focus {border-color:var(--line)
+}
+html[data-theme] .field input::placeholder,html[data-theme] .field textarea::placeholder {color:var(--muted)
+}
+html[data-theme] .unsaved {color:var(--ink)!important
+}
+html[data-theme] .file-entry {border-bottom:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .file-entry>span {color:var(--ink)
+}
+html[data-theme] .file-entry>small {color:var(--muted)
+}
+html[data-theme] .file-notice {background:var(--surface);border:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .error-text {color:var(--accent)
+}
+html[data-theme] .candidate-list>p {color:var(--ink)
+}
+html[data-theme] .candidate {background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .candidate>strong {color:var(--ink)
+}
+html[data-theme] .candidate>span {color:var(--muted)
+}
+html[data-theme] .context-menu {background:var(--surface);border:1px solid var(--line);box-shadow:none
+}
+html[data-theme] .context-title {color:var(--muted);border-bottom:1px solid var(--line)
+}
+html[data-theme] .context-menu>button {color:var(--ink)
+}
+html[data-theme] .context-menu>button>.icon {color:var(--ink)
+}
+html[data-theme] .context-menu>button:hover:not(:disabled),html[data-theme] .context-menu>button:focus-visible {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .context-menu>button:disabled {color:var(--muted)
+}
+html[data-theme] .context-divider {background:var(--surface)
+}
+html[data-theme] .modal-overlay {background:color-mix(in srgb,var(--ink) 25%,transparent);backdrop-filter:none
+}
+html[data-theme] .modal {background:var(--surface);border:1px solid var(--line);box-shadow:none
+}
+html[data-theme] .modal-symbol {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .modal-header h2 {color:var(--ink)
+}
+html[data-theme] .modal-footer {border-top:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .modal-description {color:var(--ink)
+}
+html[data-theme] .setting-block {border-bottom:1px solid var(--line)
+}
+html[data-theme] .setting-block h3 {color:var(--ink)
+}
+html[data-theme] .setting-block>p {color:var(--muted)
+}
+html[data-theme] .setting-path {color:var(--ink);background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .settings-notice {color:var(--ink)
+}
+html[data-theme] .settings-notice p {color:var(--muted)
+}
+html[data-theme] .relation-entry {border-bottom:1px solid var(--line)
+}
+html[data-theme] .relation-entry strong {color:var(--ink)
+}
+html[data-theme] .relation-entry span {color:var(--muted)
+}
+html[data-theme] .toast {background:var(--surface);border:1px solid var(--line);box-shadow:none;color:var(--ink)
+}
+html[data-theme] .toast.error {background:var(--surface);border-color:var(--line);color:var(--ink)
+}
+html[data-theme] .network-panel {background:var(--surface);border:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .network-status {color:var(--ink);background:var(--surface)
+}
+html[data-theme] .network-status.receiving {color:var(--ink);background:var(--surface)
+}
+html[data-theme] .network-request>strong {color:var(--ink)
+}
+html[data-theme] .network-material {color:var(--ink)
+}
+html[data-theme] .network-url {color:var(--ink)
+}
+html[data-theme] .network-url:hover {color:var(--ink)
+}
+html[data-theme] .network-traffic span {color:var(--muted)
+}
+html[data-theme] .network-traffic strong {color:var(--ink)
+}
+html[data-theme] .network-traffic>div:last-child strong {color:var(--ink)
+}
+html[data-theme] .network-progress {background:var(--surface)
+}
+html[data-theme] .network-progress>span {background:var(--ink)
+}
+html[data-theme] .network-progress.indeterminate:before {background:var(--ink)
+}
+html[data-theme] .network-progress-row>span {color:var(--ink)
+}
+html[data-theme] .network-note {color:var(--muted)
+}
+html[data-theme] .network-history {color:var(--ink)
+}
+html[data-theme] .network-history>summary>span {color:var(--muted)
+}
+html[data-theme] .transfer-entry {border-top:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .transfer-entry strong {color:var(--ink)
+}
+html[data-theme] .transfer-entry small {color:var(--muted)
+}
+html[data-theme] .transfer-entry em {color:var(--ink)
+}
+html[data-theme] .transfer-entry:hover strong,html[data-theme] .transfer-entry:hover small {color:var(--ink)
+}
+html[data-theme] .transfer-error em,html[data-theme] .transfer-error>.icon {color:var(--ink)
+}
+html[data-theme] .compatibility-legend>span {color:var(--ink)
+}
+html[data-theme] .compatibility-legend i {background:var(--surface)
+}
+html[data-theme] .compatibility-legend .local-dot {background:var(--surface)
+}
+html[data-theme] .compatibility-avatar.local {color:var(--ink);background:var(--surface);border-color:var(--line)
+}
+html[data-theme] .compatibility-avatar.absent {color:var(--muted);background:var(--surface);border-color:var(--line)
+}
+html[data-theme] .compatibility-summary {color:var(--ink)
+}
+html[data-theme] .compatibility-summary .absent-summary {color:var(--muted)
+}
+html[data-theme] .evidence-list {color:var(--ink)
+}
+html[data-theme] .evidence-list>div {border-bottom:1px solid var(--line)
+}
+html[data-theme] .evidence-list strong {color:var(--ink)
+}
+html[data-theme] .evidence-list small {color:var(--muted)
+}
+html[data-theme] .evidence-list>div>span {color:var(--muted)
+}
+html[data-theme] .local-members {border-top:1px solid var(--line)
+}
+html[data-theme] .local-member {border:1px solid var(--line);background:var(--surface);color:var(--ink)
+}
+html[data-theme] .local-member strong {color:var(--ink)
+}
+html[data-theme] .local-member span {color:var(--muted)
+}
+html[data-theme] .local-member small {color:var(--ink)
+}
+html[data-theme] .member-notes {color:var(--ink)
+}
+html[data-theme] .member-notes p {color:var(--ink)
+}
+html[data-theme] .backup-path {color:var(--ink)!important
+}
+html[data-theme] .proxy-state {background:var(--surface);border:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .proxy-status-dot {background:var(--surface)
+}
+html[data-theme] .proxy-state strong {color:var(--ink)
+}
+html[data-theme] .proxy-state>div>span,html[data-theme] .proxy-state small {color:var(--ink)
+}
+html[data-theme] .proxy-state.proxy-available .proxy-status-dot {background:var(--ink);box-shadow:none
+}
+html[data-theme] .proxy-state.proxy-available strong {color:var(--ink)
+}
+html[data-theme] .proxy-state.proxy-error .proxy-status-dot {background:var(--ink)
+}
+html[data-theme] .proxy-state.proxy-error strong {color:var(--ink)
+}
+html[data-theme] .proxy-state.proxy-disabled .proxy-status-dot {background:var(--surface)
+}
+html[data-theme] .proxy-state.proxy-checking .proxy-status-dot {background:var(--ink)
+}
+html[data-theme] .proxy-endpoint {color:var(--muted)
+}
+html[data-theme] .zoom-actions select {background:var(--surface);border:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .hover-preview {background:var(--surface);border:1px solid var(--line);box-shadow:none
+}
+html[data-theme] .hover-cover {background:var(--surface);border-bottom:1px solid var(--line)
+}
+html[data-theme] .hover-category {color:var(--ink)
+}
+html[data-theme] .hover-content h3 {color:var(--ink)
+}
+html[data-theme] .hover-author {color:var(--ink)
+}
+html[data-theme] .hover-content>p {color:var(--ink)
+}
+html[data-theme] .hover-avatars>strong {color:var(--ink)
+}
+@media (max-width:900px) {
+html[data-theme] .detail-panel {box-shadow:none
+}
+}
+html[data-theme] .transfer-entry em .transfer-average {color:var(--ink)
+}
+html[data-theme] .download-summary {background:var(--surface);border-color:var(--line)
+}
+html[data-theme] .download-summary-status>strong {color:var(--ink)
+}
+html[data-theme] .download-session-stats {color:var(--muted)
+}
+html[data-theme] .download-session-stats b {color:var(--ink)
+}
+html[data-theme] .download-summary .network-traffic strong {color:var(--ink)
+}
+html[data-theme] .download-expand.button {background:var(--surface);border-color:var(--line)
+}
+html[data-theme] .download-expand:hover {background:var(--surface)
+}
+html[data-theme] .latest-download {border-top:1px solid var(--line)
+}
+html[data-theme] .latest-download-badge {color:var(--ink)
+}
+html[data-theme] .latest-download-name {color:var(--ink)
+}
+html[data-theme] .latest-download-data {color:var(--ink)
+}
+html[data-theme] .download-modal {border-color:var(--line)
+}
+html[data-theme] .download-heading h2 {color:var(--ink)
+}
+html[data-theme] .download-heading p {color:var(--ink)
+}
+html[data-theme] .download-stat-grid>div {background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .download-stat-grid span {color:var(--ink)
+}
+html[data-theme] .download-stat-grid strong {color:var(--ink)
+}
+html[data-theme] .download-stat-grid>div:last-child strong {color:var(--ink)
+}
+html[data-theme] .download-stat-grid small {color:var(--ink)
+}
+html[data-theme] .speed-chart-panel {border:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .chart-heading strong {color:var(--ink)
+}
+html[data-theme] .chart-heading>div>span {color:var(--muted)
+}
+html[data-theme] .chart-peak {color:var(--ink)
+}
+html[data-theme] .chart-peak b {color:var(--ink)
+}
+html[data-theme] .download-chart text {fill:var(--muted)
+}
+html[data-theme] .download-chart .chart-empty {fill:var(--muted)
+}
+html[data-theme] .chart-grid {stroke:var(--line)
+}
+html[data-theme] .chart-download-fill {fill:var(--surface)
+}
+html[data-theme] .chart-download-line {stroke:var(--ink)
+}
+html[data-theme] .chart-upload-line {stroke:var(--cyan)
+}
+html[data-theme] .chart-download-dot {fill:var(--muted)
+}
+html[data-theme] .chart-legend {color:var(--ink)
+}
+html[data-theme] .chart-legend i {background:var(--surface)
+}
+html[data-theme] .chart-legend>span:nth-child(2) i {background:var(--surface)
+}
+html[data-theme] .chart-legend small {color:var(--muted)
+}
+html[data-theme] .concurrency-select {color:var(--ink)
+}
+html[data-theme] .concurrency-select select,html[data-theme] .download-section-heading select {background:var(--surface);border:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .download-controls {border-bottom:1px solid var(--line)
+}
+html[data-theme] .download-controls>span {color:var(--muted)
+}
+html[data-theme] .download-section-heading h3 {color:var(--ink)
+}
+html[data-theme] .download-section-heading h3 span {color:var(--muted);background:var(--surface)
+}
+html[data-theme] .download-section-heading>span {color:var(--muted)
+}
+html[data-theme] .active-transfer {border:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .active-transfer.phase-downloading {border-color:var(--line);background:var(--surface)
+}
+html[data-theme] .request-kind {color:var(--ink)
+}
+html[data-theme] .request-phase {color:var(--ink)
+}
+html[data-theme] .phase-waiting .request-phase {color:var(--ink)
+}
+html[data-theme] .active-transfer-name {color:var(--ink)
+}
+html[data-theme] .active-transfer .network-url {color:var(--muted)
+}
+html[data-theme] .active-transfer-footer {color:var(--ink)
+}
+html[data-theme] .active-transfer-footer>span:first-child {color:var(--ink)
+}
+html[data-theme] .network-empty {background:var(--surface);border:1px dashed var(--line);color:var(--ink)
+}
+html[data-theme] .history-explanation {color:var(--muted)
+}
+html[data-theme] .download-modal .network-history>.transfer-history-list {border:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .download-modal .transfer-entry {border-top-color:var(--line)
+}
+html[data-theme] .download-modal .transfer-entry:hover {background:var(--surface)
+}
+html[data-theme] .download-modal .transfer-entry>.history-icon {color:var(--ink);background:var(--surface)
+}
+html[data-theme] .download-modal .transfer-entry>.history-icon.cached {color:var(--ink);background:var(--surface)
+}
+html[data-theme] .download-modal .transfer-error>.history-icon {color:var(--ink);background:var(--surface)
+}
+html[data-theme] .download-modal .transfer-entry-content strong {color:var(--ink)
+}
+html[data-theme] .download-modal .transfer-entry-content small {color:var(--ink)
+}
+html[data-theme] .download-modal .transfer-entry-content .history-url {color:var(--muted)
+}
+html[data-theme] .download-modal .transfer-entry-metrics strong {color:var(--ink)
+}
+html[data-theme] .download-modal .transfer-entry-metrics small {color:var(--ink)
+}
+html[data-theme] .download-modal .transfer-entry-metrics .transfer-average {color:var(--ink)
+}
+html[data-theme] .download-modal .transfer-error .transfer-entry-metrics strong {color:var(--ink)
+}
+html[data-theme] .download-modal-footer>span {color:var(--ink)
+}
+html[data-theme] .enrichment-split .enrichment-toggle {border-left:1px solid var(--line)
+}
+html[data-theme] .enrichment-menu>p {color:var(--ink)
+}
+html[data-theme] .detail-candidate-cover {border:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .candidate-cover-placeholder {color:var(--muted);background:var(--surface)
+}
+html[data-theme] .candidate-cover-placeholder>.icon {color:var(--ink)
+}
+html[data-theme] .candidate-cover-placeholder>span {color:var(--ink)
+}
+html[data-theme] .review-cover-action {color:var(--ink);border:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .review-page-toolbar strong {color:var(--ink)
+}
+html[data-theme] .review-page-toolbar span {color:var(--muted)
+}
+html[data-theme] .review-unfound {border:1px solid var(--line);background:var(--surface);color:var(--ink)
+}
+html[data-theme] .review-unfound b {color:var(--ink)
+}
+html[data-theme] .review-row {border:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .review-local {border-right:1px solid var(--line)
+}
+html[data-theme] .review-local-title>.icon {color:var(--ink)
+}
+html[data-theme] .review-local h3 {color:var(--ink)
+}
+html[data-theme] .review-local-path {color:var(--muted)
+}
+html[data-theme] .review-local-adaptation>span {color:var(--ink)
+}
+html[data-theme] .review-local-adaptation>small {color:var(--muted)
+}
+html[data-theme] .review-local-members {color:var(--ink)
+}
+html[data-theme] .review-match-reason {color:var(--ink)
+}
+html[data-theme] .review-candidate {border:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .review-candidate-cover {border-bottom:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .review-candidate-info h4 {color:var(--ink)
+}
+html[data-theme] .review-candidate-author {color:var(--ink)
+}
+html[data-theme] .review-candidate-reason {color:var(--muted)
+}
+html[data-theme] .review-no-candidates {color:var(--ink)
+}
+html[data-theme] .review-empty {color:var(--ink)
+}
+html[data-theme] .review-empty>.icon {color:var(--ink)
+}
+html[data-theme] .review-empty>h3 {color:var(--ink)
+}
+html[data-theme] .review-empty>p {color:var(--muted)
+}
+html[data-theme] .review-pagination {border-top:1px solid var(--line)
+}
+html[data-theme] .review-pagination>span {color:var(--ink)
+}
+html[data-theme] .review-pagination>div>span {color:var(--ink)
+}
+@media (max-width:900px) {
+html[data-theme] .review-local {border-bottom:1px solid var(--line)
+}
+}
+html[data-theme] .collection-edit {color:var(--muted)
+}
+html[data-theme] .collection-edit:hover {color:var(--ink)
+}
+html[data-theme] .workspace-title h1 {color:var(--ink)
+}
+html[data-theme] .workspace-title h1>span {color:var(--ink);background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .view-mode-buttons {border:1px solid var(--line)
+}
+html[data-theme] .view-mode-buttons .active {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .compact-online input {accent-color:var(--ink)
+}
+html[data-theme] .filter-row>.icon-button.active {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .card-avatars {color:var(--ink)
+}
+html[data-theme] .card-search-evidence {color:var(--ink)
+}
+html[data-theme] .card-status {color:var(--ink)
+}
+html[data-theme] .card-status-matched {color:var(--ink)
+}
+html[data-theme] .card-status-review {color:var(--ink)
+}
+html[data-theme] .card-status-failed,html[data-theme] .card-status-blocked {color:var(--ink)
+}
+html[data-theme] .keyboard-focused:focus {outline:2px solid var(--ink)
+}
+html[data-theme] .view-list .card-cover {border:1px solid var(--line)
+}
+html[data-theme] .advanced-filter-panel {background:var(--surface);border:1px solid var(--line);box-shadow:none
+}
+html[data-theme] .advanced-filter-heading>strong {color:var(--ink)
+}
+html[data-theme] .untagged-filter {color:var(--ink)
+}
+html[data-theme] .untagged-filter input {accent-color:var(--ink)
+}
+html[data-theme] .evidence-section>p {color:var(--ink)
+}
+html[data-theme] .evidence-section>p>strong {color:var(--ink)
+}
+html[data-theme] .evidence-section>p>span {color:var(--ink)
+}
+html[data-theme] .evidence-section .match-signal {background:var(--surface);border-left:2px solid var(--line);color:var(--ink)
+}
+html[data-theme] .reject-candidate {color:var(--ink)
+}
+html[data-theme] .management-entry-list {border:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .management-entry {border-bottom:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .management-entry input {accent-color:var(--ink)
+}
+html[data-theme] .management-entry small {color:var(--muted)
+}
+html[data-theme] .management-entry button strong {color:var(--ink)
+}
+html[data-theme] .editing-tag {background:var(--surface)
+}
+html[data-theme] .tag-manager-tools h3 {color:var(--ink)
+}
+html[data-theme] .editing-tag-name {color:var(--ink)
+}
+html[data-theme] .setting-online {color:var(--ink)
+}
+html[data-theme] .setting-online input {accent-color:var(--ink)
+}
+html[data-theme] .local-member .member-version {color:var(--ink);border:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .local-member .member-modified {color:var(--muted)
+}
+html[data-theme] .recovery-banner {border:1px solid var(--line);background:var(--surface);color:var(--ink)
+}
+html[data-theme] .recovery-details ul {color:var(--ink)
+}
+html[data-theme] .search-boundary {color:var(--muted)
+}
+html[data-theme] .search-boundary::before {color:var(--muted)
+}
+html[data-theme] .review-sort-label select {color:var(--ink);background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .review-local-times {color:var(--ink)
+}
+html[data-theme] .review-local-times span {color:var(--muted)
+}
+html[data-theme] .review-local-times time {color:var(--ink)
+}
+html[data-theme] .review-local-area:focus-visible,html[data-theme] .review-member-entry:focus-visible {outline:1px solid var(--ink)
+}
+html[data-theme] .review-file-action {border:1px solid var(--line);background:var(--surface);color:var(--ink)
+}
+html[data-theme] .review-member-list {border:1px solid var(--line)
+}
+html[data-theme] .review-member-list>summary {color:var(--ink)
+}
+html[data-theme] .review-member-entry {border-top:1px solid var(--line)
+}
+html[data-theme] .review-member-entry>strong {color:var(--ink)
+}
+html[data-theme] .review-member-entry>span {color:var(--muted)
+}
+html[data-theme] .review-member-entry>small {color:var(--ink)
+}
+html[data-theme] .review-source-entry {border-top:1px solid var(--line)
+}
+html[data-theme] .review-source-entry>label {color:var(--ink)
+}
+html[data-theme] .review-source-entry input {border:1px solid var(--line);background:var(--surface);color:var(--ink)
+}
+html[data-theme] .review-skip {color:var(--ink)
+}
+html[data-theme] .project-material-card {border:1px solid var(--line);background:var(--surface)
+}
+html[data-theme] .project-material-cover {background:var(--surface)
+}
+html[data-theme] .project-material-cover>span {color:var(--muted)
+}
+html[data-theme] .project-material-open h4 {color:var(--ink)
+}
+html[data-theme] .project-material-relation {color:var(--ink);background:var(--surface)
+}
+html[data-theme] .relation-uncertain .project-material-relation {color:var(--ink);background:var(--surface)
+}
+html[data-theme] .project-material-open small {color:var(--ink)
+}
+html[data-theme] .project-material-evidence {border-top:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .project-material-evidence summary {color:var(--ink)
+}
+html[data-theme] .project-material-evidence strong {color:var(--ink)
+}
+html[data-theme] .project-material-evidence span {color:var(--ink)
+}
+html[data-theme] .project-material-evidence small {color:var(--muted)
+}
+html[data-theme] .project-material-warnings {color:var(--ink)
+}
+html[data-theme] .project-material-scan-time {color:var(--muted)
+}
+html[data-theme] .source-undo-button {color:var(--ink);border-color:var(--line)
+}
+html[data-theme] .source-undo-button.compact>small {color:var(--ink)
+}
+html[data-theme] .source-undo-banner {background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .source-undo-banner strong {color:var(--ink)
+}
+html[data-theme] .source-undo-banner span {color:var(--ink)
+}
+html[data-theme] .source-undo-banner small {color:var(--ink)
+}
+html[data-theme] .review-booth-search {border-top:1px solid var(--line)
+}
+html[data-theme] .review-booth-search>label {color:var(--ink)
+}
+html[data-theme] .review-booth-search input {border:1px solid var(--line);background:var(--surface);color:var(--ink)
+}
+html[data-theme] .review-booth-search>small {color:var(--muted)
+}
+html[data-theme] .booth-wordmark {color:var(--ink)
+}
+html[data-theme] .booth-page h2 {color:var(--ink)
+}
+html[data-theme] .booth-page-introduction p {color:var(--ink)
+}
+html[data-theme] .booth-browser-status {color:var(--ink);border:1px solid var(--line)
+}
+html[data-theme] .booth-browser-status.active {color:var(--ink);border-color:var(--line)
+}
+html[data-theme] .booth-entry-card {background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .booth-entry-card:hover {background:var(--surface);border-color:var(--line)
+}
+html[data-theme] .booth-entry-icon {background:var(--surface);color:var(--ink)
+}
+html[data-theme] .booth-entry-card strong {color:var(--ink)
+}
+html[data-theme] .booth-entry-card p {color:var(--ink)
+}
+html[data-theme] .booth-entry-arrow {color:var(--muted)
+}
+html[data-theme] .booth-session-note strong {color:var(--ink)
+}
+html[data-theme] .booth-session-note p {color:var(--muted)
+}
+html[data-theme] .booth-session-note>.text-button {color:var(--ink)
+}
+html[data-theme] .booth-download-location {background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .booth-page h3 {color:var(--ink)
+}
+html[data-theme] .booth-download-location p {color:var(--ink)
+}
+html[data-theme] .booth-download-directory {color:var(--ink)
+}
+html[data-theme] .booth-download-location small {color:var(--ink)
+}
+html[data-theme] .booth-download-section-title span {color:var(--muted)
+}
+html[data-theme] .booth-download-section-title>strong {color:var(--muted)
+}
+html[data-theme] .booth-download-section-title>strong.downloading {color:var(--ink)
+}
+html[data-theme] .booth-download-row {background:var(--surface);border:1px solid var(--line)
+}
+html[data-theme] .booth-download-heading strong {color:var(--ink)
+}
+html[data-theme] .booth-download-heading>span {color:var(--ink)
+}
+html[data-theme] .download-completed .booth-download-heading>span {color:var(--ink)
+}
+html[data-theme] .download-failed .booth-download-heading>span,html[data-theme] .download-interrupted .booth-download-heading>span {color:var(--accent)
+}
+html[data-theme] .booth-download-progress {background:var(--surface)
+}
+html[data-theme] .booth-download-progress i {background:var(--ink)
+}
+html[data-theme] .download-completed .booth-download-progress i {background:var(--surface)
+}
+html[data-theme] .booth-download-metrics {color:var(--ink)
+}
+html[data-theme] .booth-download-metrics>span:nth-child(2) {color:var(--ink)
+}
+html[data-theme] .booth-download-details {color:var(--muted)
+}
+html[data-theme] .booth-download-empty {border:1px dashed var(--line);color:var(--ink)
+}
+html[data-theme] .booth-download-empty>span {color:var(--muted)
+}
+html[data-theme] .booth-read-error {background:var(--surface);border:1px solid var(--line);color:var(--ink)
+}
+html[data-theme] .booth-network-note {border:1px solid var(--line);background:var(--surface);color:var(--ink)
+}
+
+@media(max-width:900px){html[data-theme] .workspace-title{display:block}html[data-theme] .topbar{height:auto;flex-wrap:wrap;gap:9px}}

@@ -1,0 +1,7 @@
+import {contextBridge,ipcRenderer} from 'electron';
+const requested=process.argv.find(v=>v.startsWith('--vrc-theme='))?.slice('--vrc-theme='.length),initialTheme=['nasa','swiss','x'].includes(requested??'')?requested:'nasa';
+const channel=process.argv.find(v=>v.startsWith('--vrc-xianyu-channel='))?.slice('--vrc-xianyu-channel='.length);
+if(channel&&/^vrc-xianyu:[a-f0-9-]{36}$/.test(channel)){
+ const invoke=(command:string,data?:object)=>ipcRenderer.invoke(channel,data?{command,...data}:command);
+ contextBridge.exposeInMainWorld('xianyuWorkspace',{initialTheme,state:()=>invoke('state'),close:()=>invoke('close'),choose:()=>invoke('choose'),paste:()=>invoke('paste'),save:()=>invoke('save'),currentCover:()=>invoke('currentCover'),extract:(text:string)=>invoke('extract',{text}),draft:(query:string)=>invoke('draft',{query}),result:(text:string)=>invoke('result',{text}),searchBooth:(query:string)=>invoke('searchBooth',{query}),openOfficial:()=>invoke('openOfficial'),local:()=>invoke('local'),reload:()=>invoke('reload'),layout:(height:number)=>invoke('layout',{height}),onState:(listener:(state:unknown)=>void)=>{const handler=(_e:Electron.IpcRendererEvent,state:unknown)=>listener(state);ipcRenderer.on(channel+':state',handler);return()=>ipcRenderer.removeListener(channel+':state',handler)}});
+}
