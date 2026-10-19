@@ -5,7 +5,9 @@ function fixture(t){const root=fs.mkdtempSync(path.join(__dirname,'.fixtures-sto
 function digest(file){return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')}
 test('user-selected storage rejects C, protected material locations and destination links',t=>{
  const root=fixture(t),materials=path.join(root,'素材'),outside=path.join(root,'目录');fs.mkdirSync(materials);fs.mkdirSync(outside);
- assert.throws(()=>assertUserStorage(path.join(root,'backup'),[]),/C 盘/);assert.throws(()=>assertUserStorage(path.join(materials,'copy'),[materials],true),/保护/);
+ // The policy targets C:, regardless of the drive hosting this checkout (D: on CI).
+ const cDriveTarget=path.win32.join('C:\\','VRCAL-storage-policy-'+crypto.randomUUID(),'backup');
+ assert.throws(()=>assertUserStorage(cDriveTarget,[]),/C 盘/);assert.throws(()=>assertUserStorage(path.join(materials,'copy'),[materials],true),/保护/);
  const link=path.join(root,'alias');fs.symlinkSync(outside,link,'junction');assert.throws(()=>assertUserStorage(path.join(link,'backup'),[],true),/链接/);
  assert.equal(assertUserStorage(path.join(root,'backup'),[],true),path.join(root,'backup'));
 });
