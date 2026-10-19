@@ -47,6 +47,22 @@ class Download extends EventEmitter {
 function start(workspace,download,contents=workspace.entry.view.webContents){let denied=false;workspace.remoteSession.emit('will-download',{preventDefault:()=>{denied=true}},download,contents);return denied}
 const settled=()=>new Promise(resolve=>setImmediate(resolve));
 
+test('migration snapshots an unopened BOOTH profile and restores both cookie lifetimes without navigation',async t=>{
+ const {prepareBoothSessionMigration}=require('../dist/main/main/booth-workspace');assert.equal(typeof prepareBoothSessionMigration,'function');const f=fixture(t),folder=path.join(f.dataDir,'booth-session'),remote=new Session(folder),expiry=Math.floor(Date.now()/1000)+3600;
+ fs.mkdirSync(path.join(folder,'Network'),{recursive:true});fs.writeFileSync(path.join(folder,'Network','Cookies'),'OLD PERSISTENT COOKIE DATABASE');sessions.set(folder,remote);await remote.cookies.set({url:'https://accounts.booth.pm/',name:'persistent',value:'PERSISTENT_PRIVATE',path:'/',expirationDate:expiry});
+ fs.writeFileSync(path.join(f.dataDir,'booth-session-cookies.bin'),mockElectron.safeStorage.encryptString(JSON.stringify({at:Date.now(),cookies:[{domain:'accounts.booth.pm',name:'session',value:'SESSION_PRIVATE',path:'/',session:true,hostOnly:true}]})));
+ const {Store}=require('../dist/main/main/store'),{copyLibraryData}=require('../dist/main/main/storage'),store=new Store(f.dataDir,[]);store.close();const snapshot=await prepareBoothSessionMigration(f.dataDir,[f.source]);assert.equal(f.workspace.remoteSession,undefined);assert.equal(f.workspace.entry,undefined);assert.equal(snapshot.profile,'booth-session');const target=path.join(f.root,'migrated');await copyLibraryData(f.dataDir,target,[f.source],true,[snapshot]);assert(!fs.existsSync(path.join(target,'booth-session','Network','Cookies')));
+ const restarted=new BoothWorkspace({...f.deps,dataDir:target});restarted.publicHost=async()=>{};await restarted.open({tab:'library'});const cookies=await restarted.remoteSession.cookies.get({});assert.deepEqual(cookies.map(cookie=>cookie.name),['session','persistent']);assert.equal(cookies[1].expirationDate,expiry);await restarted.shutdown();
+});
+test('unopened BOOTH migration fails safely when credentials cannot be encrypted or read completely',async t=>{
+ const {prepareBoothSessionMigration}=require('../dist/main/main/booth-workspace');assert.equal(typeof prepareBoothSessionMigration,'function');const f=fixture(t),folder=path.join(f.dataDir,'booth-session'),remote=new Session(folder);fs.mkdirSync(folder);sessions.set(folder,remote);const file=path.join(f.dataDir,'booth-session-cookies.bin'),original=mockElectron.safeStorage.encryptString(JSON.stringify({at:Date.now(),cookies:[]}));fs.writeFileSync(file,original);
+ encryptionAvailable=false;try{await assert.rejects(()=>prepareBoothSessionMigration(f.dataDir,[f.source]),/迁移已停止/)}finally{encryptionAvailable=true}assert.deepEqual(fs.readFileSync(file),original);
+ remote.cookies.get=async()=>{throw new Error('Synthetic locked cookie export')};await assert.rejects(()=>prepareBoothSessionMigration(f.dataDir,[f.source]),/迁移已停止/);assert.deepEqual(fs.readFileSync(file),original);
+});
+test('BOOTH migration refuses an incomplete snapshot instead of trimming eligible credentials',async t=>{
+ const {prepareBoothSessionMigration}=require('../dist/main/main/booth-workspace');for(const mode of ['count','bytes']){const f=fixture(t),folder=path.join(f.dataDir,'booth-session'),remote=new Session(folder);fs.mkdirSync(folder);sessions.set(folder,remote);for(let index=0;index<(mode==='count'?101:90);index++)await remote.cookies.set({url:'https://accounts.booth.pm/',name:'cookie-'+index,value:mode==='bytes'?'x'.repeat(3000):'SYNTHETIC',expirationDate:Math.floor(Date.now()/1000)+3600,path:'/'});const file=path.join(f.dataDir,'booth-session-cookies.bin'),original=mockElectron.safeStorage.encryptString(JSON.stringify({at:Date.now(),cookies:[]}));fs.writeFileSync(file,original);await assert.rejects(()=>prepareBoothSessionMigration(f.dataDir,[f.source]),/迁移已停止/);assert.deepEqual(fs.readFileSync(file),original);assert.equal(f.workspace.remoteSession,undefined)}
+});
+
 test('BOOTH search recognizes late product clues, numeric IDs and exact item URLs while rejecting identity traps',()=>{
  assert.equal(boothSearchUrl('Veil Breeze'),'https://booth.pm/zh-cn/search/Veil%20Breeze');assert.equal(boothSearchUrl('6454372'),'https://booth.pm/zh-cn/items/6454372');
  assert.equal(boothSearchUrl('https://zaicrifice.booth.pm/items/6454372?x=1#desc'),'https://booth.pm/zh-cn/items/6454372');
@@ -55,11 +71,6 @@ test('BOOTH search recognizes late product clues, numeric IDs and exact item URL
  assert.equal(BOOTH_ACCOUNT_URLS.favorites,'https://accounts.booth.pm/wish_lists');assert.equal(BOOTH_ACCOUNT_URLS.gifts,'https://accounts.booth.pm/library/gifts');
  assert.equal(boothBrowserUrl(BOOTH_ACCOUNT_URLS.login).href,BOOTH_ACCOUNT_URLS.login);
  assert.throws(()=>boothBrowserUrl('https://secret:password@accounts.booth.pm/users/sign_in'));
-});
-
-test('Xianyu handoff always treats a draft title as keywords, even when it contains only digits',async t=>{
- const f=fixture(t);await f.workspace.open({tab:'search',query:'7643173',assetId:'asset-1',forceKeyword:true});await settled();
- assert.equal(f.workspace.entry.view.webContents.getURL(),'https://booth.pm/zh-cn/search/7643173');
 });
 
 test('search toolbar applies only the current loaded BOOTH product to its original asset and isolates web content IPC',async t=>{
@@ -94,19 +105,34 @@ test('official login POST and OAuth windows use protected HTTPS session while lo
  f.setOnline(false);assert.equal((await request(f.workspace,'https://accounts.booth.pm/library')).cancel,true);assert.equal(remote.windowHandler({url:'https://accounts.pixiv.net/login'}).action,'deny');
 });
 
-test('Windows encrypted session-cookie mirror stays in selected data location and restores only official session cookies',async t=>{
+test('Windows encrypted cookie mirror restores official session and persistent cookies with their original expiry',async t=>{
  const f=fixture(t);await f.workspace.open({tab:'login'});await settled();const session=f.workspace.remoteSession;
  await session.cookies.set({url:'https://accounts.booth.pm/',name:'session_cookie',value:'PRIVATE_LOGIN_SECRET',secure:true,httpOnly:true,path:'/'});
  await session.cookies.set({url:'https://elsewhere.net/',name:'other',value:'OTHER_SECRET',secure:true,path:'/'});
- await session.cookies.set({url:'https://accounts.pixiv.net/',name:'persistent',value:'NATIVE_COOKIE',expirationDate:Math.floor(Date.now()/1000)+3600,path:'/'});
- await f.workspace.shutdown();const encrypted=fs.readFileSync(path.join(f.dataDir,'booth-session-cookies.bin'));assert.equal(encrypted.toString().includes('PRIVATE_LOGIN_SECRET'),false);const mirror=JSON.parse(mockElectron.safeStorage.decryptString(encrypted));assert.equal(mirror.cookies.length,1);assert.equal(mirror.cookies[0].name,'session_cookie');
+ const expiry=Math.floor(Date.now()/1000)+3600;await session.cookies.set({url:'https://accounts.pixiv.net/',name:'persistent',value:'NATIVE_COOKIE',expirationDate:expiry,path:'/'});
+ await session.cookies.set({url:'https://accounts.booth.pm/',name:'expired',value:'EXPIRED',expirationDate:Math.floor(Date.now()/1000)-10,path:'/'});
+ await f.workspace.shutdown();const encrypted=fs.readFileSync(path.join(f.dataDir,'booth-session-cookies.bin'));assert.equal(encrypted.toString().includes('PRIVATE_LOGIN_SECRET'),false);const mirror=JSON.parse(mockElectron.safeStorage.decryptString(encrypted));assert.deepEqual(mirror.cookies.map(cookie=>cookie.name),['session_cookie','persistent']);assert.equal(mirror.cookies[1].expirationDate,expiry);
  assert.equal(JSON.stringify(f.workspace.snapshot()).includes('PRIVATE_LOGIN_SECRET'),false);sessions.delete(path.join(f.dataDir,'booth-session'));
- const restarted=new BoothWorkspace(f.deps);restarted.publicHost=async()=>{};await restarted.open({tab:'library'});await settled();const restored=await restarted.remoteSession.cookies.get({});assert.equal(restored.length,1);assert.equal(restored[0].value,'PRIVATE_LOGIN_SECRET');assert.equal(restored[0].session,true);
+ const restarted=new BoothWorkspace(f.deps);restarted.publicHost=async()=>{};await restarted.open({tab:'library'});await settled();const restored=await restarted.remoteSession.cookies.get({});assert.equal(restored.length,2);assert.equal(restored[0].value,'PRIVATE_LOGIN_SECRET');assert.equal(restored[0].session,true);assert.equal(restored[1].value,'NATIVE_COOKIE');assert.equal(restored[1].session,false);assert.equal(restored[1].expirationDate,expiry);
  await restarted.clearSession();assert.equal(fs.existsSync(path.join(f.dataDir,'booth-session-cookies.bin')),false);assert.equal((await restarted.remoteSession.cookies.get({})).length,0);assert.equal(restarted.entry,undefined);await restarted.shutdown();
 });
 
 test('missing OS encryption never writes a plaintext credential fallback',async t=>{
  const f=fixture(t);encryptionAvailable=false;try{await f.workspace.open({tab:'login'});await f.workspace.remoteSession.cookies.set({url:'https://accounts.booth.pm/',name:'cookie',value:'SECRET_WITHOUT_ENCRYPTION'});await f.workspace.shutdown();assert.equal(fs.existsSync(path.join(f.dataDir,'booth-session-cookies.bin')),false);assert.equal(f.workspace.snapshot().sessionSaved,false)}finally{encryptionAvailable=true}
+});
+
+test('BOOTH cookie restore rejects expired, malformed and unrelated entries while existing cookies win',async t=>{
+ const f=fixture(t),folder=path.join(f.dataDir,'booth-session'),remote=new Session(folder),expiry=Math.floor(Date.now()/1000)+3600; sessions.set(folder,remote);
+ await remote.cookies.set({url:'https://accounts.booth.pm/',name:'existing',value:'CURRENT',path:'/'});
+ const valid={domain:'accounts.booth.pm',path:'/',name:'restored',value:'RESTORED',session:false,expirationDate:expiry,hostOnly:true,secure:true,httpOnly:true,sameSite:'lax'};
+ const cookies=[{...valid,name:'existing',value:'STALE'}, {...valid}, {...valid,name:'expired',expirationDate:expiry-7200}, {...valid,name:'bad-expiry',expirationDate:'tomorrow'}, {...valid,name:'bad-session',session:'false'}, {...valid,name:'unrelated',domain:'booth.pm.evil.net'}, {...valid,name:'bad-domain',domain:'other/booth.pm'}, {...valid,name:'bad-path',path:{}}, {...valid,name:'bad-flags',secure:'yes'}, {...valid,name:'bad-samesite',sameSite:'anything'}, {...valid,name:'bad-value',value:3}, {...valid,name:'session-with-expiry',session:true}];
+ fs.writeFileSync(path.join(f.dataDir,'booth-session-cookies.bin'),mockElectron.safeStorage.encryptString(JSON.stringify({at:Date.now(),cookies})));
+ await f.workspace.open({tab:'library'});const restored=await remote.cookies.get({});assert.deepEqual(restored.map(cookie=>[cookie.name,cookie.value]),[['existing','CURRENT'],['restored','RESTORED']]);assert.equal(restored[1].expirationDate,expiry);
+});
+
+test('BOOTH encrypted cookie mirrors retain their age, count and byte limits',async t=>{
+ for(const mode of ['old','future','oversize']){const f=fixture(t),file=path.join(f.dataDir,'booth-session-cookies.bin'),payload={at:mode==='old'?Date.now()-31*86400000:mode==='future'?Date.now()+120000:Date.now(),cookies:[{domain:'booth.pm',path:'/',name:'ignored',value:'SECRET',session:true}]};fs.writeFileSync(file,mode==='oversize'?Buffer.alloc(256*1024+1):mockElectron.safeStorage.encryptString(JSON.stringify(payload)));await f.workspace.open({tab:'library'});assert.equal((await f.workspace.remoteSession.cookies.get({})).length,0,mode)}
+ const f=fixture(t);await f.workspace.open({tab:'login'});for(let index=0;index<110;index++)await f.workspace.remoteSession.cookies.set({url:'https://accounts.booth.pm/',name:'cookie-'+index,value:'x'.repeat(3000),path:'/'});await f.workspace.shutdown();const encrypted=fs.readFileSync(path.join(f.dataDir,'booth-session-cookies.bin')),payload=JSON.parse(mockElectron.safeStorage.decryptString(encrypted));assert(encrypted.length<=256*1024);assert(payload.cookies.length>0&&payload.cookies.length<=100);
 });
 
 test('download paths are exclusive and cannot overwrite originals, traverse filenames or follow directory junctions',t=>{

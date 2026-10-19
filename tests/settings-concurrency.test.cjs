@@ -19,11 +19,29 @@ function addAsset(store,root){
 }
 function assertSourceUnchanged(asset){assert.equal(crypto.createHash('sha256').update(fs.readFileSync(asset.source)).digest('hex'),asset.hash)}
 
+test('unknown legacy preferences are omitted from reads, writes and exports',t=>{
+ const f=fixture(t),store=f.open();store.saveSettings({language:'ja',theme:'x-light',downloadConcurrency:5});store.close();
+ const db=new DatabaseSync(path.join(f.data,'library.sqlite'));t.after(()=>{try{db.close()}catch{}});
+ const saved=JSON.parse(db.prepare('SELECT value FROM settings WHERE key=?').get('app').value);saved.retiredFeatureEnabled=true;saved.retiredFeatureState={token:'PRIVATE SYNTHETIC VALUE'};
+ db.prepare('UPDATE settings SET value=? WHERE key=?').run(JSON.stringify(saved),'app');
+ const reopened=f.open();assert.equal(reopened.settings().retiredFeatureEnabled,undefined);assert.equal(reopened.settings().retiredFeatureState,undefined);
+ const result=reopened.saveSettings({uiZoom:1.25,retiredFeatureEnabled:true,retiredFeatureState:saved.retiredFeatureState});assert.equal(result.retiredFeatureEnabled,undefined);assert.equal(result.retiredFeatureState,undefined);
+ assert.equal(result.language,'ja');assert.equal(result.theme,'x-light');assert.equal(result.downloadConcurrency,5);
+ const persisted=JSON.parse(db.prepare('SELECT value FROM settings WHERE key=?').get('app').value);assert.equal(persisted.retiredFeatureEnabled,undefined);assert.equal(persisted.retiredFeatureState,undefined);db.close();
+ const backup=path.join(f.base,'normalized.json');reopened.exportData(backup);assert(!fs.readFileSync(backup,'utf8').includes('PRIVATE SYNTHETIC VALUE'));
+});
+
+test('restoring a legacy backup drops unknown settings while preserving supported preferences',t=>{
+ const f=fixture(t),store=f.open(),asset=addAsset(store,f.roots[0]);store.saveSettings({language:'en',theme:'swiss',downloadConcurrency:4});
+ const file=path.join(f.base,'legacy-unknown-settings.json');store.exportData(file);const backup=JSON.parse(fs.readFileSync(file,'utf8'));backup.version=1;backup.settings.retiredFeatureEnabled=true;backup.settings.retiredFeatureState={token:'PRIVATE SYNTHETIC VALUE'};fs.writeFileSync(file,JSON.stringify(backup));
+ const restored=f.open(path.join(f.base,'restored'));restored.importData(file);assert.equal(restored.settings().retiredFeatureEnabled,undefined);assert.equal(restored.settings().retiredFeatureState,undefined);assert.equal(restored.settings().language,'en');assert.equal(restored.settings().theme,'swiss');assert.equal(restored.settings().downloadConcurrency,4);assert.deepEqual(restored.getRaw(asset.record.id).manual,asset.record.manual);assertSourceUnchanged(asset);
+});
+
 test('download concurrency defaults to 3 and survives settings updates and reopening',t=>{
  const f=fixture(t),store=f.open();assert.equal(store.settings().downloadConcurrency,3);
  store.saveSettings({downloadConcurrency:6,onlineEnabled:false,backupDir:f.backupDir,uiZoom:1.25});
  store.saveSettings({uiZoom:1.5});assert.equal(store.settings().downloadConcurrency,6);store.close();
- const reopened=f.open();assert.deepEqual(reopened.settings(),{roots:f.roots,onlineEnabled:false,dataDir:f.data,backupDir:f.backupDir,uiZoom:1.5,downloadConcurrency:6,theme:'nasa',xThemeIntroduced:false,xianyuEnabled:false});
+ const reopened=f.open();assert.deepEqual(reopened.settings(),{roots:f.roots,onlineEnabled:false,dataDir:f.data,backupDir:f.backupDir,uiZoom:1.5,downloadConcurrency:6,theme:'nasa',xThemeIntroduced:false,language:'zh-CN'});
  for(const accepted of [1,2,3,4,5,6])assert.equal(reopened.saveSettings({downloadConcurrency:accepted}).downloadConcurrency,accepted);
 });
 
@@ -54,7 +72,7 @@ test('backup preserves concurrency, preferences and asset metadata on import and
  const backup=path.join(f.base,'complete.json');store.exportData(backup);
  assert.equal(JSON.parse(fs.readFileSync(backup,'utf8')).settings.downloadConcurrency,5);
  const importedDir=path.join(f.base,'导入资料库'),imported=f.open(importedDir);imported.importData(backup);
- assert.deepEqual(imported.settings(),{roots:f.roots,onlineEnabled:false,dataDir:importedDir,backupDir:f.backupDir,uiZoom:1.75,downloadConcurrency:5,theme:'nasa',xThemeIntroduced:false,xianyuEnabled:false});
+ assert.deepEqual(imported.settings(),{roots:f.roots,onlineEnabled:false,dataDir:importedDir,backupDir:f.backupDir,uiZoom:1.75,downloadConcurrency:5,theme:'nasa',xThemeIntroduced:false,language:'zh-CN'});
  let restored=imported.getRaw(asset.record.id);assert.deepEqual(restored.manual,asset.record.manual);assert.deepEqual(restored.online,asset.record.online);assert.deepEqual(restored.localEvidence,asset.record.localEvidence);assert.equal(restored.compatibilityComplete,true);assert.equal(restored.path,asset.source);assert.equal(restored.missing,false);
  imported.close();const reopened=f.open(importedDir);assert.equal(reopened.settings().downloadConcurrency,5);assert.deepEqual(reopened.getRaw(asset.record.id).manual,asset.record.manual);assertSourceUnchanged(asset);
 });

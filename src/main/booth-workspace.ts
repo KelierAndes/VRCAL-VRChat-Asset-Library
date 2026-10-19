@@ -8,19 +8,36 @@ import {pathToFileURL} from 'node:url';
 import {assertSafeWrite,isWithin} from './safety';
 import {isPublicAddress} from './online';
 import {normalizeTheme,THEME_BACKGROUNDS} from '../shared/contracts';
-import type {BoothTab,BoothDownload,BoothState,AppTheme} from '../shared/contracts';
+import type {BoothTab,BoothDownload,BoothState,AppTheme,AppLanguage} from '../shared/contracts';
+import {normalizeLanguage,translate} from '../shared/i18n';
+import {NATIVE_MESSAGES} from '../shared/messages-native';
+import {snapshotBrowserCookies} from './browser-cookie-migration';
 
 export interface BoothWorkspaceDependencies {
  parent:()=>BrowserWindow|null;dataDir:string;roots:()=>string[];getDownloadDir:()=>string|undefined;canNetwork:()=>boolean;
  getTheme?:()=>AppTheme;
+ getLanguage?:()=>AppLanguage;
  validateAsset:(id:string)=>{title:string};applyProduct:(id:string,url:string)=>Promise<void>;
  onChanged:()=>void;onDownloaded:(file:string,sourceItem?:string)=>Promise<{assetId?:string}>;
 }
-export interface BoothOpenOptions {tab:BoothTab|'search';query?:string;assetId?:string;forceKeyword?:boolean}
+export interface BoothOpenOptions {tab:BoothTab|'search';query?:string;assetId?:string}
 export const BOOTH_ACCOUNT_URLS={login:'https://accounts.booth.pm/users/sign_in',favorites:'https://accounts.booth.pm/wish_lists',gifts:'https://accounts.booth.pm/library/gifts',library:'https://accounts.booth.pm/library'} as const;
 const HEIGHT=166,MAX_HISTORY=100,COOKIE_AGE=30*24*60*60*1000;
 const officialHost=(hostname:string)=>/(?:^|\.)booth\.pm$/i.test(hostname);
 const cookieHost=(hostname:string)=>/(?:^|\.)(?:booth\.pm|pixiv\.net)$/i.test(hostname.replace(/^\./,''));
+function mirroredCookie(cookie:any,now=Date.now()/1000):cookie is Electron.Cookie&{domain:string} {
+ if(!cookie||typeof cookie.name!=='string'||!cookie.name||/[\x00-\x20\x7f;=]/.test(cookie.name)||typeof cookie.value!=='string'||/[\x00-\x1f\x7f]/.test(cookie.value)||Buffer.byteLength(cookie.name)+Buffer.byteLength(cookie.value)>16384||typeof cookie.domain!=='string'||cookie.domain.length>254||!/^\.?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(cookie.domain)||cookie.domain.replace(/^\./,'').split('.').some((label:string)=>label.length>63)||!cookieHost(cookie.domain))return false;
+ if(cookie.path!==undefined&&(typeof cookie.path!=='string'||!cookie.path.startsWith('/')||cookie.path.length>4096||/[\x00-\x1f\x7f;]/.test(cookie.path)))return false;
+ if(['hostOnly','httpOnly','secure','session'].some(key=>cookie[key]!==undefined&&typeof cookie[key]!=='boolean')||cookie.sameSite!==undefined&&!['unspecified','no_restriction','lax','strict'].includes(cookie.sameSite))return false;
+ return cookie.expirationDate===undefined?cookie.session===true:cookie.session!==true&&Number.isFinite(cookie.expirationDate)&&cookie.expirationDate>now&&cookie.expirationDate<=8640000000000;
+}
+function cookieKey(cookie:Electron.Cookie):string {return JSON.stringify([cookie.name,(cookie.domain||'').replace(/^\./,'').toLowerCase(),cookie.path||'/'])}
+function encryptedCookieMirror(cookies:Electron.Cookie[]):Buffer {
+ const at=Date.now(),encode=()=>safeStorage.encryptString(JSON.stringify({at,cookies}));let encrypted=encode();
+ while(encrypted.length>256*1024&&cookies.length){cookies.pop();encrypted=encode()}
+ if(encrypted.length>256*1024)throw new Error('Encrypted cookie mirror exceeds its size limit.');return encrypted;
+}
+export function prepareBoothSessionMigration(dataDir:string,roots:string[]){return snapshotBrowserCookies(dataDir,roots,'booth-session',mirroredCookie,cookieKey)}
 const loginHost=(hostname:string)=>/(?:^|\.)(?:booth\.pm|pixiv\.net|google\.com|recaptcha\.net|apple\.com|twitter\.com|x\.com)$/i.test(hostname);
 /** Unlike public metadata fetches, this browser intentionally permits official login paths. */
 export function boothBrowserUrl(raw:string):URL {
@@ -30,9 +47,8 @@ export function boothBrowserUrl(raw:string):URL {
  return url;
 }
 export function boothAppliedProduct(raw:string):string|undefined {try{const url=boothBrowserUrl(raw);if(!officialHost(url.hostname))return;const match=url.pathname.match(/^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?items\/(\d{1,12})\/?$/i);return match?'https://booth.pm/zh-cn/items/'+match[1]:undefined}catch{return undefined}}
-export function boothSearchUrl(query:string,forceKeyword=false):string {
+export function boothSearchUrl(query:string):string {
  if(typeof query!=='string'||!query.trim()||query.length>300)throw new Error('请输入 1 至 300 字的搜索词。');const value=query.trim();
- if(forceKeyword)return 'https://booth.pm/zh-cn/search/'+encodeURIComponent(value);
  if(/^\d{1,12}$/.test(value))return 'https://booth.pm/zh-cn/items/'+value;
  if(/^https:\/\//i.test(value)){const product=boothAppliedProduct(value);if(!product)throw new Error('请输入 BOOTH 商品网址、编号或搜索词。');return product}
  return 'https://booth.pm/zh-cn/search/'+encodeURIComponent(value);
@@ -49,8 +65,8 @@ export function reserveBoothDownload(directory:string,filename:string,dataDir:st
  return assertSafeWrite(path.join(folder,boothDownloadName(filename)),dataDir,roots,true);
 }
 interface StoredDownload extends BoothDownload {file?:string}
-interface Entry {window:BrowserWindow;view:WebContentsView;channel:string;toolbarUrl:string;assetId?:string;title:string;tab:BoothTab|'search';query:string;status:string;loading:boolean;loaded:boolean;lastLoadedUrl?:string;httpError:boolean;busy:boolean;applied?:string;closed:boolean}
-interface BrowserState {title:string;tab:string;query:string;url:string;status:string;loading:boolean;canApply:boolean;canGoBack:boolean;canGoForward:boolean;applied:boolean;downloadDir?:string;sessionSaved:boolean;activeDownloads:number;theme:AppTheme}
+interface Entry {window:BrowserWindow;view:WebContentsView;channel:string;toolbarUrl:string;assetId?:string;title:string;tab:BoothTab|'search';query:string;status:string;statusValues?:Record<string,string|number>;loading:boolean;loaded:boolean;lastLoadedUrl?:string;httpError:boolean;busy:boolean;applied?:string;closed:boolean}
+interface BrowserState {title:string;tab:string;query:string;url:string;status:string;loading:boolean;canApply:boolean;canGoBack:boolean;canGoForward:boolean;applied:boolean;downloadDir?:string;sessionSaved:boolean;activeDownloads:number;theme:AppTheme;language:AppLanguage;messages:Record<string,string>}
 export class BoothWorkspace {
  private remoteSession?:Electron.Session;private entry?:Entry;private owned=new Set<Electron.WebContents>();private popups=new Set<BrowserWindow>();
  private downloads:StoredDownload[]=[];private activeItems=new Map<string,Electron.DownloadItem>();private dns=new Map<string,{at:number;promise:Promise<void>}>();
@@ -72,16 +88,17 @@ export class BoothWorkspace {
   if(!this.deps.canNetwork())throw new Error('请先开启联网，再打开 BOOTH。');
   if(!options||!['login','favorites','gifts','library','search'].includes(options.tab))throw new Error('BOOTH 页面无效。');
   const title=options.assetId?this.deps.validateAsset(options.assetId).title:'BOOTH 账户与资料库';
-  const target=options.tab==='search'?boothSearchUrl(options.query||'',!!options.forceKeyword):BOOTH_ACCOUNT_URLS[options.tab];
+  const target=options.tab==='search'?boothSearchUrl(options.query||''):BOOTH_ACCOUNT_URLS[options.tab];
   this.stopping=false;await this.initialize();this.installSessionHooks();
-  if(this.entry&&!this.entry.closed){const entry=this.entry;entry.assetId=options.assetId;entry.title=title;entry.tab=options.tab;entry.query=options.query||'';entry.applied=undefined;entry.window.setTitle(options.assetId?'为素材选择 BOOTH 商品 · '+title:'BOOTH 账户与资料库');this.emit();if(!process.env.VRC_LIBRARY_TEST_HIDDEN)entry.window.show();await this.navigate(entry,target);return}
+  if(this.entry&&!this.entry.closed){const entry=this.entry;entry.assetId=options.assetId;entry.title=title;entry.tab=options.tab;entry.query=options.query||'';entry.applied=undefined;entry.window.setTitle(options.assetId?this.t('为素材选择 BOOTH 商品')+' · '+title:this.t('BOOTH 账户与资料库'));this.emit();if(!process.env.VRC_LIBRARY_TEST_HIDDEN)entry.window.show();await this.navigate(entry,target);return}
   const channel='vrc-booth:'+randomUUID(),toolbarPath=path.resolve(__dirname,'../../../assets/booth-workspace.html');
-  const window=new BrowserWindow({width:1200,height:900,minWidth:820,minHeight:560,title:options.assetId?'为素材选择 BOOTH 商品 · '+title:'BOOTH 账户与资料库',parent:this.deps.parent()??undefined,show:false,autoHideMenuBar:true,backgroundColor:THEME_BACKGROUNDS[this.theme()],webPreferences:{preload:path.join(__dirname,'booth-workspace-preload.js'),additionalArguments:['--vrc-booth-channel='+channel,'--vrc-theme='+this.theme()],partition:'vrc-booth-toolbar-'+randomUUID(),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true,webviewTag:false,devTools:false}});
+  const window=new BrowserWindow({width:1200,height:900,minWidth:820,minHeight:560,title:options.assetId?this.t('为素材选择 BOOTH 商品')+' · '+title:this.t('BOOTH 账户与资料库'),parent:this.deps.parent()??undefined,show:false,autoHideMenuBar:true,backgroundColor:THEME_BACKGROUNDS[this.theme()],webPreferences:{preload:path.join(__dirname,'booth-workspace-preload.js'),additionalArguments:['--vrc-booth-channel='+channel,'--vrc-theme='+this.theme(),'--vrc-language='+this.language()],partition:'vrc-booth-toolbar-'+randomUUID(),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true,webviewTag:false,devTools:false}});
   const view=new WebContentsView({webPreferences:this.remotePreferences()}),entry:Entry={window,view,channel,toolbarUrl:pathToFileURL(toolbarPath).href,assetId:options.assetId,title,tab:options.tab,query:options.query||'',status:'正在打开 BOOTH…',loading:true,loaded:false,httpError:false,busy:false,closed:false};
   this.entry=entry;window.setMenu(null);window.contentView.addChildView(view);view.setBackgroundColor('#ffffff');this.owned.add(view.webContents);
   const layout=()=>{if(entry.closed)return;const [width,height]=window.getContentSize();view.setBounds({x:0,y:HEIGHT,width,height:Math.max(0,height-HEIGHT)})};window.on('resize',layout);layout();
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));window.webContents.on('will-navigate',event=>event.preventDefault());window.webContents.on('will-attach-webview',event=>event.preventDefault());
   this.protectContents(view.webContents,true);ipcMain.handle(channel,async(event,input:unknown)=>{
+   try{
    if(this.entry!==entry||entry.closed||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame||event.sender.getURL()!==entry.toolbarUrl)throw new Error('浏览器操作来源无效。');
    const command=typeof input==='string'?input:(input&&typeof input==='object'?(input as {command?:unknown}).command:undefined);
    if(typeof command!=='string'||!['state','back','forward','reload','apply','close','search','tab'].includes(command))throw new Error('浏览器操作无效。');
@@ -91,13 +108,17 @@ export class BoothWorkspace {
    if(command==='search'){const query=(input as {query?:unknown}).query;if(typeof query!=='string')throw new Error('搜索词无效。');const url=boothSearchUrl(query);entry.query=query.trim();entry.tab='search';await this.navigate(entry,url)}
    if(command==='tab'){const tab=(input as {tab?:unknown}).tab;if(typeof tab!=='string'||!Object.hasOwn(BOOTH_ACCOUNT_URLS,tab))throw new Error('账户页面无效。');entry.tab=tab as BoothTab;await this.navigate(entry,BOOTH_ACCOUNT_URLS[tab as BoothTab])}
    if(command==='back'&&remote.navigationHistory.canGoBack())remote.navigationHistory.goBack();if(command==='forward'&&remote.navigationHistory.canGoForward())remote.navigationHistory.goForward();if(command==='reload')remote.reload();return this.browserState();
+   }catch(error){throw new Error(this.t(error instanceof Error?error.message:'操作失败'))}
   });
   window.once('closed',()=>{this.disposeEntry(entry);this.notify()});
   try{await window.loadFile(toolbarPath);if(entry.closed)return;this.emit();if(!process.env.VRC_LIBRARY_TEST_HIDDEN)window.show();void this.navigate(entry,target);this.notify()}catch(error){this.disposeEntry(entry);throw error}
  }
  close():void {if(this.entry)this.disposeEntry(this.entry);for(const popup of [...this.popups])if(!popup.isDestroyed())popup.destroy();this.popups.clear();this.notify()}
- refreshTheme():void {const entry=this.entry;if(entry&&!entry.closed){entry.window.setBackgroundColor(THEME_BACKGROUNDS[this.theme()]);this.emit()}}
+ refreshTheme():void {const entry=this.entry;if(entry&&!entry.closed){entry.window.setBackgroundColor(THEME_BACKGROUNDS[this.theme()]);entry.window.setTitle?.(entry.assetId?this.t('为素材选择 BOOTH 商品')+' · '+entry.title:this.t('BOOTH 账户与资料库'));this.emit()}}
  private theme():AppTheme {return normalizeTheme(this.deps.getTheme?.())}
+ private language():AppLanguage {return normalizeLanguage(this.deps.getLanguage?.())}
+ private messages():Record<string,string> {return Object.fromEntries(Object.keys(NATIVE_MESSAGES).map(source=>[source,this.t(source)]))}
+ private t(source:string,values:Record<string,string|number>={}):string {return translate(source,this.language(),values)}
  async shutdown():Promise<void> {this.stopping=true;this.close();this.removeSessionHooks();for(const [id,item] of this.activeItems){const record=this.downloads.find(value=>value.id===id);if(record){record.state='interrupted';record.downloadBps=0;record.error='应用已关闭；请回 BOOTH 重新点击下载。'}item.cancel()}this.activeItems.clear();await Promise.allSettled([...this.inFlightImports]);this.saveHistory();await this.flushCookies();await this.remoteSession?.cookies.flushStore();this.remoteSession?.flushStorageData()}
  async clearSession():Promise<void> {
   this.clearing=true;if(this.cookieTimer)clearTimeout(this.cookieTimer);this.cookieTimer=undefined;
@@ -144,7 +165,7 @@ export class BoothWorkspace {
   if(entry.assetId)try{this.deps.validateAsset(entry.assetId);valid=true}catch{}
   // The toolbar never publishes OAuth parameters, signed download URLs, or login tokens.
   let displayUrl='';try{const parsed=boothBrowserUrl(url);displayUrl=parsed.origin+parsed.pathname}catch{}
-  return {title:entry.title,tab:entry.tab,query:entry.query,url:displayUrl,status:entry.status,loading:entry.loading,canApply:valid&&!!product&&entry.loaded&&!entry.loading&&!entry.busy&&entry.applied!==product&&this.deps.canNetwork(),canGoBack:!contents.isDestroyed()&&contents.navigationHistory.canGoBack(),canGoForward:!contents.isDestroyed()&&contents.navigationHistory.canGoForward(),applied:!!product&&entry.applied===product,downloadDir:this.deps.getDownloadDir(),sessionSaved:safeStorage.isEncryptionAvailable(),activeDownloads:this.activeItems.size,theme:this.theme()};
+  return {title:entry.assetId?entry.title:this.t('BOOTH 账户与资料库'),tab:entry.tab,query:entry.query,url:displayUrl,status:this.t(entry.status,entry.statusValues),loading:entry.loading,canApply:valid&&!!product&&entry.loaded&&!entry.loading&&!entry.busy&&entry.applied!==product&&this.deps.canNetwork(),canGoBack:!contents.isDestroyed()&&contents.navigationHistory.canGoBack(),canGoForward:!contents.isDestroyed()&&contents.navigationHistory.canGoForward(),applied:!!product&&entry.applied===product,downloadDir:this.deps.getDownloadDir(),sessionSaved:safeStorage.isEncryptionAvailable(),activeDownloads:this.activeItems.size,theme:this.theme(),language:this.language(),messages:this.messages()};
  }
  private async apply(entry:Entry):Promise<void> {
   if(!this.browserState()?.canApply||!entry.assetId)throw new Error('请打开有效的 BOOTH 商品页面，再应用到当前素材。');const id=entry.assetId,source=boothAppliedProduct(entry.view.webContents.getURL())!;
@@ -152,7 +173,7 @@ export class BoothWorkspace {
  }
  private disposeEntry(entry:Entry):void {if(entry.closed)return;entry.closed=true;ipcMain.removeHandler(entry.channel);this.owned.delete(entry.view.webContents);if(!entry.view.webContents.isDestroyed())entry.view.webContents.close();if(!entry.window.isDestroyed())entry.window.destroy();if(this.entry===entry)this.entry=undefined}
  private emit():void {const entry=this.entry;if(entry&&!entry.closed&&!entry.window.webContents.isDestroyed())entry.window.webContents.send(entry.channel+':state',this.browserState())}
- private status(message:string):void {if(this.entry){this.entry.status=message;this.emit()}}
+ private status(message:string,values?:Record<string,string|number>):void {if(this.entry){this.entry.status=message;this.entry.statusValues=values;this.emit()}}
  private notify():void {this.emit();this.deps.onChanged()}
  private startDownload(event:Electron.Event,item:Electron.DownloadItem,contents:Electron.WebContents):void {
   const reject=(message:string)=>{event.preventDefault();this.status(message)};
@@ -175,7 +196,7 @@ export class BoothWorkspace {
   });
  }
  private importDownload(record:StoredDownload,file:string):Promise<void> {
-  const pending=(async()=>{try{assertSafeWrite(file,this.deps.dataDir,this.deps.roots(),true);const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size!==record.receivedBytes)throw new Error();const imported=await this.deps.onDownloaded(file,record.sourceUrl);record.assetId=imported.assetId;if(!record.assetId)throw new Error();record.error=undefined;this.status('下载完成并已导入素材库：'+record.name)}catch{record.error='文件已保存，但自动导入未完成；可定位文件或重试导入。';throw new Error('文件已保存，但自动导入未完成。')}finally{this.saveHistory();this.notify()}})();
+  const pending=(async()=>{try{assertSafeWrite(file,this.deps.dataDir,this.deps.roots(),true);const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size!==record.receivedBytes)throw new Error();const imported=await this.deps.onDownloaded(file,record.sourceUrl);record.assetId=imported.assetId;if(!record.assetId)throw new Error();record.error=undefined;this.status('下载完成并已导入素材库：{name}',{name:record.name})}catch{record.error='文件已保存，但自动导入未完成；可定位文件或重试导入。';throw new Error('文件已保存，但自动导入未完成。')}finally{this.saveHistory();this.notify()}})();
   this.inFlightImports.add(pending);void pending.finally(()=>this.inFlightImports.delete(pending)).catch(()=>{});return pending;
  }
  private loadHistory():void {
@@ -188,11 +209,11 @@ export class BoothWorkspace {
  private async restoreCookies():Promise<void> {
   if(!this.remoteSession||!safeStorage.isEncryptionAvailable())return;const file=this.file('booth-session-cookies.bin');this.restoringCookies=true;
   try{const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>256*1024)return;const payload=JSON.parse(safeStorage.decryptString(fs.readFileSync(file)));if(!payload||!Number.isFinite(payload.at)||Date.now()-payload.at>COOKIE_AGE||payload.at>Date.now()+60000||!Array.isArray(payload.cookies))return;
-   const existing=await this.remoteSession.cookies.get({});for(const cookie of payload.cookies.slice(0,100)){if(!cookie||typeof cookie.name!=='string'||typeof cookie.value!=='string'||typeof cookie.domain!=='string'||!cookieHost(cookie.domain)||!cookie.session||existing.some(value=>value.name===cookie.name&&value.domain===cookie.domain&&value.path===cookie.path))continue;const domain=cookie.domain.replace(/^\./,''),url='https://'+domain+(typeof cookie.path==='string'?cookie.path:'/');await this.remoteSession.cookies.set({url,domain:cookie.hostOnly?undefined:cookie.domain,path:cookie.path||'/',name:cookie.name,value:cookie.value,secure:cookie.secure,httpOnly:cookie.httpOnly,sameSite:cookie.sameSite})}
+   const existing=new Set((await this.remoteSession.cookies.get({})).map(cookieKey));for(const cookie of payload.cookies.slice(0,100)){if(!mirroredCookie(cookie)||existing.has(cookieKey(cookie)))continue;const domain=cookie.domain.replace(/^\./,''),url='https://'+domain+(cookie.path||'/');try{await this.remoteSession.cookies.set({url,domain:cookie.hostOnly?undefined:cookie.domain,path:cookie.path||'/',name:cookie.name,value:cookie.value,secure:cookie.secure,httpOnly:cookie.httpOnly,sameSite:cookie.sameSite,expirationDate:cookie.expirationDate});existing.add(cookieKey(cookie))}catch{/* One rejected or expired cookie does not prevent restoring the remaining official cookies. */}}
   }catch{/* Cookies may be expired or encrypted for another Windows account; website login remains available. */}finally{this.restoringCookies=false}
  }
  private flushCookies():Promise<void> {
   if(!this.remoteSession||!safeStorage.isEncryptionAvailable()||this.clearing)return Promise.resolve();const remote=this.remoteSession;
-  this.cookieWrite=this.cookieWrite.then(async()=>{if(this.clearing)return;const cookies=(await remote.cookies.get({})).filter(cookie=>cookie.session&&cookieHost(cookie.domain||'')).slice(0,100);if(this.clearing)return;this.writeOwned('booth-session-cookies.bin',safeStorage.encryptString(JSON.stringify({at:Date.now(),cookies}))) }).catch(()=>{this.status('临时登录状态未能保存；下次可能需要重新登录。')});return this.cookieWrite;
+  this.cookieWrite=this.cookieWrite.then(async()=>{if(this.clearing)return;const cookies=(await remote.cookies.get({})).filter(cookie=>mirroredCookie(cookie)).slice(0,100);if(this.clearing)return;this.writeOwned('booth-session-cookies.bin',encryptedCookieMirror(cookies)) }).catch(()=>{this.status('临时登录状态未能保存；下次可能需要重新登录。')});return this.cookieWrite;
  }
 }

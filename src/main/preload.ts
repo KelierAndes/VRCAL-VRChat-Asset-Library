@@ -1,11 +1,14 @@
 import {contextBridge,ipcRenderer} from 'electron';
-import type {AppTheme,LibraryAPI,LibraryEvent} from '../shared/contracts';
+import type {AppTheme,AppLanguage,LibraryAPI,LibraryEvent} from '../shared/contracts';
 // Sandbox preloads cannot require arbitrary local modules. Keep this allowlist aligned with THEME_IDS.
 const requestedTheme=process.argv.find(value=>value.startsWith('--vrc-theme='))?.slice('--vrc-theme='.length);
-const initialTheme:AppTheme=['nasa','swiss','x'].includes(requestedTheme??'')?requestedTheme as AppTheme:'nasa';
+const initialTheme:AppTheme=['nasa','swiss','x','x-light'].includes(requestedTheme??'')?requestedTheme as AppTheme:'nasa';
+const requestedLanguage=process.argv.find(value=>value.startsWith('--vrc-language='))?.slice('--vrc-language='.length);
+const initialLanguage:AppLanguage=['zh-CN','ja','en'].includes(requestedLanguage??'')?requestedLanguage as AppLanguage:'zh-CN';
 const invoke=(method:string,...args:unknown[])=>ipcRenderer.invoke(`library:${method}`,...args);
 const api:LibraryAPI={
- initialTheme,
+ initialTheme,initialLanguage,
+ updateState:()=>invoke('updateState'),checkForUpdates:()=>invoke('checkForUpdates'),downloadUpdate:()=>invoke('downloadUpdate'),installUpdate:()=>invoke('installUpdate'),cancelUpdate:()=>invoke('cancelUpdate'),openUpdatePage:()=>invoke('openUpdatePage'),removeRoot:root=>invoke('removeRoot',root),
  snapshot:()=>invoke('snapshot'),list:q=>invoke('list',q),get:id=>invoke('get',id),
  scan:()=>invoke('scan'),cancelScan:()=>invoke('cancelScan'),annotate:(ids,patch)=>invoke('annotate',ids,patch),
  reveal:(id,memberPath)=>invoke('reveal',id,memberPath),copyPath:(id,memberPath)=>invoke('copyPath',id,memberPath),openSource:id=>invoke('openSource',id),
@@ -13,7 +16,6 @@ const api:LibraryAPI={
  pauseEnrichment:()=>invoke('pauseEnrichment'),resumeEnrichment:()=>invoke('resumeEnrichment'),
  linkSource:(id,url)=>invoke('linkSource',id,url),acceptCandidate:(id,url)=>invoke('acceptCandidate',id,url),
  undoSource:token=>invoke('undoSource',token),searchBooth:(id,query)=>invoke('searchBooth',id,query),
- openImageSearch:id=>invoke('openImageSearch',id),
  boothState:()=>invoke('boothState'),openBooth:tab=>invoke('openBooth',tab),chooseBoothDownloadDir:()=>invoke('chooseBoothDownloadDir'),revealBoothDownload:id=>invoke('revealBoothDownload',id),cancelBoothDownload:id=>invoke('cancelBoothDownload',id),retryBoothImport:id=>invoke('retryBoothImport',id),clearBoothSession:()=>invoke('clearBoothSession'),
  previewSource:(id,url)=>invoke('previewSource',id,url),loadCandidateCovers:ids=>invoke('loadCandidateCovers',ids),
  rejectCandidate:(id,url)=>invoke('rejectCandidate',id,url),restoreRejectedCandidates:id=>invoke('restoreRejectedCandidates',id),
@@ -24,7 +26,6 @@ const api:LibraryAPI={
  backup:()=>invoke('backup'),restore:()=>invoke('restore'),chooseRoot:()=>invoke('chooseRoot'),
  chooseBackupDir:()=>invoke('chooseBackupDir'),chooseDataDir:()=>invoke('chooseDataDir'),openNetworkUrl:url=>invoke('openNetworkUrl',url),setZoom:factor=>invoke('setZoom',factor),checkProxy:()=>invoke('checkProxy'),
  setConcurrency:value=>invoke('setConcurrency',value),
- setXianyuEnabled:enabled=>invoke('setXianyuEnabled',enabled),
  setOnlineEnabled:enabled=>invoke('setOnlineEnabled',enabled),
  onEvent:listener=>{const fn=(_e:Electron.IpcRendererEvent,event:LibraryEvent)=>listener(event);ipcRenderer.on('library:event',fn);return()=>ipcRenderer.removeListener('library:event',fn)}
 };

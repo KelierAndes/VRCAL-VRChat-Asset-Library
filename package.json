@@ -1,6 +1,6 @@
 {
   "name": "vrchat-asset-library",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "private": true,
   "license": "GPL-3.0-only",
   "repository": {
@@ -52,13 +52,13 @@
       "assets/preview.html",
       "assets/booth-workspace.html",
       "assets/window-themes.css",
-      "assets/xianyu.html",
-      "assets/xianyu.css",
       "assets/fonts/**/*",
       "package.json",
       "LICENSE",
       "NOTICE",
-      "THIRD_PARTY_NOTICES.md"
+      "THIRD_PARTY_NOTICES.md",
+      "assets/local-i18n.js",
+      "assets/update-helper.ps1"
     ],
     "asar": true,
     "win": {

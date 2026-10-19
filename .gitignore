@@ -12,6 +12,5 @@ tests/.fixtures*/
 !.env.example
 VRC-library-location.json
 booth-session/
-xianyu-session/
 __pycache__/
 *.pyc

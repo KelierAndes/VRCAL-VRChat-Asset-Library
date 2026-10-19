@@ -8,6 +8,7 @@ import {copyCover,isWithin} from './safety';
 import {readArchive} from './archive-reader';
 import {isOrganizationalFolderName,isOrganizationalAsset} from './organization';
 import {discoverWrapper,wrapperPathKey,isGenericWrapperName} from './wrappers';
+import {isSourceBucketName,sourcePathKey} from './source-roots';
 
 const ARCHIVES=new Set(['.zip','.rar','.7z']);
 const FILES=new Set(['.unitypackage','.fbx','.blend','.vrm','.obj','.psd','.spp','.png','.jpg','.jpeg','.webp','.gif','.bmp','.wav','.mp3','.anim']);
@@ -26,6 +27,7 @@ export class Scanner {
   private scanAbort=new AbortController();
   private active:Promise<void>|null=null;
   private archiveCache=new Map<string,{size:number;mtimeMs:number;listing:FileListing}>();
+  private bucketCache=new Map<string,boolean>();
   constructor(private store:Store,private onProgress?:(progress:ScanProgress)=>void){}
   progress():ScanProgress{return {...this.state,errors:[...this.state.errors]}}
   cancel():void {this.cancelled=true;this.scanAbort.abort()}
@@ -33,13 +35,35 @@ export class Scanner {
   private emit():void {this.onProgress?.(this.progress())}
   scan():Promise<void>{
     if(this.active)return this.active;
-    this.cancelled=false;this.scanAbort=new AbortController();this.state={running:true,found:0,current:'',errors:[]};this.emit();
+    this.cancelled=false;this.bucketCache.clear();this.scanAbort=new AbortController();this.state={running:true,found:0,current:'',errors:[]};this.emit();
     this.active=this.run().finally(()=>{this.state.running=false;this.state.current=this.cancelled?'扫描已取消':'';this.state.finishedAt=new Date().toISOString();this.active=null;this.emit()});
     return this.active;
   }
   private error(location:string,error:unknown):void {if(this.state.errors.length<100)this.state.errors.push(`${location}：${error instanceof Error?error.message:String(error)}`);this.emit()}
   private async project(directory:string):Promise<boolean>{
-    const flags=await Promise.all(['Assets','Packages','ProjectSettings'].map(async name=>{try{const stat=await fsp.lstat(path.join(directory,name));return stat.isDirectory()&&!stat.isSymbolicLink()}catch{return false}}));return flags.every(Boolean);
+    const flags=await Promise.all(['Assets','Packages','ProjectSettings'].map(async name=>{const source=path.join(directory,name);if(!this.store.isPathActive(source))return false;try{const stat=await fsp.lstat(source);return stat.isDirectory()&&!stat.isSymbolicLink()}catch{return false}}));return flags.every(Boolean);
+  }
+  /** Find category shelves through ordinary parent folders. Engine layouts and
+   * loose model sources prove a product boundary, so variants stay one bundle. */
+  private async sourceContainer(directory:string,depth=0,budget={remaining:256}):Promise<boolean>{
+    if(this.cancelled||!this.store.isPathActive(directory)||depth>6||budget.remaining--<=0)return false;
+    const key=sourcePathKey(directory),cached=this.bucketCache.get(key);if(cached!==undefined)return cached;
+    let entries:fs.Dirent[];try{entries=await fsp.readdir(directory,{withFileTypes:true})}catch{return false}
+    const category=isSourceBucketName(path.basename(directory));
+    const bundle=entries.some(entry=>!entry.isSymbolicLink()&&(entry.isDirectory()&&['assets','packages','projectsettings','textures','shaders'].includes(entry.name.toLowerCase())||entry.isFile()&&(/\.(?:fbx|blend|vrm|obj|spp|prefab|mat|anim|controller)$/i.test(entry.name)||!category&&/\.(?:unitypackage|zip|rar|7z)$/i.test(entry.name))));
+    if(bundle){this.bucketCache.set(key,false);return false}
+    if(category){
+      const products=entries.some(entry=>entry.isDirectory()||entry.isSymbolicLink()||this.store.isPathActive(path.join(directory,entry.name))&&entry.isFile()&&/\.(?:unitypackage|zip|rar|7z)$/i.test(entry.name));
+      this.bucketCache.set(key,products);return products;
+    }
+    for(const entry of entries){
+      const source=path.join(directory,entry.name);
+      if(!entry.isDirectory()||entry.isSymbolicLink()||!this.store.isPathActive(source)||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name))continue;
+      if(await this.sourceContainer(source,depth+1,budget)){this.bucketCache.set(key,true);return true}
+    }
+    // A bounded search may have stopped before reaching the final branch.
+    if(depth===0&&budget.remaining>0)this.bucketCache.set(key,false);
+    return false;
   }
   private async archiveEvidence(source:string,stat:fs.Stats):Promise<FileListing>{
     const cached=this.archiveCache.get(source);if(cached?.size===stat.size&&cached.mtimeMs===stat.mtimeMs)return cached.listing;
@@ -56,10 +80,10 @@ export class Scanner {
     };
     addEvidence(path.basename(directory),directory,'filename');
     const visit=async(location:string,depth:number,hintScope=true)=>{
-      if(this.cancelled||count>=5000||depth>10){complete=false;return}
+      if(this.cancelled||!this.store.isPathActive(location)||count>=5000||depth>10){complete=false;return}
       let entries;try{entries=await fsp.readdir(location,{withFileTypes:true})}catch{complete=false;return}
       const hintDepth=isWithin(location,hintRoot)?path.relative(hintRoot,location).split(path.sep).filter(Boolean).length:-1;
-      for(const entry of entries){if(this.cancelled||count++>=5000){complete=false;break}if(entry.isSymbolicLink()){complete=false;continue}const source=path.join(location,entry.name);
+      for(const entry of entries){if(this.cancelled||count++>=5000){complete=false;break}if(entry.isSymbolicLink()){complete=false;continue}const source=path.join(location,entry.name);if(!this.store.isPathActive(source))continue;
         if(entry.isDirectory()){
           if(CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name))continue;
           if(await this.project(source)){complete=false;continue}
@@ -84,16 +108,17 @@ export class Scanner {
     await visit(directory,0);return {size,urls:[...urls].slice(0,20),preview,localEvidence:[...evidence.values()],compatibilityComplete:complete&&evidence.size>0,localNameHints:[...nameHints]};
   }
   private async add(source:string,group:string,seen:Set<string>,excluded:string[],project=false):Promise<void>{
-    if(this.cancelled)return;
+    if(this.cancelled||!this.store.isPathActive(source))return;
     this.state.current=source;
     try{
       const stat=await fsp.lstat(source);if(stat.isSymbolicLink()){excluded.push(source);return}
-      if(stat.isDirectory()&&!project&&isOrganizationalFolderName(path.basename(source))){await this.container(source,group,seen,excluded);return}
+      if(stat.isDirectory()&&!project&&(isOrganizationalFolderName(path.basename(source))||await this.sourceContainer(source))){await this.container(source,group,seen,excluded);return}
       const identityStat=await fsp.lstat(source,{bigint:true}),fileIdentity=identityStat.ino>0n&&identityStat.birthtimeNs>0n?{device:identityStat.dev.toString(),inode:identityStat.ino.toString(),birthtime:identityStat.birthtimeNs.toString()}:undefined;
       const extension=path.extname(source).toLowerCase();
       const kind:AssetKind=project?'unity-project':stat.isDirectory()?'folder':extension==='.unitypackage'?'unitypackage':ARCHIVES.has(extension)?'archive':'file';
       if(isOrganizationalAsset({path:source,name:path.basename(source),kind}))return;
-      const wrapper=stat.isDirectory()&&!project?await discoverWrapper(source,()=>this.cancelled):undefined;
+      const containsDetached=this.store.settings().detachedRoots?.some(root=>isWithin(root,source)&&!this.store.isPathActive(root));
+      const wrapper=stat.isDirectory()&&!project&&!containsDetached?await discoverWrapper(source,()=>this.cancelled):undefined;
       const name=path.basename(source),details:Metadata=stat.isDirectory()&&!project?await this.metadata(source,wrapper?.contentRoot):{size:stat.isFile()?stat.size:0,urls:[],localEvidence:inferAvatars(name).map(avatar=>({avatar,files:[source],basis:'filename'})),compatibilityComplete:inferAvatars(name).length>0,localNameHints:[]};
       if(wrapper)details.localNameHints=[...new Set([...wrapper.chain.slice(1).map(entry=>path.basename(entry)).filter(name=>!isGenericWrapperName(name)),...details.localNameHints])].slice(0,20);
       if(!stat.isDirectory()&&(ARCHIVES.has(extension)||extension==='.unitypackage')&&!details.localEvidence.length){
@@ -109,14 +134,14 @@ export class Scanner {
     }catch(error){excluded.push(source);this.error(source,error)}
   }
   private async container(directory:string,group:string,seen:Set<string>,excluded:string[],depth=0,budget={remaining:5000}):Promise<void>{
-    if(this.cancelled)return;if(depth>32||budget.remaining--<=0){excluded.push(directory);return}
+    if(this.cancelled)return;this.store.markScanContainer(directory);if(depth>32||budget.remaining--<=0){excluded.push(directory);return}
     try{for(const entry of await fsp.readdir(directory,{withFileTypes:true})){
       if(this.cancelled)return;if(budget.remaining--<=0){excluded.push(directory);break}const source=path.join(directory,entry.name),extension=path.extname(entry.name).toLowerCase();
-      if(entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
+      if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
       if(entry.isDirectory()){
         if(await this.project(source)){await this.add(source,group,seen,excluded,true);continue}
         if(['assets','packages','projectsettings'].includes(entry.name.toLowerCase())){excluded.push(source);continue}
-        if(isOrganizationalFolderName(entry.name)||/^(?:textures?|貼圖|贴图|纹理)$/i.test(entry.name)){await this.container(source,group,seen,excluded,depth+1,budget);continue}
+        if(isOrganizationalFolderName(entry.name)||/^(?:textures?|貼圖|贴图|纹理)$/i.test(entry.name)||await this.sourceContainer(source)){await this.container(source,group,seen,excluded,depth+1,budget);continue}
         if(/^(?:模型|通用$|优化$|轉模$|转模$|转膜$)/.test(entry.name)||isAvatarName(entry.name)){await this.container(source,entry.name,seen,excluded,depth+1,budget);continue}
         const nested=await this.discoverProjects(source,excluded);
         if(nested.projects.length){for(const project of nested.projects)await this.add(project,group,seen,excluded,true);for(const archive of nested.archives)await this.add(archive,group,seen,excluded)}
@@ -130,7 +155,7 @@ export class Scanner {
     try{
       for(const entry of await fsp.readdir(directory,{withFileTypes:true})){
         if(this.cancelled)return;const source=path.join(directory,entry.name);
-        if(entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
+        if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
         if(entry.isDirectory())await this.projectTree(source,group,seen,excluded,depth+1);
         else if(entry.isFile()&&(ARCHIVES.has(path.extname(entry.name).toLowerCase())||path.extname(entry.name).toLowerCase()==='.unitypackage'))await this.add(source,group,seen,excluded);
       }
@@ -139,7 +164,7 @@ export class Scanner {
   private async group(directory:string,group:string,seen:Set<string>,excluded:string[]):Promise<void>{
     try{for(const entry of await fsp.readdir(directory,{withFileTypes:true})){
       if(this.cancelled)return;const source=path.join(directory,entry.name),extension=path.extname(entry.name).toLowerCase();
-      if(entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
+      if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
       if(entry.isDirectory())await this.add(source,group,seen,excluded,await this.project(source));
       else if(entry.isFile()&&(ARCHIVES.has(extension)||FILES.has(extension)))await this.add(source,group,seen,excluded);
     }}catch(error){excluded.push(directory);this.error(directory,error)}
@@ -155,7 +180,7 @@ export class Scanner {
         if(this.cancelled)return result;const source=path.join(directory,entry.name);
         // A downloaded package's internal Assets hierarchy stays aggregated.
         // A full Unity project was already detected before these exclusions.
-        if(entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)||['assets','packages','projectsettings'].includes(entry.name.toLowerCase())){excluded.push(source);continue}
+        if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)||['assets','packages','projectsettings'].includes(entry.name.toLowerCase())){excluded.push(source);continue}
         if(entry.isDirectory()){const child=await this.discoverProjects(source,excluded,depth+1,budget);result.projects.push(...child.projects);result.archives.push(...child.archives)}
       }
       if(result.projects.length)for(const entry of entries)if(entry.isFile()&&(ARCHIVES.has(path.extname(entry.name).toLowerCase())||path.extname(entry.name).toLowerCase()==='.unitypackage'))result.archives.push(path.join(directory,entry.name));
@@ -163,21 +188,23 @@ export class Scanner {
     return result;
   }
   private async run():Promise<void>{
-    // Nested roots share one read pass. A child root must not mark its own outer
-    // aggregation card missing simply because it enumerates only its children.
-    const roots=[...new Map(this.store.settings().roots.map(root=>[process.platform==='win32'?path.resolve(root).toLowerCase():path.resolve(root),root])).values()];
-    const outerRoots=roots.filter(root=>!roots.some(other=>other!==root&&isWithin(root,other)));
+    // Nested roots share a pass only if the ancestor can reach them. A detached
+    // intermediate scope blocks traversal, so an explicitly active child needs
+    // its own pass. Other children must not mark outer aggregation cards missing.
+    const settings=this.store.settings(),roots=[...new Map(settings.roots.map(root=>[sourcePathKey(root),root])).values()],detachedRoots=settings.detachedRoots??[];
+    const outerRoots=roots.filter(root=>!roots.some(other=>other!==root&&this.store.isPathActive(other)&&isWithin(root,other)&&!detachedRoots.some(detached=>isWithin(detached,other)&&isWithin(root,detached)&&!this.store.isPathActive(detached))));
     for(const root of outerRoots){
-      if(this.cancelled)break;const seen=new Set<string>(),excluded:string[]=[];
+      if(this.cancelled)break;if(!this.store.isPathActive(root))continue;const seen=new Set<string>(),excluded:string[]=[];
       try{
         const stat=await fsp.lstat(root);if(!stat.isDirectory()||stat.isSymbolicLink())throw new Error('素材根目录不是普通文件夹，目录链接不会扫描。');
         if(await this.project(root))await this.add(root,path.basename(root),seen,excluded,true);
-        else if(isOrganizationalFolderName(path.basename(root)))await this.container(root,path.basename(root),seen,excluded);
+        else if(isOrganizationalFolderName(path.basename(root))||isSourceBucketName(path.basename(root))&&await this.sourceContainer(root))await this.container(root,path.basename(root),seen,excluded);
         else for(const entry of await fsp.readdir(root,{withFileTypes:true})){
           if(this.cancelled)break;const source=path.join(root,entry.name),extension=path.extname(entry.name).toLowerCase();
-          if(entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
+          if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
           if(entry.isDirectory()){
             if(await this.project(source))await this.add(source,path.basename(root),seen,excluded,true);
+            else if(await this.sourceContainer(source))await this.container(source,path.basename(root),seen,excluded);
             else if(entry.name==='改模')await this.projectTree(source,entry.name,seen,excluded);
             else if(/^(?:模型|通用$|优化$|轉模$|转模$|转膜$)/.test(entry.name)||isAvatarName(entry.name))await this.group(source,entry.name,seen,excluded);
             else {
@@ -218,7 +245,7 @@ export class Scanner {
       try{
         const stat=await fsp.lstat(member.path);if(stat.isSymbolicLink())throw new Error('目录链接不会展开。');
         const extension=path.extname(member.path).toLowerCase();
-        const listing=stat.isDirectory()?await directoryFiles(member.path):['.zip','.unitypackage','.rar','.7z'].includes(extension)?await readArchive(member.path,readRoots,{limit:LIMIT,maxBytes:128*1024*1024,maxTime:30000}):{entries:[{name:member.name,size:stat.size,directory:false}],truncated:false};
+        const listing=stat.isDirectory()?await directoryFiles(member.path,source=>this.store.isPathActive(source)):['.zip','.unitypackage','.rar','.7z'].includes(extension)?await readArchive(member.path,readRoots,{limit:LIMIT,maxBytes:128*1024*1024,maxTime:30000}):{entries:[{name:member.name,size:stat.size,directory:false}],truncated:false};
         const prefix=members.length>1?member.name+'/':'';
         for(const entry of listing.entries){if(entries.length>=LIMIT){truncated=true;break}entries.push({...entry,name:prefix+entry.name})}
         truncated||=listing.truncated;if(listing.message)messages.push(listing.message);
@@ -229,13 +256,13 @@ export class Scanner {
   }
 }
 
-async function directoryFiles(root:string):Promise<FileListing>{
+async function directoryFiles(root:string,isActive:(source:string)=>boolean=()=>true):Promise<FileListing>{
   const entries:FileListing['entries']=[];let truncated=false,unreadable=0;
   const visit=async(directory:string,depth:number)=>{
     if(entries.length>=LIMIT||depth>12){truncated=true;return}
     let children;try{children=await fsp.readdir(directory,{withFileTypes:true})}catch{unreadable++;return}
     for(const child of children){if(entries.length>=LIMIT){truncated=true;break}if(child.isSymbolicLink()||CACHES.has(child.name.toLowerCase()))continue;
-      const source=path.join(directory,child.name);if(child.isDirectory()){entries.push({name:path.relative(root,source),size:0,directory:true});await visit(source,depth+1)}
+      const source=path.join(directory,child.name);if(!isActive(source))continue;if(child.isDirectory()){entries.push({name:path.relative(root,source),size:0,directory:true});await visit(source,depth+1)}
       else if(child.isFile())try{entries.push({name:path.relative(root,source),size:(await fsp.stat(source)).size,directory:false})}catch{unreadable++}
     }
   };

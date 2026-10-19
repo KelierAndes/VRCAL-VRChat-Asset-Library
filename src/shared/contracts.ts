@@ -33,11 +33,13 @@ export interface CollectionInput {id?:string;name:string;kind:'manual'|'smart';q
 export interface TagSummary {name:string;count:number;aliases:string[]}
 export const REVIEW_SORTS=['modified','modified-asc','added','added-asc','name'] as const;
 export type ReviewSort=typeof REVIEW_SORTS[number];
-export const THEME_IDS=['nasa','swiss','x'] as const;
+export const LANGUAGE_IDS=['zh-CN','ja','en'] as const;
+export type AppLanguage=typeof LANGUAGE_IDS[number];
+export const THEME_IDS=['nasa','swiss','x','x-light'] as const;
 export type AppTheme=typeof THEME_IDS[number];
-export const THEME_BACKGROUNDS:Readonly<Record<AppTheme,string>>={nasa:'#ece5d6',swiss:'#f5f1e8',x:'#000000'};
+export const THEME_BACKGROUNDS:Readonly<Record<AppTheme,string>>={nasa:'#ece5d6',swiss:'#f5f1e8',x:'#000000','x-light':'#FFFFFF'};
 export function normalizeTheme(value:unknown):AppTheme {return THEME_IDS.includes(value as AppTheme)?value as AppTheme:'nasa'}
-export interface ViewPreferences {viewMode?:'grid'|'list';density?:'compact'|'standard'|'spacious';coverFit?:'contain'|'cover';reviewSort?:ReviewSort;theme?:AppTheme}
+export interface ViewPreferences {viewMode?:'grid'|'list';density?:'compact'|'standard'|'spacious';coverFit?:'contain'|'cover';reviewSort?:ReviewSort;theme?:AppTheme;language?:AppLanguage}
 export interface AssetPage { items:AssetRecord[]; total:number }
 export interface ProjectMaterialEvidence {path:string;name:string;alias:string;kind:'directory'|'prefab'|'model'}
 export interface ProjectMaterialMatch {assetId:string;asset:AssetRecord;relation:'manual'|'detected'|'both'|'uncertain';evidence:ProjectMaterialEvidence[]}
@@ -53,17 +55,21 @@ export interface SourceUndoInfo {token:string;assetId:string;title:string;source
 export type BoothTab='login'|'favorites'|'gifts'|'library';
 export interface BoothDownload {id:string;name:string;state:'downloading'|'completed'|'interrupted'|'cancelled'|'failed';receivedBytes:number;totalBytes:number;downloadBps:number;startedAt:string;finishedAt?:string;assetId?:string;sourceUrl?:string;error?:string}
 export interface BoothState {downloadDir?:string;sessionSaved:boolean;downloads:BoothDownload[];active:boolean}
-export interface AppSettings extends ViewPreferences { roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean;xianyuEnabled:boolean }
+export interface AppSettings extends ViewPreferences { language:AppLanguage;detachedRoots?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean }
+export interface UpdateState {status:'idle'|'checking'|'available'|'up-to-date'|'downloading'|'ready'|'installing'|'error'|'unsupported';currentVersion:string;latestVersion?:string;releaseUrl?:string;releaseNotes?:string;receivedBytes:number;totalBytes?:number;downloadBps?:number;message?:string;canInstall:boolean;checkedAt?:string}
 export interface Snapshot { stats:Stats; scan:ScanProgress; queue:QueueProgress; settings:AppSettings;proxy?:ProxyStatus;undoAvailable?:boolean;sourceUndo?:SourceUndoInfo;warnings?:string[] }
 export interface FileEntry { name:string; size:number; directory:boolean }
 export interface FileListing { entries:FileEntry[]; truncated:boolean; message?:string }
 export type LibraryEvent = {type:'change'}|{type:'scan';progress:ScanProgress}|{type:'queue';progress:QueueProgress};
 export interface LibraryAPI {
   readonly initialTheme?:AppTheme;
+  readonly initialLanguage?:AppLanguage;
+  updateState():Promise<UpdateState>;checkForUpdates():Promise<UpdateState>;downloadUpdate():Promise<UpdateState>;installUpdate():Promise<boolean>;cancelUpdate():Promise<void>;openUpdatePage():Promise<void>;
+  removeRoot(root:string):Promise<boolean>;
   snapshot():Promise<Snapshot>; list(query:AssetQuery):Promise<AssetPage>; get(id:string):Promise<AssetRecord|null>;
   scan():Promise<void>; cancelScan():Promise<void>;
   annotate(ids:string[],patch:ManualInfo):Promise<void>;
-  reveal(id:string,memberPath?:string):Promise<void>; copyPath(id:string,memberPath?:string):Promise<void>; openSource(id:string):Promise<void>;openImageSearch(id:string):Promise<void>;
+  reveal(id:string,memberPath?:string):Promise<void>; copyPath(id:string,memberPath?:string):Promise<void>; openSource(id:string):Promise<void>;
   files(id:string):Promise<FileListing>; setCover(id:string):Promise<boolean>;
   enrich(ids?:string[],retry?:boolean):Promise<void>; pauseEnrichment():Promise<void>; resumeEnrichment():Promise<void>;
   linkSource(id:string,url:string):Promise<void>; acceptCandidate(id:string,url:string):Promise<void>;
@@ -84,7 +90,6 @@ export interface LibraryAPI {
   chooseBackupDir():Promise<boolean>;chooseDataDir():Promise<boolean>;openNetworkUrl(url:string):Promise<void>;
   setZoom(factor:number):Promise<number>;checkProxy():Promise<ProxyStatus>;
   setConcurrency(value:number):Promise<number>;
-  setXianyuEnabled(enabled:boolean):Promise<boolean>;
   onEvent(listener:(event:LibraryEvent)=>void):()=>void;
 }
 export function displayTitle(a:AssetRecord):string {return a.manual.title || a.online.title || a.name}

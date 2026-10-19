@@ -1,0 +1,28 @@
+html[data-theme]:lang(ja) { --locale-font: "Yu Gothic UI", "Meiryo", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; }
+html[data-theme]:lang(en) { --locale-font: "Inter", "Segoe UI", Arial, sans-serif; }
+html[data-theme]:lang(ja) body, html[data-theme]:lang(ja) button, html[data-theme]:lang(ja) input, html[data-theme]:lang(ja) select, html[data-theme]:lang(ja) textarea,
+html[data-theme]:lang(en) body, html[data-theme]:lang(en) button, html[data-theme]:lang(en) input, html[data-theme]:lang(en) select, html[data-theme]:lang(en) textarea { font-family: var(--locale-font); }
+.language-switch { display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-width:0; font-size:12px; }
+.language-switch select { min-width:108px; max-width:100%; padding:6px 25px 6px 9px; border:1px solid var(--line); border-radius:var(--radius-sm,6px); color:var(--ink); background:var(--surface); font:inherit; }
+.language-switch.compact { flex-shrink:0; }
+.language-switch.compact > span { font-size:11px; }
+html:not(:lang(zh-CN)) .nav-item, html:not(:lang(zh-CN)) .button, html:not(:lang(zh-CN)) .text-button,
+html:not(:lang(zh-CN)) .setting-block p, html:not(:lang(zh-CN)) .help-text, html:not(:lang(zh-CN)) .theme-option-copy,
+html:not(:lang(zh-CN)) .review-local-actions, html:not(:lang(zh-CN)) .modal-description { overflow-wrap:anywhere; }
+html:not(:lang(zh-CN)) .button, html:not(:lang(zh-CN)) .nav-item { white-space:normal; height:auto; min-height:32px; }
+html:not(:lang(zh-CN)) .theme-options { grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr)); }
+html:not(:lang(zh-CN)) .theme-option-copy strong, html:not(:lang(zh-CN)) .theme-option-copy span { white-space:normal; }
+html:not(:lang(zh-CN)) .topbar, html:not(:lang(zh-CN)) .toolbar, html:not(:lang(zh-CN)) .review-toolbar-actions { flex-wrap:wrap; }
+html:not(:lang(zh-CN)) .context-menu { max-width:calc(100vw - 16px); }
+html:not(:lang(zh-CN)) .context-menu button { white-space:normal; text-align:start; }
+@media(max-width:1100px) { .language-switch.compact > span { display:none; } html:not(:lang(zh-CN)) .topbar-actions { flex-wrap:wrap; } }
+@media(max-width:700px) { .language-switch.compact { width:100%; justify-content:flex-end; } html:not(:lang(zh-CN)) .field-pair { grid-template-columns:minmax(0,1fr); } }
+
+html[data-theme] .setting-path:has(.root-remove) { flex-wrap:wrap; align-items:center; }
+html[data-theme] .setting-path:has(.root-remove) > span { flex:1; min-width:120px; overflow-wrap:anywhere; }
+html[data-theme] .root-remove { flex-shrink:0; }
+.update-progress { display:flex; flex-direction:column; gap:8px; margin:12px 0; color:var(--muted); font-size:12px; }
+.update-progress progress { width:100%; height:8px; accent-color:var(--accent); }
+.update-release-notes { margin:12px 0; overflow-wrap:anywhere; }
+.update-release-notes p { white-space:pre-wrap; max-height:220px; overflow:auto; user-select:text; }
+html[data-theme] .update-settings .setting-actions { display:flex; flex-wrap:wrap; gap:8px; }
