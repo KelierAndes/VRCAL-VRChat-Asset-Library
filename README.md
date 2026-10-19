@@ -1,4 +1,4 @@
-# VRC 素材库
+# VRCAL:VRChat-Asset-Library VRC 素材库
 
 <img src="assets/library.png" alt="VRC 素材库" width="88" />
 
