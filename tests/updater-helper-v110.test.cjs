@@ -4,6 +4,16 @@ function exe(seed){const bytes=Buffer.alloc(1024,seed);bytes.write('MZ');bytes.w
 const hash=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 function fixture(t){const root=fs.mkdtempSync(path.join(os.tmpdir(),'vrc-helper-')),data=path.join(root,'profile'),stage=path.join(data,'updates',token),source=path.join(root,'protected'),target=path.join(root,'current.exe'),staged=path.join(stage,'update.exe'),manifest=path.join(stage,'install.json'),harness=path.join(root,'harness.ps1'),launchLog=path.join(root,'launch-log.txt');fs.mkdirSync(stage,{recursive:true});fs.mkdirSync(source);fs.writeFileSync(target,exe(1));fs.writeFileSync(staged,exe(2));const plan={schema:1,version:'1.10.0',token,dataDir:data,stageDir:stage,target,staged,protectedRoots:[source],sha256:hash(exe(2)),size:1024,expectedTargetSha256:hash(exe(1)),expectedTargetSize:1024,parentPid:2147483647};fs.writeFileSync(harness,`param([string]$Helper,[string]$ManifestFile,[string]$Mode,[string]$LaunchLog)
 . $Helper
+if($Mode -eq 'short-target'){
+ $shortPlan=Get-Content -LiteralPath $ManifestFile -Raw|ConvertFrom-Json
+ $filesystem=New-Object -ComObject Scripting.FileSystemObject
+ $shortTarget=$filesystem.GetFile($shortPlan.target).ShortPath
+ $normalizedTarget=Get-VrcAbsolutePath $shortTarget
+ if($shortTarget -eq $normalizedTarget){exit 86}
+ $shortPlan.target=$shortTarget
+ [IO.File]::WriteAllText($ManifestFile,($shortPlan|ConvertTo-Json -Depth 4))
+ [IO.File]::WriteAllText(($LaunchLog+'.normalized'),$normalizedTarget)
+}
 $script:LaunchCalls=0
 function Start-Process {
  [CmdletBinding()] param([string]$FilePath,[string]$WorkingDirectory,[string]$ArgumentList,[switch]$PassThru,[string]$WindowStyle)
@@ -13,7 +23,8 @@ function Start-Process {
  if($script:LaunchCalls -eq 1 -and $Mode -notin @('no-startup','early-exit')){
   $plan=Get-Content -LiteralPath $ManifestFile -Raw | ConvertFrom-Json
   if($ArgumentList -ne ('--vrc-update-token='+$plan.token)){throw 'Expected only the update token argument'}
-  $receipt=@{schema=1;token=$plan.token;target=$plan.target;sha256=$plan.sha256;size=$plan.size;version=$plan.version;pid=2147483645;parentPid=2147483646;startupReady=$true;at=[DateTime]::UtcNow.ToString('o')}
+  if($FilePath -ne (Get-VrcAbsolutePath $plan.target)){throw 'Expected the normalized launcher target'}
+  $receipt=@{schema=1;token=$plan.token;target=$FilePath;sha256=$plan.sha256;size=$plan.size;version=$plan.version;pid=2147483645;parentPid=2147483646;startupReady=$true;at=[DateTime]::UtcNow.ToString('o')}
   switch($Mode){
    'forged-token' {$receipt.token='22222222-2222-4222-8222-222222222222'}
    'forged-target' {$receipt.target=$ManifestFile}
@@ -58,14 +69,14 @@ try { Invoke-VrcUpdate $ManifestFile 180; exit 0 } catch {
    [Console]::Error.WriteLine('Synthetic receipt: '+[IO.File]::ReadAllText($receiptFile))
    [Console]::Error.WriteLine('Synthetic plan: '+($approvalPlan|ConvertTo-Json -Compress))
    $parsed=Get-Content -LiteralPath $receiptFile -Raw -Encoding UTF8|ConvertFrom-Json
-   $expected=@{schema=1;token=$approvalPlan.token;target=$approvalPlan.target;sha256=$approvalPlan.sha256;size=$approvalPlan.size;version=$approvalPlan.version;pid=2147483645;parentPid=2147483646;startupReady=$true}
+   $expected=@{schema=1;token=$approvalPlan.token;target=(Get-VrcAbsolutePath $approvalPlan.target);sha256=$approvalPlan.sha256;size=$approvalPlan.size;version=$approvalPlan.version;pid=2147483645;parentPid=2147483646;startupReady=$true}
    foreach($field in $expected.Keys){$actual=$parsed.$field;$value=$expected[$field];$type=if($null -eq $actual){'null'}else{$actual.GetType().FullName};[Console]::Error.WriteLine('Synthetic field: '+(@{field=$field;actual=$actual;actualType=$type;expected=$value;expectedType=$value.GetType().FullName;equal=($actual -ceq $value)}|ConvertTo-Json -Compress))}
   }
  } catch {[Console]::Error.WriteLine('Synthetic diagnostics: '+$_.Exception.Message)}
  exit 7
 }
 `);t.after(()=>fs.rmSync(root,{recursive:true,force:true}));return {root,data,stage,source,target,staged,manifest,plan,launchLog,run(mode='success'){fs.writeFileSync(manifest,JSON.stringify(plan));return spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',harness,'-Helper',helper,'-ManifestFile',manifest,'-Mode',mode,'-LaunchLog',launchLog],{encoding:'utf8',windowsHide:true,timeout:15000,env:{...process.env,PORTABLE_EXECUTABLE_FILE:target}})}}}
-test('helper verifies and swaps synthetic executables on the same volume, with restart stubbed',t=>{const f=fixture(t),result=f.run();assert.equal(result.status,0,result.stderr);assert.deepEqual(fs.readFileSync(f.target),exe(2));assert.equal(JSON.parse(fs.readFileSync(path.join(f.stage,'result.json'),'utf8').replace(/^\uFEFF/,'')).status,'completed');assert.equal(fs.readFileSync(f.launchLog,'utf8').trim(),f.target);assert(!fs.existsSync(path.join(f.root,'.vrc-update-'+token+'.rollback.exe')))});
+test('helper verifies and swaps synthetic executables on the same volume, with restart stubbed',t=>{const f=fixture(t),result=f.run();assert.equal(result.status,0,result.stderr);assert.deepEqual(fs.readFileSync(f.target),exe(2));assert.equal(JSON.parse(fs.readFileSync(path.join(f.stage,'result.json'),'utf8').replace(/^\uFEFF/,'')).status,'completed');const launched=fs.readFileSync(f.launchLog,'utf8').trim();assert.equal(fs.realpathSync.native(launched),fs.realpathSync.native(f.target));assert.equal(JSON.parse(fs.readFileSync(path.join(f.stage,'startup-ready.json'),'utf8')).target,launched);assert(!fs.existsSync(path.join(f.root,'.vrc-update-'+token+'.rollback.exe')))});
 test('helper restores original bytes when the synthetic restart fails and retains an error record',t=>{const f=fixture(t),result=f.run('fail-first');assert.equal(result.status,7);assert.match(result.stderr,/Synthetic restart failure/);assert.deepEqual(fs.readFileSync(f.target),exe(1));const report=JSON.parse(fs.readFileSync(path.join(f.stage,'result.json'),'utf8').replace(/^\uFEFF/,''));assert.equal(report.status,'error');assert(!fs.existsSync(path.join(f.root,'.vrc-update-'+token+'.new.exe')));assert(!fs.existsSync(path.join(f.root,'.vrc-update-'+token+'.rollback.exe')))});
 test('helper independently rejects forged destinations, cache paths and changed bytes before replacement',t=>{for(const mutate of [f=>{f.plan.target=path.join(f.source,'source.exe');fs.writeFileSync(f.plan.target,exe(1))},f=>{f.plan.staged=f.target},f=>{f.plan.sha256='0'.repeat(64)},f=>{f.plan.expectedTargetSha256='0'.repeat(64)},f=>{f.plan.protectedRoots=[f.root]},f=>{f.plan.stageDir=f.root}]){const f=fixture(t);mutate(f);const result=f.run();assert.equal(result.status,7,result.stderr);assert.deepEqual(fs.readFileSync(f.target),exe(1));assert(!fs.existsSync(f.launchLog))}});
 test('helper rejects junctions and refuses to overwrite a preexisting reserved rollback copy',t=>{const f=fixture(t),reserved=path.join(f.root,'.vrc-update-'+token+'.rollback.exe');fs.writeFileSync(reserved,'user file');let result=f.run();assert.equal(result.status,7);assert.equal(fs.readFileSync(reserved,'utf8'),'user file');assert.deepEqual(fs.readFileSync(f.target),exe(1));fs.unlinkSync(reserved);const linked=path.join(f.root,'linked');try{fs.symlinkSync(f.source,linked,'junction')}catch{t.diagnostic('junction creation unavailable');return}f.plan.staged=path.join(linked,'update.exe');fs.writeFileSync(path.join(f.source,'update.exe'),exe(2));result=f.run();assert.equal(result.status,7);assert.deepEqual(fs.readFileSync(f.target),exe(1));assert(!fs.existsSync(f.launchLog))});
@@ -98,3 +109,5 @@ finally {foreach($child in @($owned,$other)){try{if(-not $child.HasExited){$chil
 });
 
 test('missing or mismatched install approval preserves the original launcher after parent exit',t=>{for(const mode of ['no-approval','wrong-approval-pid','wrong-approval-token','wrong-approval-parent','false-approval']){const f=fixture(t),result=f.run(mode);assert.equal(result.status,7,mode+': '+result.stderr);assert.deepEqual(fs.readFileSync(f.target),exe(1));assert(!fs.existsSync(f.launchLog));assert(!fs.existsSync(path.join(f.root,'.vrc-update-'+token+'.rollback.exe')))}});
+
+test('synthetic restarted app reports the actual launcher path when the manifest uses an 8.3 alias',t=>{const f=fixture(t),result=f.run('short-target');if(result.status===86){t.skip('8.3 aliases are unavailable on the fixture volume');return}assert.equal(result.status,0,result.stderr);const manifest=JSON.parse(fs.readFileSync(f.manifest,'utf8')),receipt=JSON.parse(fs.readFileSync(path.join(f.stage,'startup-ready.json'),'utf8'));assert.notEqual(receipt.target,manifest.target);assert.equal(receipt.target,fs.readFileSync(f.launchLog+'.normalized','utf8'));assert.equal(receipt.target,fs.readFileSync(f.launchLog,'utf8').trim());assert.deepEqual(fs.readFileSync(f.target),exe(2))});
