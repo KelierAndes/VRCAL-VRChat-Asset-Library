@@ -53,7 +53,7 @@ export interface SourceUndoInfo {token:string;assetId:string;title:string;source
 export type BoothTab='login'|'favorites'|'gifts'|'library';
 export interface BoothDownload {id:string;name:string;state:'downloading'|'completed'|'interrupted'|'cancelled'|'failed';receivedBytes:number;totalBytes:number;downloadBps:number;startedAt:string;finishedAt?:string;assetId?:string;sourceUrl?:string;error?:string}
 export interface BoothState {downloadDir?:string;sessionSaved:boolean;downloads:BoothDownload[];active:boolean}
-export interface AppSettings extends ViewPreferences { roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean }
+export interface AppSettings extends ViewPreferences { roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean;xianyuEnabled:boolean }
 export interface Snapshot { stats:Stats; scan:ScanProgress; queue:QueueProgress; settings:AppSettings;proxy?:ProxyStatus;undoAvailable?:boolean;sourceUndo?:SourceUndoInfo;warnings?:string[] }
 export interface FileEntry { name:string; size:number; directory:boolean }
 export interface FileListing { entries:FileEntry[]; truncated:boolean; message?:string }
@@ -84,6 +84,7 @@ export interface LibraryAPI {
   chooseBackupDir():Promise<boolean>;chooseDataDir():Promise<boolean>;openNetworkUrl(url:string):Promise<void>;
   setZoom(factor:number):Promise<number>;checkProxy():Promise<ProxyStatus>;
   setConcurrency(value:number):Promise<number>;
+  setXianyuEnabled(enabled:boolean):Promise<boolean>;
   onEvent(listener:(event:LibraryEvent)=>void):()=>void;
 }
 export function displayTitle(a:AssetRecord):string {return a.manual.title || a.online.title || a.name}

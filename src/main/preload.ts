@@ -24,6 +24,7 @@ const api:LibraryAPI={
  backup:()=>invoke('backup'),restore:()=>invoke('restore'),chooseRoot:()=>invoke('chooseRoot'),
  chooseBackupDir:()=>invoke('chooseBackupDir'),chooseDataDir:()=>invoke('chooseDataDir'),openNetworkUrl:url=>invoke('openNetworkUrl',url),setZoom:factor=>invoke('setZoom',factor),checkProxy:()=>invoke('checkProxy'),
  setConcurrency:value=>invoke('setConcurrency',value),
+ setXianyuEnabled:enabled=>invoke('setXianyuEnabled',enabled),
  setOnlineEnabled:enabled=>invoke('setOnlineEnabled',enabled),
  onEvent:listener=>{const fn=(_e:Electron.IpcRendererEvent,event:LibraryEvent)=>listener(event);ipcRenderer.on('library:event',fn);return()=>ipcRenderer.removeListener('library:event',fn)}
 };

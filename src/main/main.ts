@@ -10,6 +10,7 @@ import {EnrichmentQueue,publicHttpsUrl} from './online';
 import {ProductPreview} from './preview';
 import {BoothWorkspace} from './booth-workspace';
 import {XianyuWorkspace} from './xianyu';
+import {XianyuAccess,XIANYU_USAGE_NOTICE} from './xianyu-access';
 import {matchingCatalog} from './matching-catalog';
 import {assetLocation} from './asset-location';
 import {importBoothDownload} from './booth-import';
@@ -43,6 +44,7 @@ let migrating=false;
 let proxy:ProxyMonitor;
 let preview:ProductPreview;
 let booth:BoothWorkspace;let xianyu:XianyuWorkspace;let sourceChanges:Promise<void>=Promise.resolve();
+let xianyuAccess:XianyuAccess;
 let store:Store;let scanner:Scanner;let queue:EnrichmentQueue;let debounce:ReturnType<typeof setTimeout>|undefined;
 function emit(event:LibraryEvent){if(!closing && window && !window.isDestroyed())window.webContents.send('library:event',event)}
 function changed(){if(migrating||debounce)return;debounce=setTimeout(()=>{debounce=undefined;emit({type:'change'})},150)}
@@ -73,10 +75,14 @@ function setupServices(){
   const imported=await importBoothDownload(store,file,sourceItem,path.dirname(file));changed();
   if(store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue([imported.assetId]);return imported;
  }});
- xianyu=new XianyuWorkspace({parent:()=>window,getTheme:()=>store.settings().theme||'x',dataDir,roots:protectedRoots,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,validateAsset:id=>{
+ xianyu=new XianyuWorkspace({parent:()=>window,getTheme:()=>store.settings().theme||'x',dataDir,roots:protectedRoots,isEnabled:()=>store.settings().xianyuEnabled,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,validateAsset:id=>{
   const item=getAsset(id);if(item.kind==='unity-project')throw new Error('请选择素材后进行辅助搜图。');
   const cover=item.manual.coverFile||item.online.coverFile||item.previewFile;return {title:item.manual.title||item.online.title||item.name,coverPath:cover?safeCoverPath(dataDir,cover):undefined};
  },searchBooth:async(id,query)=>{getAsset(id);await booth.open({tab:'search',assetId:id,query,forceKeyword:true})}});
+ const currentXianyu=xianyu;
+ xianyuAccess=new XianyuAccess({enabled:()=>store.settings().xianyuEnabled,save:enabled=>{store.saveSettings({xianyuEnabled:enabled})},close:()=>currentXianyu.networkChanged(),changed,available:()=>!closing&&!migrating&&xianyu===currentXianyu,confirm:async()=>{
+  const result=await dialog.showMessageBox(window!,{type:'warning',...XIANYU_USAGE_NOTICE,buttons:['取消','我已了解，开启'],defaultId:0,cancelId:0,noLink:true});return result.response===1;
+ }});
 }
 function editSource<T>(action:()=>Promise<T>):Promise<T>{const pending=sourceChanges.then(()=>{if(migrating||closing)throw new Error('资料库正在关闭或迁移。');return action()});sourceChanges=pending.then(()=>undefined,()=>undefined);return pending;}
 function changeSource(id:string,url:string,candidate:boolean):Promise<void>{return editSource(async()=>{
@@ -148,6 +154,7 @@ function registerHandlers(){
  handle('undoSource',(token:string)=>editSource(async()=>{if(typeof token!=='string'||token.length>100)throw new Error('撤回记录无效。');const ids=store.sourceUndoIds(token);if(!ids)throw new Error('最近的来源确认已变化，请刷新后重试。');queue.exclude(ids);const restored=store.undoSource(token);if(restored){try{if(!store.settings().onlineEnabled||process.env.VRC_LIBRARY_NO_NETWORK)queue.pause();for(const id of new Set(ids.map(id=>store.get(id)?.id).filter((id):id is string=>!!id))){const asset=matchingAsset(id);if(asset?.online.status==='pending'&&asset.manual.sourceUrl)await queue.acceptCandidate(id,asset.manual.sourceUrl,true)}}finally{changed()}}return restored}));
  handle('searchBooth',async(id:string,query:string)=>{getAsset(id);if(typeof query!=='string'||!query.trim()||query.length>300)throw new Error('请输入 1 至 300 字的搜索词。');const ids=extractBoothIds(query),term=/^(?:https:\/\/|\d{1,12}$)/i.test(query.trim())?query.trim():ids.length===1?ids[0]:searchClue(query).query;await booth.open({tab:'search',assetId:id,query:term||query.trim()})});
  handle('openImageSearch',async(id:string)=>{getAsset(id);await xianyu.open(id)});
+ handle('setXianyuEnabled',(enabled:unknown)=>xianyuAccess.setEnabled(enabled));
  handle('boothState',()=>booth.snapshot());
  handle('openBooth',async(tab:BoothTab)=>{if(!['login','favorites','gifts','library'].includes(tab))throw new Error('BOOTH 页面无效。');await booth.open({tab})});
  handle('chooseBoothDownloadDir',async()=>{const result=await dialog.showOpenDialog(window!,{title:'选择 BOOTH 下载保存文件夹（C盘之外）',defaultPath:store.settings().boothDownloadDir||dataDir,properties:['openDirectory','createDirectory']});if(result.canceled)return false;const target=assertUserStorage(await fsp.realpath(result.filePaths[0]),protectedRoots(),testProfile);store.saveSettings({boothDownloadDir:target});changed();return true});

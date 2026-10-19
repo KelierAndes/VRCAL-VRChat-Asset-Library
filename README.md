@@ -12,9 +12,9 @@
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.9.0](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.9.0/VRC-Asset-Library-1.9.0-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md)
+**[下载 Windows x64 免安装版 v1.9.1](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.9.1/VRC-Asset-Library-1.9.1-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md)
 
-1. 下载 `VRC-Asset-Library-1.9.0-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
+1. 下载 `VRC-Asset-Library-1.9.1-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
 3. 选择素材目录并扫描；默认目录为 `E:\VRChat`。
 4. 开启在线补全。程序先自动匹配商品，有歧义的条目进入「匹配确认」。

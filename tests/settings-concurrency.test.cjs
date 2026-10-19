@@ -23,7 +23,7 @@ test('download concurrency defaults to 3 and survives settings updates and reope
  const f=fixture(t),store=f.open();assert.equal(store.settings().downloadConcurrency,3);
  store.saveSettings({downloadConcurrency:6,onlineEnabled:false,backupDir:f.backupDir,uiZoom:1.25});
  store.saveSettings({uiZoom:1.5});assert.equal(store.settings().downloadConcurrency,6);store.close();
- const reopened=f.open();assert.deepEqual(reopened.settings(),{roots:f.roots,onlineEnabled:false,dataDir:f.data,backupDir:f.backupDir,uiZoom:1.5,downloadConcurrency:6,theme:'nasa',xThemeIntroduced:false});
+ const reopened=f.open();assert.deepEqual(reopened.settings(),{roots:f.roots,onlineEnabled:false,dataDir:f.data,backupDir:f.backupDir,uiZoom:1.5,downloadConcurrency:6,theme:'nasa',xThemeIntroduced:false,xianyuEnabled:false});
  for(const accepted of [1,2,3,4,5,6])assert.equal(reopened.saveSettings({downloadConcurrency:accepted}).downloadConcurrency,accepted);
 });
 
@@ -54,7 +54,7 @@ test('backup preserves concurrency, preferences and asset metadata on import and
  const backup=path.join(f.base,'complete.json');store.exportData(backup);
  assert.equal(JSON.parse(fs.readFileSync(backup,'utf8')).settings.downloadConcurrency,5);
  const importedDir=path.join(f.base,'导入资料库'),imported=f.open(importedDir);imported.importData(backup);
- assert.deepEqual(imported.settings(),{roots:f.roots,onlineEnabled:false,dataDir:importedDir,backupDir:f.backupDir,uiZoom:1.75,downloadConcurrency:5,theme:'nasa',xThemeIntroduced:false});
+ assert.deepEqual(imported.settings(),{roots:f.roots,onlineEnabled:false,dataDir:importedDir,backupDir:f.backupDir,uiZoom:1.75,downloadConcurrency:5,theme:'nasa',xThemeIntroduced:false,xianyuEnabled:false});
  let restored=imported.getRaw(asset.record.id);assert.deepEqual(restored.manual,asset.record.manual);assert.deepEqual(restored.online,asset.record.online);assert.deepEqual(restored.localEvidence,asset.record.localEvidence);assert.equal(restored.compatibilityComplete,true);assert.equal(restored.path,asset.source);assert.equal(restored.missing,false);
  imported.close();const reopened=f.open(importedDir);assert.equal(reopened.settings().downloadConcurrency,5);assert.deepEqual(reopened.getRaw(asset.record.id).manual,asset.record.manual);assertSourceUnchanged(asset);
 });

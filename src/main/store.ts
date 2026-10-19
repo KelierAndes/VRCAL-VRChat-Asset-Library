@@ -192,7 +192,7 @@ export class Store {
   settings():AppSettings {
     const row=this.db.prepare('SELECT value FROM settings WHERE key=?').get('app') as {value:string}|undefined;
     let saved:any;try{saved=row?JSON.parse(row.value):undefined}catch{}
-    return {roots:[...this.rootPaths],onlineEnabled:saved?Boolean(saved.onlineEnabled):true,dataDir:this.dataDir,backupDir:typeof saved?.backupDir==='string'&&path.isAbsolute(saved.backupDir)?saved.backupDir:undefined,...(typeof saved?.boothDownloadDir==='string'&&path.isAbsolute(saved.boothDownloadDir)?{boothDownloadDir:saved.boothDownloadDir}:{}),uiZoom:typeof saved?.uiZoom==='number'&&saved.uiZoom>=0.67&&saved.uiZoom<=2?saved.uiZoom:1,downloadConcurrency:validDownloadConcurrency(saved?.downloadConcurrency)?saved.downloadConcurrency:3,...(['grid','list'].includes(saved?.viewMode)?{viewMode:saved.viewMode}:{}),...(['compact','standard','spacious'].includes(saved?.density)?{density:saved.density}:{}),...(['contain','cover'].includes(saved?.coverFit)?{coverFit:saved.coverFit}:{}),...(REVIEW_SORTS.includes(saved?.reviewSort)?{reviewSort:saved.reviewSort}:{}),theme:normalizeTheme(saved?.theme),xThemeIntroduced:saved?.xThemeIntroduced===true};
+    return {roots:[...this.rootPaths],onlineEnabled:saved?Boolean(saved.onlineEnabled):true,dataDir:this.dataDir,backupDir:typeof saved?.backupDir==='string'&&path.isAbsolute(saved.backupDir)?saved.backupDir:undefined,...(typeof saved?.boothDownloadDir==='string'&&path.isAbsolute(saved.boothDownloadDir)?{boothDownloadDir:saved.boothDownloadDir}:{}),uiZoom:typeof saved?.uiZoom==='number'&&saved.uiZoom>=0.67&&saved.uiZoom<=2?saved.uiZoom:1,downloadConcurrency:validDownloadConcurrency(saved?.downloadConcurrency)?saved.downloadConcurrency:3,...(['grid','list'].includes(saved?.viewMode)?{viewMode:saved.viewMode}:{}),...(['compact','standard','spacious'].includes(saved?.density)?{density:saved.density}:{}),...(['contain','cover'].includes(saved?.coverFit)?{coverFit:saved.coverFit}:{}),...(REVIEW_SORTS.includes(saved?.reviewSort)?{reviewSort:saved.reviewSort}:{}),theme:normalizeTheme(saved?.theme),xThemeIntroduced:saved?.xThemeIntroduced===true,xianyuEnabled:saved?.xianyuEnabled===true};
   }
   /** Run once at application startup, before creating any native window. Both values share one atomic settings write. */
   introduceXTheme():AppSettings {
@@ -211,6 +211,7 @@ export class Store {
     if(next.reviewSort!==undefined&&!REVIEW_SORTS.includes(next.reviewSort))throw new Error('待确认排序无效。');
     if(!THEME_IDS.includes(next.theme as any))throw new Error('主题无效。');
     if(typeof next.xThemeIntroduced!=='boolean')throw new Error('主题引入标记无效。');
+    if(typeof next.xianyuEnabled!=='boolean')throw new Error('闲鱼辅助搜索设置无效。');
     next.xThemeIntroduced=current.xThemeIntroduced||next.xThemeIntroduced;
     this.writable();this.db.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('app',JSON.stringify(next));this.rootPaths=next.roots;return next;
   }
