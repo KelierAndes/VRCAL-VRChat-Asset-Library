@@ -18,6 +18,24 @@ export function writeLocation(file:string,config:LocationConfig,roots:string[]):
  const target=assertSafeWrite(file,path.dirname(file),roots,true),temporary=assertSafeWrite(target+'.tmp',path.dirname(file),roots,true);
  fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(temporary,JSON.stringify(config,null,2));fs.renameSync(temporary,target);
 }
+/** Keep a shared pointer as well as the portable pointer, so replacing the program folder retains the library. */
+export function rememberLibraryLocation(localFile:string,sharedFile:string,config:LocationConfig,roots:string[]):void {
+ let saved=false,lastError:unknown;
+ for(const file of new Set([localFile,sharedFile]))try{writeLocation(file,config,roots);saved=true}catch(error){lastError=error}
+ if(!saved)throw lastError;
+}
+/** Run before Electron ready; retain the encryption key used by older session-only cookie mirrors. */
+export function prepareSessionData(dataDir:string,roots:string[]):string {
+ const directory=assertSafeWrite(path.join(dataDir,'session'),dataDir,roots);fs.mkdirSync(directory,{recursive:true});
+ const previous=assertSafeWrite(path.join(dataDir,'Local State'),dataDir,roots),current=assertSafeWrite(path.join(directory,'Local State'),dataDir,roots);
+ if(fs.existsSync(current))return directory;
+ try{
+  const stat=fs.lstatSync(previous);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>10*1024*1024)return directory;
+  const state=JSON.parse(fs.readFileSync(previous,'utf8'));if(typeof state?.os_crypt?.encrypted_key!=='string'||!state.os_crypt.encrypted_key)return directory;
+  fs.copyFileSync(previous,current,fs.constants.COPYFILE_EXCL);
+ }catch(error:any){if(!['ENOENT','EEXIST'].includes(error.code)&&!(error instanceof SyntaxError))throw error}
+ return directory;
+}
 async function digest(file:string):Promise<string>{const hash=crypto.createHash('sha256');for await(const chunk of fs.createReadStream(file))hash.update(chunk);return hash.digest('hex')}
 /** Copy application-owned database/cache only. Original files and the old profile stay intact. */
 export async function copyLibraryData(source:string,target:string,roots:string[],allowC=false,cookieSnapshots:BrowserCookieSnapshot[]=[]):Promise<{files:number;bytes:number}> {

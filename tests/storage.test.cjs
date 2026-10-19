@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
-const {assertUserStorage,readLocation,writeLocation,copyLibraryData}=require('../dist/main/main/storage');
+const {assertUserStorage,readLocation,writeLocation,rememberLibraryLocation,prepareSessionData,copyLibraryData}=require('../dist/main/main/storage');
 const {Store}=require('../dist/main/main/store');
 function fixture(t){const root=fs.mkdtempSync(path.join(__dirname,'.fixtures-storage-'));t.after(()=>{const absolute=path.resolve(root);assert(absolute.startsWith(path.resolve(__dirname)+path.sep));fs.rmSync(absolute,{recursive:true,force:true,maxRetries:3})});return root}
 function digest(file){return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')}
@@ -27,6 +27,21 @@ test('migration never overwrites an existing profile and rolls back only newly c
 test('small location record persists chosen directories separately without copying material files',t=>{
  const root=fixture(t),file=path.join(root,'location.json');const config={dataDir:'E:\\VRC工具\\VRChatAssetLibrary',backupDir:'E:\\VRC备份'};writeLocation(file,config,['E:\\VRChat']);assert.deepEqual(readLocation(file),config);
  fs.writeFileSync(file,'invalid');assert.deepEqual(readLocation(file),{});assert.throws(()=>writeLocation(path.join(root,'素材','location.json'),config,[path.join(root,'素材')]),/保护/);
+});
+test('remembered library follows a portable upgrade into a different program folder',t=>{
+ const root=fixture(t),local=path.join(root,'old-program','location.json'),shared=path.join(root,'account','location.json'),moved=path.join(root,'new-program','location.json'),config={dataDir:'E:\\My Library',backupDir:'E:\\Library Backups'};
+ rememberLibraryLocation(local,shared,config,[]);
+ assert.deepEqual(readLocation(local),config);assert.deepEqual(readLocation(shared),config);
+ assert.deepEqual(readLocation(moved).dataDir?readLocation(moved):readLocation(shared),config);
+ const blocked=path.join(root,'protected');fs.mkdirSync(blocked);
+ rememberLibraryLocation(path.join(blocked,'location.json'),shared,{dataDir:'E:\\Moved Library'},[blocked]);
+ assert.equal(readLocation(shared).dataDir,'E:\\Moved Library');assert(!fs.existsSync(path.join(blocked,'location.json')));
+});
+test('early session setup retains the old encryption key without replacing an existing key',t=>{
+ const root=fixture(t),dataDir=path.join(root,'data');fs.mkdirSync(dataDir);const previous=path.join(dataDir,'Local State'),original=JSON.stringify({os_crypt:{encrypted_key:'private-key-fixture'}});fs.writeFileSync(previous,original);
+ const directory=prepareSessionData(dataDir,[]),current=path.join(directory,'Local State');assert.equal(fs.readFileSync(current,'utf8'),original);assert.equal(fs.readFileSync(previous,'utf8'),original);
+ fs.writeFileSync(current,'existing-session-key');prepareSessionData(dataDir,[]);assert.equal(fs.readFileSync(current,'utf8'),'existing-session-key');
+ assert.throws(()=>prepareSessionData(dataDir,[dataDir]),/保护/);
 });
 test('migration retains the selected-profile cookie key and account history but excludes unrelated browser cache',async t=>{
  const root=fixture(t),source=path.join(root,'old-account'),target=path.join(root,'new-account'),store=new Store(source,[]);store.close();

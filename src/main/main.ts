@@ -19,7 +19,7 @@ import {canonicalSourceKey,searchClue,extractBoothIds} from './matching';
 import {isOrganizationalAsset} from './organization';
 import {inspectProjectMaterials,clearProjectMaterialCache} from './project-materials';
 import {ProxyMonitor} from './proxy';
-import {readLocation,writeLocation,assertUserStorage,copyLibraryData} from './storage';
+import {readLocation,writeLocation,rememberLibraryLocation,prepareSessionData,assertUserStorage,copyLibraryData} from './storage';
 import type {BrowserCookieSnapshot} from './storage';
 import {CATEGORIES,REVIEW_SORTS,THEME_IDS,LANGUAGE_IDS,normalizeTheme,THEME_BACKGROUNDS} from '../shared/contracts';
 import type {AssetRecord,AssetQuery,LibraryEvent,ManualInfo,BoothTab} from '../shared/contracts';
@@ -30,7 +30,8 @@ const testProfile=!!process.env.VRC_LIBRARY_DATA_DIR;
 const launcherDir=process.env.PORTABLE_EXECUTABLE_DIR || (app.isPackaged?path.dirname(app.getPath('exe')):path.resolve(__dirname,'../../..'));
 const locationFile=process.env.VRC_LIBRARY_LOCATION_FILE || path.join(launcherDir,'VRC-library-location.json');
 const fallbackLocationFile=path.join(process.env.LOCALAPPDATA || app.getPath('userData'),'VRC-library-location.json');
-const location=readLocation(locationFile).dataDir?readLocation(locationFile):readLocation(fallbackLocationFile);
+const localLocation=readLocation(locationFile);
+const location=localLocation.dataDir?localLocation:readLocation(fallbackLocationFile);
 let dataDir=path.resolve(process.env.VRC_LIBRARY_DATA_DIR || location.dataDir || legacyDir);
 const initialRoots=[process.env.VRC_LIBRARY_ROOT || DEFAULT_ROOT];
 // Keep the original user library protected even when a test profile or another library is chosen.
@@ -38,6 +39,10 @@ function contained(parent:string,child:string){const rel=path.relative(path.reso
 if(contained(DEFAULT_ROOT,dataDir))throw new Error('应用数据目录不能放在素材目录内。');
 assertSafeWrite(dataDir,dataDir,[DEFAULT_ROOT,...initialRoots]);
 app.setPath('userData',dataDir);
+// Chromium captures these paths during ready. Changing them afterwards leaves
+// local toolbars and cached images using a different profile from the library.
+app.setPath('sessionData',prepareSessionData(dataDir,[DEFAULT_ROOT,...initialRoots]));
+const crashDir=assertSafeWrite(path.join(dataDir,'crashes'),dataDir,[DEFAULT_ROOT,...initialRoots]);fs.mkdirSync(crashDir,{recursive:true});app.setPath('crashDumps',crashDir);
 protocol.registerSchemesAsPrivileged([{scheme:'library-cover',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true}}]);
 app.setName('VRC素材库');
 let window:BrowserWindow|null=null;
@@ -62,7 +67,7 @@ async function refreshDownloadAvailability(){let updated=false;for(const asset o
 function rememberLocation(selected:string,backupDir?:string,roots=protectedRoots()){
  const config={dataDir:selected,backupDir};
  if(testProfile){if(process.env.VRC_LIBRARY_LOCATION_FILE)writeLocation(locationFile,config,roots);return}
- try{writeLocation(locationFile,config,roots)}catch{writeLocation(fallbackLocationFile,config,roots)}
+ rememberLibraryLocation(locationFile,fallbackLocationFile,config,roots);
 }
 function setupServices(){
  updater?.close();
@@ -97,13 +102,16 @@ async function pickDataLocation(parent?:BrowserWindow):Promise<string|null>{
 }
 async function initializeLocation():Promise<boolean>{
  if(testProfile)return true;
- if(location.dataDir){assertUserStorage(dataDir,protectedRoots());return true}
+ if(location.dataDir){assertUserStorage(dataDir,protectedRoots());if(!fs.existsSync(path.join(dataDir,'library.sqlite')))throw new Error('已登记的资料库无法读取，请确认保存资料库的磁盘已连接。原记录未被重建或覆盖。');return true}
  const target=await pickDataLocation();if(!target)return false;
  if(!fs.existsSync(path.join(target,'library.sqlite'))&&fs.existsSync(path.join(legacyDir,'library.sqlite'))){
   const previous=new Store(legacyDir,initialRoots),settings=previous.settings(),roots=[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])];previous.close();const snapshots=await prepareCookieMigration(legacyDir,roots);await copyLibraryData(legacyDir,target,roots,false,snapshots);
  }
- rememberLocation(target,location.backupDir);dataDir=target;app.setPath('userData',dataDir);
- app.releaseSingleInstanceLock();return app.requestSingleInstanceLock();
+ if(!fs.existsSync(path.join(target,'library.sqlite')))new Store(target,initialRoots).close();
+ rememberLocation(target,location.backupDir);
+ // The folder picker requires ready, so activate the chosen profile in a fresh
+ // process instead of changing Chromium storage underneath a running session.
+ app.relaunch({execPath:process.env.PORTABLE_EXECUTABLE_FILE || app.getPath('exe')});return false;
 }
 async function selectBackupLocation():Promise<boolean>{
  const result=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'选择备份保存位置（C盘之外）',defaultPath:store.settings().backupDir || path.dirname(dataDir),properties:['openDirectory','createDirectory']},uiLanguage()));if(result.canceled)return false;
@@ -255,8 +263,8 @@ if(!primary)app.quit();
 app.on('second-instance',()=>{if(window){if(window.isMinimized())window.restore();window.show();window.focus()}});
 if(primary)app.whenReady().then(async()=>{
  if(!await initializeLocation()){app.quit();return}
- for(const [name,folder] of [['sessionData','session'],['crashDumps','crashes']] as const){const target=assertSafeWrite(path.join(dataDir,folder),dataDir,[DEFAULT_ROOT,...initialRoots]);await fsp.mkdir(target,{recursive:true});app.setPath(name,target)}
  store=new Store(dataDir,initialRoots);
+ rememberLocation(dataDir,store.settings().backupDir);
  store.introduceXTheme();
  setupServices();
  protocol.handle('library-cover',async request=>{
