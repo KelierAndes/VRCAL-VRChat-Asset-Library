@@ -1,8 +1,8 @@
-# VRC Asset Library 1.10.2
+# VRC Asset Library 1.10.3
 
 A local Windows x64 library for VRChat assets. Original files and Unity projects remain unchanged.
 
-1. Close the older version and run `VRC-Asset-Library-1.10.2-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
+1. Close the older version and run `VRC-Asset-Library-1.10.3-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
 2. Choose **English** in the language selector. Select **X Light**, X Dark, NASA Punk or Swiss International in the theme selector. Choices are saved immediately. Asset names, authors, personal tags and notes remain in their original language.
 3. Open **Settings & backup** to add your main asset folder. Category subfolders are scanned recursively. Adding a parent replaces its registered children. Unity projects stay together.
 4. Use **Remove** beside a source path to exclude it from scanning and browsing. This does not delete files or annotations. Re-adding the path restores its library entries. Keep library data and backups outside the folder being scanned; move data first if necessary.
