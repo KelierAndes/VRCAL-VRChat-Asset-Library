@@ -12,9 +12,9 @@
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.10.1](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.10.1/VRC-Asset-Library-1.10.1-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+**[下载 Windows x64 免安装版 v1.10.2](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.10.2/VRC-Asset-Library-1.10.2-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
 
-1. 下载 `VRC-Asset-Library-1.10.1-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
+1. 下载 `VRC-Asset-Library-1.10.2-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
 3. 选择素材目录并扫描；默认目录为 `E:\VRChat`。
 4. 开启在线补全。程序先自动匹配商品，有歧义的条目进入「匹配确认」。
@@ -68,6 +68,8 @@ npm run package
 输出目录为仓库相邻的 `build-stage`。运行用户无需下载开发依赖。更多行为说明和隔离验收入口见 [完整使用与开发说明](docs/USER_GUIDE.md)。
 
 ## 一起维护
+
+应用左侧的“贡献者与社区”页面提供贡献者社交主页、源码与反馈入口，离线时也可以查看随版本提供的署名。
 
 - 使用问题、经验分享和方向讨论：[Discussions](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/discussions)。
 - 程序错误、匹配／分类错误和功能建议：[选择反馈模板](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/issues/new/choose)。

@@ -62,6 +62,7 @@ export interface FileEntry { name:string; size:number; directory:boolean }
 export interface FileListing { entries:FileEntry[]; truncated:boolean; message?:string }
 export type LibraryEvent = {type:'change'}|{type:'scan';progress:ScanProgress}|{type:'queue';progress:QueueProgress};
 export interface LibraryAPI {
+  openCommunityLink(id:string):Promise<void>;
   readonly initialTheme?:AppTheme;
   readonly initialLanguage?:AppLanguage;
   updateState():Promise<UpdateState>;checkForUpdates():Promise<UpdateState>;downloadUpdate():Promise<UpdateState>;installUpdate():Promise<boolean>;cancelUpdate():Promise<void>;openUpdatePage():Promise<void>;

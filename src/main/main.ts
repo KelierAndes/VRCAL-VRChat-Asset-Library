@@ -1,5 +1,6 @@
 import {acknowledgeUpdateStartup} from './update-receipt';
 import {Updater} from './updater';
+import {communityUrl} from '../shared/community';
 import {translate,normalizeLanguage,localizeDialogOptions} from '../shared/i18n';
 import {app,BrowserWindow,ipcMain,dialog,clipboard,shell,protocol,net,Menu,session} from 'electron';
 import fs from 'node:fs';
@@ -137,6 +138,7 @@ function parsePatch(input:unknown):ManualInfo{
 async function performScan(){await scanner.scan();if(closing)return;await refreshDownloadAvailability();changed();if(store.settings().onlineEnabled && !process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue();}
 function handle(name:string,fn:(...args:any[])=>any){ipcMain.handle(`library:${name}`,async(event,...args)=>{try{if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw new Error('操作来源无效。');if(migrating)throw new Error('正在更改资料库位置，请稍候。');return await fn(...args)}catch(error){if(error instanceof Error)throw new Error(translate(error.message,uiLanguage()));throw error}})}
 function registerHandlers(){
+ handle('openCommunityLink',async(id:unknown)=>{await shell.openExternal(communityUrl(id))});
  handle('snapshot',()=>({stats:store.stats(),scan:scanner.progress(),queue:queue.progress,settings:store.settings(),proxy:proxy.status,undoAvailable:store.hasUndo(),sourceUndo:store.sourceUndoInfo(),warnings:store.recoveryWarnings.slice(0,100)}));
  handle('list',(query:AssetQuery={})=>store.list(query));handle('get',(id:string)=>store.get(id));
  handle('scan',performScan);handle('cancelScan',()=>scanner.cancel());

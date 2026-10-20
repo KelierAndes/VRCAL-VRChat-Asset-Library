@@ -1,6 +1,28 @@
 // Offline UI copy. Keys are Chinese source text, values are [English, Japanese].
 // Domain enums, file names and user content keep their original values.
 export const UI_MESSAGES: Record<string, readonly [string, string]> = {
+  "贡献者与社区": ["Contributors & community", "貢献者とコミュニティ"],
+  "VRChat 本地素材管理器": ["VRChat Local Asset Manager", "VRChat ローカル素材マネージャー"],
+  "开源社区": ["Open source community", "オープンソースコミュニティ"],
+  "感谢让这个项目不断变好的每一个人。": ["Thank you to everyone helping this project grow.", "このプロジェクトをより良くしてくれる皆さんに感謝します。"],
+  "源码仓库": ["Source repository", "ソースコード"],
+  "参与贡献": ["Get involved", "開発に参加する"],
+  "此版本的贡献者": ["Contributors to this release", "このバージョンの貢献者"],
+  "项目发起与维护": ["Project creator & maintainer", "プロジェクト発起人・メンテナー"],
+  "GitHub 主页": ["GitHub profile", "GitHub プロフィール"],
+  "Bilibili 主页": ["Bilibili profile", "Bilibili プロフィール"],
+  "查看全部贡献者": ["View all contributors", "すべての貢献者を見る"],
+  "从一个小改动开始": ["Start with a small change", "小さな改善から始めよう"],
+  "代码、翻译、文档、测试与反馈，都欢迎。": ["Code, translations, documentation, testing and feedback are all welcome.", "コード、翻訳、ドキュメント、テスト、フィードバックなど、どんな形でも歓迎します。"],
+  "一起完善这个项目": ["Help improve the project", "一緒にプロジェクトを改善する"],
+  "了解如何参与，或分享你遇到的问题。": ["Find out how to contribute, or tell us about a problem.", "参加方法を確認したり、困っていることを報告したりできます。"],
+  "贡献指南": ["Contribution guide", "貢献ガイド"],
+  "反馈问题": ["Report an issue", "問題を報告する"],
+  "自由使用，共同维护": ["Free to use, maintained together", "自由に使い、みんなで育てる"],
+  "项目采用 GPL-3.0 开源许可证。": ["This project is open source under the GPL-3.0 license.", "このプロジェクトは GPL-3.0 ライセンスで公開されています。"],
+  "查看项目源码": ["Browse the source", "ソースコードを見る"],
+  "在系统浏览器打开": ["Open in your browser", "外部ブラウザーで開く"],
+  "社区链接无效。": ["Invalid community link.", "コミュニティのリンクが無効です。"],
   " · {v0} 份本地文件": [
     " · {v0} local files",
     " · ローカルファイル {v0} 件"
