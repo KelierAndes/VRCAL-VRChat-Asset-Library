@@ -1,4 +1,4 @@
-# VRCAL:VRChat-Asset-Library VRC 素材库
+# VRChat本地素材管理器 · VRCAL
 
 <img src="assets/library.png" alt="VRC 素材库" width="88" />
 
@@ -12,15 +12,19 @@
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.10.3](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.10.3/VRC-Asset-Library-1.10.3-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+**[下载 Windows x64 免安装版 v1.0.0](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.0.0/VRC-Asset-Library-1.0.0-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
 
-1. 下载 `VRC-Asset-Library-1.10.3-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
+1. 下载 `VRC-Asset-Library-1.0.0-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
 3. 选择素材目录并扫描；默认目录为 `E:\VRChat`。
 4. 开启在线补全。程序先自动匹配商品，有歧义的条目进入「匹配确认」。
 5. 找不到时，使用已准备好的关键词打开内置 BOOTH 搜索，核对商品后点击「应用此商品」。
 
-升级前先退出旧版。继续使用已有资料库后，点击「刷新素材」补齐包装目录关系；在线补全会逐步复评旧自动结果，保留人工标注。
+**1.0.0 是首次正式发布。** 此前发布的 1.9.x、1.10.x 均为测试版，旧程序附件已撤下，源码和历史记录保留。由于正式版重新从 1.0.0 编号，旧测试版的内置更新不会将它视为更高版本，需手动下载并运行一次正式版；之后可继续通过内置更新升级。
+
+升级前先退出旧版，继续使用原资料库，无需重新确认商品。如果首次询问保存位置，选择原 `VRChatAssetLibrary` 文件夹的上级目录。点击「刷新素材」补齐包装目录关系；在线补全保留人工标注。
+
+分支可以通过 **Code → Download ZIP** 下载源码；[下载 main 分支源码 ZIP](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/archive/refs/heads/main.zip)。该 ZIP 需要自行构建；直接使用请选择上面的 Windows 免安装程序。
 
 当前发布包未进行代码签名。请从本仓库 Releases 下载，并用随包 SHA-256 清单核对文件。
 
