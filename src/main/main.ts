@@ -1,6 +1,6 @@
 import {acknowledgeUpdateStartup} from './update-receipt';
 import {Updater} from './updater';
-import {communityUrl} from '../shared/community';
+import {communityUrl,QQ_GROUP_NUMBER} from '../shared/community';
 import {translate,normalizeLanguage,localizeDialogOptions} from '../shared/i18n';
 import {app,BrowserWindow,ipcMain,dialog,clipboard,shell,protocol,net,Menu,session} from 'electron';
 import fs from 'node:fs';
@@ -147,6 +147,7 @@ async function performScan(){await scanner.scan();if(closing)return;await refres
 function handle(name:string,fn:(...args:any[])=>any){ipcMain.handle(`library:${name}`,async(event,...args)=>{try{if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw new Error('操作来源无效。');if(migrating)throw new Error('正在更改资料库位置，请稍候。');if(projectImports?.busy&&['chooseDataDir','restore','removeRoot','installUpdate'].includes(name))throw new Error('请等待工程素材导入完成后再执行此操作。');return await fn(...args)}catch(error){if(error instanceof Error)throw new Error(translate(error.message,uiLanguage()));throw error}})}
 function registerHandlers(){
  handle('openCommunityLink',async(id:unknown)=>{await shell.openExternal(communityUrl(id))});
+ handle('copyCommunityGroup',()=>clipboard.writeText(QQ_GROUP_NUMBER));
  handle('snapshot',()=>({stats:store.stats(),scan:scanner.progress(),queue:queue.progress,settings:store.settings(),proxy:proxy.status,undoAvailable:store.hasUndo(),sourceUndo:store.sourceUndoInfo(),warnings:store.recoveryWarnings.slice(0,100)}));
  handle('list',(query:AssetQuery={})=>store.list(query));handle('get',(id:string)=>store.get(id));
  handle('scan',performScan);handle('cancelScan',()=>scanner.cancel());

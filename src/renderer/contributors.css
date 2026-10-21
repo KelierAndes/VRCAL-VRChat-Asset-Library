@@ -16,3 +16,8 @@
 html[data-theme='nasa'] .contributor-card{border-radius:4px}html[data-theme='swiss'] .contributor-card{border-radius:0}
 @media(max-width:1000px){.community-grid{grid-template-columns:1fr;gap:24px}.community-intro{padding-top:0}.contributor-card{padding:20px}.community-join>p{margin-bottom:14px}}
 @media(max-height:500px){.contributors-page{padding-top:18px;padding-bottom:24px}.community-intro{padding-bottom:20px}.community-grid{padding-top:20px}}
+
+.community-qq-panel{display:flex;align-items:center;justify-content:space-between;gap:28px;margin-top:26px;padding:24px;border:1px solid var(--line);border-radius:16px;background:var(--panel);min-width:0}
+.community-qq-copy{flex:1;min-width:0}.community-qq-copy h3{font-size:20px;line-height:1.5;margin:0 0 12px}.community-qq-copy p{color:var(--muted);font-size:14px;line-height:1.8;overflow-wrap:anywhere}.community-qq-number strong{color:var(--ink);font-size:22px;letter-spacing:1px;white-space:nowrap}.community-qq-qr{display:block;width:220px;max-width:100%;height:auto;flex:0 0 auto;border-radius:12px;object-fit:contain;filter:none}.community-qq-status{display:inline-block;min-height:1.5em;margin:8px 12px;font-size:13px;color:var(--accent)}.community-qq-hint{margin-bottom:0}
+html[data-theme='nasa'] .community-qq-panel{border-radius:4px}html[data-theme='swiss'] .community-qq-panel{border-radius:0}
+@media(max-width:700px){.community-qq-panel{flex-direction:column;align-items:stretch;padding:18px;gap:18px}.community-qq-qr{width:240px;align-self:center}.community-qq-number strong{font-size:19px}}

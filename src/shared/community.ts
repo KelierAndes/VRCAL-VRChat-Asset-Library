@@ -1,4 +1,5 @@
 // Bundled credits remain readable offline. Add social accounts only with their owner's consent.
+export const QQ_GROUP_NUMBER = '1002563035';
 export const PROJECT_LINKS = [
  {id:'source',label:'源码仓库',url:'https://github.com/NecoAya/VRCAL-VRChat-Asset-Library'},
  {id:'contribute',label:'贡献指南',url:'https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/main/CONTRIBUTING.md'},

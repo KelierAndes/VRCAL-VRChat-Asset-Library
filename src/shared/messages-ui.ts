@@ -3,6 +3,14 @@ import {PROJECT_MESSAGES} from './messages-project';
 // Domain enums, file names and user content keep their original values.
 export const UI_MESSAGES: Record<string, readonly [string, string]> = {
   ...PROJECT_MESSAGES,
+  "加群聊天": ["Join the chat", "グループチャットに参加"],
+  "QQ群 · 加群聊天": ["QQ group · Join the chat", "QQ グループ · チャットに参加"],
+  "催更 / 反馈 Bug，也欢迎聊聊改模和素材整理。": ["Chat, request updates or report bugs. Avatar editing and asset organization are welcome too.", "アップデートのリクエストや不具合報告に。改変や素材整理のお話も歓迎です。"],
+  "群号：": ["Group number: ", "グループ番号："],
+  "复制群号": ["Copy group number", "グループ番号をコピー"],
+  "群号已复制": ["Group number copied", "グループ番号をコピーしました"],
+  "使用 QQ 扫描右侧二维码，或搜索群号加入。": ["Scan the QR code with QQ or search for the group number to join.", "QQ で QR コードを読み取るか、グループ番号を検索して参加してください。"],
+  "QQ群二维码，群号 {number}": ["QQ group QR code, group number {number}", "QQ グループの QR コード、グループ番号 {number}"],
   "贡献者与社区": ["Contributors & community", "貢献者とコミュニティ"],
   "VRChat 本地素材管理器": ["VRChat Local Asset Manager", "VRChat ローカル素材マネージャー"],
   "开源社区": ["Open source community", "オープンソースコミュニティ"],

@@ -7,7 +7,7 @@ const requestedLanguage=process.argv.find(value=>value.startsWith('--vrc-languag
 const initialLanguage:AppLanguage=['zh-CN','ja','en'].includes(requestedLanguage??'')?requestedLanguage as AppLanguage:'zh-CN';
 const invoke=(method:string,...args:unknown[])=>ipcRenderer.invoke(`library:${method}`,...args);
 const api:LibraryAPI={
- openCommunityLink:id=>invoke('openCommunityLink',id),
+ openCommunityLink:id=>invoke('openCommunityLink',id),copyCommunityGroup:()=>invoke('copyCommunityGroup'),
  initialTheme,initialLanguage,
  updateState:()=>invoke('updateState'),checkForUpdates:()=>invoke('checkForUpdates'),downloadUpdate:()=>invoke('downloadUpdate'),installUpdate:()=>invoke('installUpdate'),cancelUpdate:()=>invoke('cancelUpdate'),openUpdatePage:()=>invoke('openUpdatePage'),removeRoot:root=>invoke('removeRoot',root),
  snapshot:()=>invoke('snapshot'),list:q=>invoke('list',q),get:id=>invoke('get',id),
