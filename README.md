@@ -12,9 +12,9 @@
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.1.1](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.1.1/VRC-Asset-Library-1.1.1-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+**[下载 Windows x64 免安装版 v1.2.0](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.0/VRC-Asset-Library-1.2.0-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
 
-1. 下载 `VRC-Asset-Library-1.1.1-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
+1. 下载 `VRC-Asset-Library-1.2.0-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
 3. 选择素材目录并扫描；默认目录为 `E:\VRChat`。
 4. 开启在线补全。程序先自动匹配商品，有歧义的条目进入「匹配确认」。
@@ -28,6 +28,15 @@
 
 当前发布包未进行代码签名。请从本仓库 Releases 下载，并用随包 SHA-256 清单核对文件。
 
+## 本次更新与更新记录
+
+**1.2.0** 新增工程内商品读取、可选 MA 装配、导入位置回传、百度网盘目录索引（试验）和离线更新记录。工程读取与云端目录读取保持只读；主动导入或确认 MA 装配时才写入所选工程。详细步骤见 [工程与云端功能说明](docs/LOCAL-CLOUD-MA.md)。
+
+- [GitHub Releases](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases)：每个正式版的功能说明、免安装程序、完整源码和校验清单；内置更新从这里读取最新正式版。
+- [CHANGELOG.md](CHANGELOG.md)：随源码保存的逐版本更新日志。
+- 程序左侧「更新记录」：随程序保存，断网也能查看。
+- [发布维护说明](docs/RELEASING.md)：维护者发布时同步这些位置。
+
 ## 可以做什么
 
 - **自动匹配 BOOTH 商品**：优先核对商品编号；支持作者前缀、版本／副本后缀，以及本商品明确列出的英日名称。
@@ -38,6 +47,9 @@
 - **合并重复展示**：符合条件的单一素材包装目录折叠成一张卡片，各层路径和人工标注保留，可展开并右键定位。
 - **图库与工程管理**：标签、收藏、备注、批量标注、集合、列表、搜索筛选、工程素材线索与人工关联。
 - **真实工程文件与导入**：直接浏览工程 Assets 和 Packages 依赖；从素材卡片导入到选定工程。Unity 素材包交给原生窗口确认，普通文件保留 `.meta` 复制，拒绝 GUID 冲突和覆盖。
+- **读取工程内商品**：扫描 Assets 中的编号、预制件、说明链接与导入记录，按依据区分商品和待核对线索，支持登记并匹配和内置 BOOTH 搜索。
+- **可选 MA 装配**：导入后选择角色与预制件，装到角色层级最底部；支持一次撤销，回传 Assets 路径，场景由用户检查后保存。
+- **百度网盘目录（试验）**：独立官方网页登录，读取选定母目录与子目录，支持暂停和续读，区分仅云端／仅本地／两处都有；不下载或解压云端包。
 - **三种界面语言**：简体中文、日本語、English，可随时切换，素材名称和人工标注保持原文。
 - **路径管理**：选择母目录递归扫描分类子文件夹，移除路径只停用扫描与显示，重新添加时恢复原有标注。
 - **内置更新**：在设置中检查、下载并校验 GitHub 新版，再确认重启安装。
@@ -50,7 +62,7 @@
 
 BOOTH 补全发送商品名称、编号等检索线索。人工资料优先，商品下架或联网失败时已有资料仍可浏览。BOOTH 请求共享至少三秒的启动间隔，网站限制与验证仍由网站决定。
 
-BOOTH 登录通过官方网页完成，持久会话保存在所选资料库中；普通备份不包含登录凭证或下载的原素材。本公开仓库和发布包不含个人资料库、Cookie、购买记录或付费素材。
+BOOTH 与百度网盘登录通过各自官方网页完成，持久会话保存在所选资料库中；普通备份不包含登录凭证或下载的原素材。本公开仓库和发布包不含个人资料库、Cookie、购买记录或付费素材。
 
 ## 从源码运行
 

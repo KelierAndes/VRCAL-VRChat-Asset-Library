@@ -1,6 +1,6 @@
 {
   "name": "vrchat-asset-library",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "license": "GPL-3.0-only",
   "repository": {
@@ -61,7 +61,8 @@
       "THIRD_PARTY_NOTICES.md",
       "assets/local-i18n.js",
       "assets/update-helper.ps1",
-      "assets/update-launcher.ps1"
+      "assets/update-launcher.ps1",
+      "assets/baidu-workspace.html"
     ],
     "asar": true,
     "win": {

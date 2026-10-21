@@ -29,7 +29,7 @@ export function relativeAssetPath(root:string,relative:unknown):string {
 }
 /** A narrow exception for an explicit import; the global source-directory write guard stays unchanged. */
 export async function projectWrite(project:ProjectAccess,file:string):Promise<string>{
- const allowed=[path.join(project.assets,'VRCAL_Imports'),path.join(project.assets,'VRCALImportBridge'),path.join(project.root,'Library','VRCALImportBridge')];
+ const allowed=[path.join(project.assets,'VRCAL_Imports'),path.join(project.assets,'VRCALImportBridge'),path.join(project.assets,'VRCALMASetup'),path.join(project.root,'Library','VRCALImportBridge')];
  if(!allowed.some(root=>isWithin(file,root)))throw new Error('导入只能写入当前工程的专用目录。');
  await noLinks(project.root);const stat=await fsp.lstat(project.root);if(stat.dev!==project.device||stat.ino!==project.inode)throw new Error('工程目录已变化，请重新选择工程。');
  await noLinks(file,true);return path.resolve(file);

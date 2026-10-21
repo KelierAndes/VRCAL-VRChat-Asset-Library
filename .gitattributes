@@ -2,3 +2,6 @@
 *.png binary
 *.ico binary
 *.woff2 binary
+
+# Preserve exact predecessor bytes for guarded Unity helper upgrades.
+assets/unity/legacy/* -text

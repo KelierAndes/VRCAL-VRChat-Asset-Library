@@ -1,0 +1,6 @@
+{
+  "name": "VRCALMASetup.Editor",
+  "references": [],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

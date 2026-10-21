@@ -1,4 +1,6 @@
-import type {ProjectFilePage,ImportSourceChoice,ProjectImportPreview,ProjectImportJob} from './project-contracts';
+import type {ProjectProductPage,ProjectProductRegistration} from './project-product-contracts';
+import type {StorageLocation,BaiduState,CloudPage,CloudQuery} from './cloud-contracts';
+import type {ProjectFilePage,ImportSourceChoice,ProjectImportPreview,ProjectImportJob,ProjectImportOptions} from './project-contracts';
 export const CATEGORIES = ['未分类','模型','服装','头发','饰品','贴图','动作','特效','工具','工程'] as const;
 export type Category = typeof CATEGORIES[number];
 export type AssetKind = 'folder'|'archive'|'unitypackage'|'file'|'unity-project';
@@ -25,7 +27,7 @@ export interface AssetRecord {
   localCategory:Category; localAvatars:string[]; hintUrls:string[]; previewFile?:string;
   manual:ManualInfo; online:OnlineInfo; createdAt:string; updatedAt:string;
   members?:LocalMember[];localEvidence?:AvatarEvidence[];compatibilityComplete?:boolean;aggregationKey?:string;localNameHints?:string[];
-  fileIdentity?:FileIdentity;searchEvidence?:SearchEvidence[];
+  fileIdentity?:FileIdentity;searchEvidence?:SearchEvidence[];storage?:StorageLocation;
   wrapper?:{contentRoot:string;chain:string[]};
 }
 export interface AssetQuery { view?:'materials'|'projects'|'all'|'manual'; search?:string; category?:string; group?:string; avatar?:string; favorite?:boolean; status?:string; sort?:'name'|'recent'|'size'|'relevance'|'added'|'added-asc'|'modified'|'modified-asc'; offset?:number; limit?:number;collectionId?:string;tag?:string;author?:string;hasCover?:boolean;untagged?:boolean;addedAfter?:string;addedBefore?:string }
@@ -63,6 +65,14 @@ export interface FileEntry { name:string; size:number; directory:boolean }
 export interface FileListing { entries:FileEntry[]; truncated:boolean; message?:string }
 export type LibraryEvent = {type:'change'}|{type:'scan';progress:ScanProgress}|{type:'queue';progress:QueueProgress};
 export interface LibraryAPI {
+  baiduState():Promise<BaiduState>;
+  openBaidu(directoryPath?:string):Promise<void>;
+  captureBaiduDirectory():Promise<CloudPage>;
+  scanBaiduDirectory(action:'start'|'pause'|'resume'|'stop'|'retry'):Promise<void>;
+  cloudCatalog(query?:CloudQuery):Promise<CloudPage>;
+  linkCloudEntry(key:string,assetId?:string|null):Promise<void>;
+  forgetCloudDirectory(accountKey:string,directoryPath:string):Promise<void>;
+  clearBaiduSession():Promise<void>;
   openCommunityLink(id:string):Promise<void>;copyCommunityGroup():Promise<void>;
   readonly initialTheme?:AppTheme;
   readonly initialLanguage?:AppLanguage;
@@ -83,12 +93,18 @@ export interface LibraryAPI {
   rejectCandidate(id:string,url:string):Promise<void>;restoreRejectedCandidates(id:string):Promise<void>;
   skipMatching(id:string):Promise<void>;restoreMatching(id:string):Promise<void>;
   projectMaterials(id:string,refresh?:boolean):Promise<ProjectMaterialPage>;
+  projectProducts(id:string,refresh?:boolean):Promise<ProjectProductPage>;
+  registerProjectProduct(projectId:string,key:string):Promise<ProjectProductRegistration>;
   projectFiles(id:string,relativePath?:string,offset?:number):Promise<ProjectFilePage>;
   projectFileAction(id:string,relativePath:string,action:'reveal'|'copy'):Promise<void>;
   importSources(assetId:string):Promise<ImportSourceChoice[]>;
-  previewProjectImport(assetId:string,projectId:string,choiceId:string):Promise<ProjectImportPreview>;
+  previewProjectImport(assetId:string,projectId:string,choiceId:string,options?:ProjectImportOptions):Promise<ProjectImportPreview>;
   executeProjectImport(token:string):Promise<ProjectImportJob>;
+  projectImportLocation(jobId:string,relative:string,action:'reveal'|'copy'):Promise<void>;
+  retryProjectMA(jobId:string):Promise<void>;
+  updateProjectMAHelper(projectId:string):Promise<void>;
   projectImportJobs(projectId?:string):Promise<ProjectImportJob[]>;
+  findProjectImportLocations(jobId:string):Promise<void>;
   cancelProjectImport(id:string):Promise<boolean>;openProjectEditor(id:string):Promise<void>;
   chooseProject():Promise<AssetRecord|null>;chooseUnityEditor(projectId:string):Promise<boolean>;
   listCollections():Promise<LibraryCollection[]>;saveCollection(input:CollectionInput):Promise<LibraryCollection>;

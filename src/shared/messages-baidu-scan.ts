@@ -1,0 +1,21 @@
+export const BAIDU_SCAN_MESSAGES:Record<string,readonly [string,string]>={
+ '读取此文件夹及所有子文件夹':['Read this folder and all subfolders','このフォルダーとすべてのサブフォルダーを読み取る'],
+ '在百度网页打开母文件夹，再选择“读取此文件夹及所有子文件夹”。无需申请 AppKey。':['Open a parent folder on the Baidu website, then select Read this folder and all subfolders. No AppKey is needed.','百度のウェブページで親フォルダーを開き、「このフォルダーとすべてのサブフォルダーを読み取る」を選びます。AppKey は不要です。'],
+ '逐层读取所选母目录内的网页文件列表。压缩包按名称记录，不下载、不解压、不移动或删除。':['Reads webpage file lists within the selected parent directory. Archives are recorded by name, without downloading, extracting, moving or deleting.','選択した親フォルダー配下のウェブのファイル一覧を順に読み取ります。圧縮ファイルは名前を記録し、ダウンロード・展開・移動・削除は行いません。'],
+ '目录读取进度':['Folder reading progress','フォルダー読み取りの進捗'],
+ '正在逐层读取子文件夹':['Reading subfolders','サブフォルダーを順に読み取り中'],
+ '目录读取已暂停':['Folder reading paused','フォルダー読み取りを一時停止しました'],
+ '目录读取已停止':['Folder reading stopped','フォルダー読み取りを停止しました'],
+ '本轮目录读取结束':['This reading pass has finished','今回のフォルダー読み取りを終了しました'],
+ '读取范围：{path}':['Scope: {path}','読み取り範囲：{path}'],
+ '当前目录：{path}':['Current folder: {path}','現在のフォルダー：{path}'],
+ '已读取 {done} 个目录 · {files} 个文件 · 待处理 {pending} 个目录':['Read {done} folders · {files} files · {pending} folders pending','{done} フォルダー・{files} ファイル読取済み / 残り {pending} フォルダー'],
+ '网页会自动切换目录；请先暂停，再手动浏览。':['The webpage navigates automatically. Pause before browsing manually.','ページは自動で切り替わります。手動で閲覧する前に一時停止してください。'],
+ '读取已中断，请检查登录、网络或页面位置后继续；已有记录保留。':['Reading was interrupted. Check login, network and folder location before resuming; saved entries are retained.','読み取りが中断されました。ログイン、接続、フォルダーの位置を確認してから再開してください。保存済みの記録は保持します。'],
+ '有 {count} 个目录待重试':['Folders to retry: {count}','再試行するフォルダー：{count} 件'],
+ '暂停读取':['Pause reading','読み取りを一時停止'],
+ '继续读取':['Resume reading','読み取りを再開'],
+ '停止读取':['Stop reading','読み取りを停止'],
+ '重试失败目录':['Retry failed folders','失敗したフォルダーを再試行'],
+ '网页列表可能不完整；未读到的文件不会据此判定缺失。':['Webpage lists may be incomplete; unseen files are never treated as missing.','ウェブの一覧は不完全な場合があります。読み取れなかったファイルを欠落とは判定しません。']
+};

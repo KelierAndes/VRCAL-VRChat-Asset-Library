@@ -23,8 +23,11 @@ export async function snapshotBrowserCookies(dataDir:string,roots:string[],profi
   }
   if(fs.existsSync(folder)){
    const info=fs.lstatSync(folder);if(!info.isDirectory()||info.isSymbolicLink())throw new Error(COOKIE_MIGRATION_FAILED);
+   const nativeBaidu=profile==='baidu-session'&&fs.existsSync(path.join(folder,'Network','Cookies'));
    const local=session.fromPath(folder,{cache:false}),cookies=await local.cookies.get({});
    if(!Array.isArray(cookies))throw new Error(COOKIE_MIGRATION_FAILED);
+   // Existing Baidu native storage is authoritative, including an intentional logout.
+   if(nativeBaidu)retained.clear();
    // Native persistent cookies override older mirror values for the same cookie identity.
    for(const cookie of cookies)if(eligible(cookie))retained.set(key(cookie),cookie);
    await local.cookies.flushStore();local.flushStorageData();

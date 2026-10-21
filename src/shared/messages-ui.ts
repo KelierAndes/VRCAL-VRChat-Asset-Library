@@ -1,8 +1,18 @@
+import {PROJECT_PRODUCT_MESSAGES} from './messages-project-products';
+import {PROJECT_CHANGE_MESSAGES} from './messages-project-changes';
+import {CLOUD_MA_MESSAGES} from './messages-cloud-ma';
+import {RELEASE_MESSAGES} from './messages-releases';
+import {BAIDU_SCAN_MESSAGES} from './messages-baidu-scan';
 import {PROJECT_MESSAGES} from './messages-project';
 // Offline UI copy. Keys are Chinese source text, values are [English, Japanese].
 // Domain enums, file names and user content keep their original values.
 export const UI_MESSAGES: Record<string, readonly [string, string]> = {
   ...PROJECT_MESSAGES,
+  ...PROJECT_PRODUCT_MESSAGES,
+  ...PROJECT_CHANGE_MESSAGES,
+  ...CLOUD_MA_MESSAGES,
+  ...RELEASE_MESSAGES,
+  ...BAIDU_SCAN_MESSAGES,
   "加群聊天": ["Join the chat", "グループチャットに参加"],
   "QQ群 · 加群聊天": ["QQ group · Join the chat", "QQ グループ · チャットに参加"],
   "催更 / 反馈 Bug，也欢迎聊聊改模和素材整理。": ["Chat, request updates or report bugs. Avatar editing and asset organization are welcome too.", "アップデートのリクエストや不具合報告に。改変や素材整理のお話も歓迎です。"],

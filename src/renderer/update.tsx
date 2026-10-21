@@ -10,7 +10,7 @@ const statusLabels: Record<UpdateState['status'], string> = {
 const size = (bytes: number) => bytes < 1048576 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1048576).toFixed(1)} MB`;
 type Runner = (action: () => Promise<unknown>, message?: string) => Promise<boolean>;
 
-export function UpdateSettings({ api, run }: { api: LibraryAPI; run: Runner }) {
+export function UpdateSettings({ api, run, onShowHistory, navigationDisabled=false }: { api: LibraryAPI; run: Runner; onShowHistory?:()=>void; navigationDisabled?:boolean }) {
   useLanguage();
   const [state, setState] = useState<UpdateState>();
   const [pending, setPending] = useState(false);
@@ -51,6 +51,7 @@ export function UpdateSettings({ api, run }: { api: LibraryAPI; run: Runner }) {
     {state && !state.canInstall && <p className="help-text">{t('自动安装仅适用于 Windows 便携版；其他版本可打开发布页面手动更新。')}</p>}
     {state?.releaseNotes && <details className="update-release-notes"><summary>{t('更新说明')}</summary><p>{state.releaseNotes}</p></details>}
     <div className="setting-actions">
+      {onShowHistory && <button className="button" data-update-action="history" disabled={navigationDisabled} onClick={onShowHistory}>{t('查看更新记录')}</button>}
       <button className="button" data-update-action="check" disabled={working} onClick={() => void action(() => api.checkForUpdates())}>{t('检查更新')}</button>
       {state?.status === 'available' && state.canInstall && <button className="button primary" data-update-action="download" disabled={working} onClick={() => void action(() => api.downloadUpdate())}>{t('下载更新')}</button>}
       {state?.status === 'ready' && state.canInstall && <button className="button primary" data-update-action="install" disabled={working} onClick={() => void action(() => api.installUpdate())}>{t('重启并更新')}</button>}

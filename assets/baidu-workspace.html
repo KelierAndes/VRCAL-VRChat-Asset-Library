@@ -1,0 +1,28 @@
+<!doctype html><html lang="zh-CN" data-theme="nasa"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"><title>百度网盘</title><link rel="stylesheet" href="window-themes.css"><style>
+header{height:204px;overflow:auto;padding:14px 18px;gap:10px}.url{max-width:45%}#disclaimer{font-size:12px;line-height:1.45;margin:0;color:var(--muted);overflow:auto;max-height:58px}#status{white-space:normal;line-height:1.4;max-height:42px;overflow:auto}#capture{font-weight:700;border-color:var(--red)}nav{flex-wrap:wrap;gap:8px}#directory{font-size:12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:text;color:var(--muted)}#scan-progress{height:3px;width:100%;accent-color:var(--red)}[hidden]{display:none!important}#close{margin-left:auto}
+</style><script>
+const initial=window.baiduWorkspace;document.documentElement.dataset.theme=initial?.initialTheme||'nasa';document.documentElement.lang=initial?.initialLanguage||'zh-CN';
+</script></head><body><header><div class="line"><h1 id="title">百度网盘 · 当前目录读取</h1><span class="url" id="url"></span></div><nav><button id="back">返回</button><button id="reload">重载</button><button id="capture" disabled>读取当前文件夹</button><button id="scan" disabled>读取此文件夹及所有子文件夹</button><button id="pause" hidden>暂停</button><button id="resume" hidden>继续读取</button><button id="stop" hidden>停止</button><button id="retry" hidden>重试失败目录</button><button id="close">关闭</button></nav><div id="directory"></div><progress id="scan-progress" hidden></progress><p id="disclaimer">只读取屏幕内已显示的文件行；始终是不完整快照，不递归、不下载。页面兼容性尚待真实登录验证。</p><div class="line"><span id="status" role="status" aria-live="polite"></span></div></header><script>
+const api=window.baiduWorkspace;addEventListener('resize',()=>void api.layout());
+function render(state){
+ if(!state)return;void api.layout();document.documentElement.dataset.theme=state.theme;document.documentElement.lang=state.language;
+ for(const id of ['title','back','reload','capture','scan','pause','resume','stop','retry','close','disclaimer'])document.getElementById(id).textContent=state.messages[id];
+ document.title=state.messages.title;document.getElementById('url').textContent=state.url;document.getElementById('url').title=state.url;
+ const task=state.scan,running=task?.phase==='running',paused=task?.phase==='paused'||task?.phase==='stopped';
+ const directory=state.messages.folder+': '+(task?.currentPath&&running?task.currentPath:state.directory||'…');document.getElementById('directory').textContent=directory;document.getElementById('directory').title=directory;
+ let status=state.status;
+ if(task&&task.phase!=='idle'){
+  const label=running?'scanRunning':task.phase==='paused'?'scanPaused':task.phase==='stopped'?'scanStopped':'scanCompleted';
+  const values={done:task.directoriesRead,files:task.filesRead,pending:task.directoriesPending,failed:task.failedDirectories};
+  status=state.messages[label]+' '+state.messages.scanSummary.replace(/\{(\w+)\}/g,(token,key)=>values[key]??token);
+ }
+ document.getElementById('status').textContent=status;
+ for(const id of ['back','reload'])document.getElementById(id).disabled=state.busy||id==='back'&&!state.canGoBack;
+ for(const id of ['capture','scan'])document.getElementById(id).disabled=!state.canCapture;
+ document.getElementById('pause').hidden=!running;document.getElementById('resume').hidden=!paused||!task.directoriesPending;document.getElementById('resume').disabled=!state.canCapture;
+ document.getElementById('stop').hidden=!running&&!paused;document.getElementById('retry').hidden=!task?.failedDirectories||running;document.getElementById('retry').disabled=!state.canCapture;
+ document.getElementById('scan-progress').hidden=!running;document.body.classList.toggle('loading',state.loading||running);
+}
+function run(promise){Promise.resolve(promise).then(render).catch(error=>{document.getElementById('status').textContent=String(error.message||'').replace(/^Error invoking remote method '[^']+': (?:Error: )?/,'')})}
+for(const action of ['back','reload','capture','scan','pause','resume','stop','retry','close'])document.getElementById(action).addEventListener('click',()=>run(api[action]()));api.onState(render);run(api.state());document.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();api.close()}if(event.key==='F5'||event.ctrlKey&&event.key.toLowerCase()==='r'){event.preventDefault();if(!document.getElementById('reload').disabled)run(api.reload())}});
+</script></body></html>

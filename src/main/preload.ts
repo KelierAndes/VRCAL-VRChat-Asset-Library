@@ -7,6 +7,7 @@ const requestedLanguage=process.argv.find(value=>value.startsWith('--vrc-languag
 const initialLanguage:AppLanguage=['zh-CN','ja','en'].includes(requestedLanguage??'')?requestedLanguage as AppLanguage:'zh-CN';
 const invoke=(method:string,...args:unknown[])=>ipcRenderer.invoke(`library:${method}`,...args);
 const api:LibraryAPI={
+ baiduState:()=>invoke('baiduState'),openBaidu:path=>invoke('openBaidu',path),captureBaiduDirectory:()=>invoke('captureBaiduDirectory'),scanBaiduDirectory:action=>invoke('scanBaiduDirectory',action),cloudCatalog:query=>invoke('cloudCatalog',query),linkCloudEntry:(key,id)=>invoke('linkCloudEntry',key,id),forgetCloudDirectory:(account,path)=>invoke('forgetCloudDirectory',account,path),clearBaiduSession:()=>invoke('clearBaiduSession'),
  openCommunityLink:id=>invoke('openCommunityLink',id),copyCommunityGroup:()=>invoke('copyCommunityGroup'),
  initialTheme,initialLanguage,
  updateState:()=>invoke('updateState'),checkForUpdates:()=>invoke('checkForUpdates'),downloadUpdate:()=>invoke('downloadUpdate'),installUpdate:()=>invoke('installUpdate'),cancelUpdate:()=>invoke('cancelUpdate'),openUpdatePage:()=>invoke('openUpdatePage'),removeRoot:root=>invoke('removeRoot',root),
@@ -21,10 +22,10 @@ const api:LibraryAPI={
  previewSource:(id,url)=>invoke('previewSource',id,url),loadCandidateCovers:ids=>invoke('loadCandidateCovers',ids),
  rejectCandidate:(id,url)=>invoke('rejectCandidate',id,url),restoreRejectedCandidates:id=>invoke('restoreRejectedCandidates',id),
  skipMatching:id=>invoke('skipMatching',id),restoreMatching:id=>invoke('restoreMatching',id),
- projectMaterials:(id,refresh)=>invoke('projectMaterials',id,refresh),
+ projectMaterials:(id,refresh)=>invoke('projectMaterials',id,refresh),projectProducts:(id,refresh)=>invoke('projectProducts',id,refresh),registerProjectProduct:(id,key)=>invoke('registerProjectProduct',id,key),
  projectFiles:(id,relative,offset)=>invoke('projectFiles',id,relative,offset),projectFileAction:(id,relative,action)=>invoke('projectFileAction',id,relative,action),
- importSources:id=>invoke('importSources',id),previewProjectImport:(asset,project,choice)=>invoke('previewProjectImport',asset,project,choice),executeProjectImport:token=>invoke('executeProjectImport',token),
- projectImportJobs:id=>invoke('projectImportJobs',id),cancelProjectImport:id=>invoke('cancelProjectImport',id),openProjectEditor:id=>invoke('openProjectEditor',id),chooseProject:()=>invoke('chooseProject'),chooseUnityEditor:id=>invoke('chooseUnityEditor',id),
+ importSources:id=>invoke('importSources',id),previewProjectImport:(asset,project,choice,options)=>invoke('previewProjectImport',asset,project,choice,options),executeProjectImport:token=>invoke('executeProjectImport',token),
+ projectImportLocation:(id,relative,action)=>invoke('projectImportLocation',id,relative,action),retryProjectMA:id=>invoke('retryProjectMA',id),updateProjectMAHelper:id=>invoke('updateProjectMAHelper',id),projectImportJobs:id=>invoke('projectImportJobs',id),findProjectImportLocations:id=>invoke('findProjectImportLocations',id),cancelProjectImport:id=>invoke('cancelProjectImport',id),openProjectEditor:id=>invoke('openProjectEditor',id),chooseProject:()=>invoke('chooseProject'),chooseUnityEditor:id=>invoke('chooseUnityEditor',id),
  listCollections:()=>invoke('listCollections'),saveCollection:input=>invoke('saveCollection',input),updateCollectionMembers:(id,ids,mode)=>invoke('updateCollectionMembers',id,ids,mode),deleteCollection:id=>invoke('deleteCollection',id),
  listTags:()=>invoke('listTags'),mergeTags:(names,target)=>invoke('mergeTags',names,target),setTagAliases:(name,aliases)=>invoke('setTagAliases',name,aliases),updateTags:(ids,add,remove)=>invoke('updateTags',ids,add,remove),setViewPreferences:preferences=>invoke('setViewPreferences',preferences),undoMetadata:()=>invoke('undoMetadata'),
  backup:()=>invoke('backup'),restore:()=>invoke('restore'),chooseRoot:()=>invoke('chooseRoot'),
