@@ -66,7 +66,7 @@ export async function copyLibraryData(source:string,target:string,roots:string[]
  try{
   const parent=path.dirname(destination);await fsp.mkdir(assertUserStorage(parent,roots,allowC),{recursive:true});await make(destination);
   await copy(database,path.join(destination,'library.sqlite'));
-  for(const name of ['Local State','queue.json','cache','booth-downloads.json','booth-session-cookies.bin','booth-session'])if(fs.existsSync(path.join(source,name)))await copy(path.join(source,name),path.join(destination,name));
+  for(const name of ['Local State','queue.json','project-imports.json','cache','booth-downloads.json','booth-session-cookies.bin','booth-session'])if(fs.existsSync(path.join(source,name)))await copy(path.join(source,name),path.join(destination,name));
   const sourceSession=path.join(source,'session'),keyFile=path.join(sourceSession,'Local State');
   if(fs.existsSync(keyFile)){const stat=await fsp.lstat(sourceSession);if(!stat.isDirectory()||stat.isSymbolicLink())throw new Error('资料库浏览会话包含目录链接，迁移已停止。');await make(path.join(destination,'session'));await copy(keyFile,path.join(destination,'session','Local State'));}
   for(const [profile,sha256] of snapshots)if(await digest(path.join(source,profile+'-cookies.bin'))!==sha256||await digest(path.join(destination,profile+'-cookies.bin'))!==sha256)throw new Error(COOKIE_MIGRATION_FAILED);

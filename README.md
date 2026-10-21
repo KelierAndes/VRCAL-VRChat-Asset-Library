@@ -8,19 +8,19 @@
 
 [![Windows CI](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/actions/workflows/ci.yml/badge.svg)](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/actions/workflows/ci.yml) · [贡献指南](CONTRIBUTING.md) · [社区讨论](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/discussions) · [路线图](docs/ROADMAP.md)
 
-**原素材和 Unity 工程保持原样。** 整理信息、封面缓存和备份保存在用户选择的位置。
+**浏览和扫描保持只读；仅在主动导入时向选定 Unity 工程写入。原素材保持原样。** 整理信息、封面缓存和备份保存在用户选择的位置。
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.0.0](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.0.0/VRC-Asset-Library-1.0.0-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+**[下载 Windows x64 免安装版 v1.1.0](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.1.0/VRC-Asset-Library-1.1.0-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
 
-1. 下载 `VRC-Asset-Library-1.0.0-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
+1. 下载 `VRC-Asset-Library-1.1.0-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
 3. 选择素材目录并扫描；默认目录为 `E:\VRChat`。
 4. 开启在线补全。程序先自动匹配商品，有歧义的条目进入「匹配确认」。
 5. 找不到时，使用已准备好的关键词打开内置 BOOTH 搜索，核对商品后点击「应用此商品」。
 
-**1.0.0 是首次正式发布。** 此前发布的 1.9.x、1.10.x 均为测试版，旧程序附件已撤下，源码和历史记录保留。由于正式版重新从 1.0.0 编号，旧测试版的内置更新不会将它视为更高版本，需手动下载并运行一次正式版；之后可继续通过内置更新升级。
+**1.0.0 是首次正式发布。** 此前发布的 1.9.x、1.10.x 均为测试版，旧程序附件已撤下，旧发布下载已移除，Git 提交历史保留。由于正式版重新从 1.0.0 编号，旧测试版的内置更新不会将它视为更高版本，需手动下载并运行一次正式版；之后可继续通过内置更新升级。
 
 升级前先退出旧版，继续使用原资料库，无需重新确认商品。如果首次询问保存位置，选择原 `VRChatAssetLibrary` 文件夹的上级目录。点击「刷新素材」补齐包装目录关系；在线补全保留人工标注。
 
@@ -37,6 +37,7 @@
 - **本地适配与商品支持分开显示**：灰色表示尚未发现对应本地版本的证据，不代表已经验证文件缺失。
 - **合并重复展示**：符合条件的单一素材包装目录折叠成一张卡片，各层路径和人工标注保留，可展开并右键定位。
 - **图库与工程管理**：标签、收藏、备注、批量标注、集合、列表、搜索筛选、工程素材线索与人工关联。
+- **真实工程文件与导入**：直接浏览工程 Assets 和 Packages 依赖；从素材卡片导入到选定工程。Unity 素材包交给原生窗口确认，普通文件保留 `.meta` 复制，拒绝 GUID 冲突和覆盖。
 - **三种界面语言**：简体中文、日本語、English，可随时切换，素材名称和人工标注保持原文。
 - **路径管理**：选择母目录递归扫描分类子文件夹，移除路径只停用扫描与显示，重新添加时恢复原有标注。
 - **内置更新**：在设置中检查、下载并校验 GitHub 新版，再确认重启安装。
@@ -45,7 +46,7 @@
 
 ## 数据与文件
 
-应用引用原文件，不提供删除、移动、重命名原素材的操作。压缩包只读查看目录，不自动解压；Unity 工程不自动导入或修改。目录链接、Unity 缓存和软件安装目录不参与素材索引。
+应用引用原文件，不提供删除、移动、重命名原素材的操作。压缩包只读查看目录，不自动解压；Unity 工程仅在用户主动导入后写入所选内容，文件浏览与扫描不会改动工程。目录链接、Unity 缓存和软件安装目录不参与素材索引。
 
 BOOTH 补全发送商品名称、编号等检索线索。人工资料优先，商品下架或联网失败时已有资料仍可浏览。BOOTH 请求共享至少三秒的启动间隔，网站限制与验证仍由网站决定。
 

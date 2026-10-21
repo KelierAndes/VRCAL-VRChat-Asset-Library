@@ -1,3 +1,4 @@
+import type {ProjectFilePage,ImportSourceChoice,ProjectImportPreview,ProjectImportJob} from './project-contracts';
 export const CATEGORIES = ['未分类','模型','服装','头发','饰品','贴图','动作','特效','工具','工程'] as const;
 export type Category = typeof CATEGORIES[number];
 export type AssetKind = 'folder'|'archive'|'unitypackage'|'file'|'unity-project';
@@ -55,7 +56,7 @@ export interface SourceUndoInfo {token:string;assetId:string;title:string;source
 export type BoothTab='login'|'favorites'|'gifts'|'library';
 export interface BoothDownload {id:string;name:string;state:'downloading'|'completed'|'interrupted'|'cancelled'|'failed';receivedBytes:number;totalBytes:number;downloadBps:number;startedAt:string;finishedAt?:string;assetId?:string;sourceUrl?:string;error?:string}
 export interface BoothState {downloadDir?:string;sessionSaved:boolean;downloads:BoothDownload[];active:boolean}
-export interface AppSettings extends ViewPreferences { language:AppLanguage;detachedRoots?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean }
+export interface AppSettings extends ViewPreferences { language:AppLanguage;unityEditorPath?:string;detachedRoots?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean }
 export interface UpdateState {status:'idle'|'checking'|'available'|'up-to-date'|'downloading'|'ready'|'installing'|'error'|'unsupported';currentVersion:string;latestVersion?:string;releaseUrl?:string;releaseNotes?:string;receivedBytes:number;totalBytes?:number;downloadBps?:number;message?:string;canInstall:boolean;checkedAt?:string}
 export interface Snapshot { stats:Stats; scan:ScanProgress; queue:QueueProgress; settings:AppSettings;proxy?:ProxyStatus;undoAvailable?:boolean;sourceUndo?:SourceUndoInfo;warnings?:string[] }
 export interface FileEntry { name:string; size:number; directory:boolean }
@@ -82,6 +83,14 @@ export interface LibraryAPI {
   rejectCandidate(id:string,url:string):Promise<void>;restoreRejectedCandidates(id:string):Promise<void>;
   skipMatching(id:string):Promise<void>;restoreMatching(id:string):Promise<void>;
   projectMaterials(id:string,refresh?:boolean):Promise<ProjectMaterialPage>;
+  projectFiles(id:string,relativePath?:string,offset?:number):Promise<ProjectFilePage>;
+  projectFileAction(id:string,relativePath:string,action:'reveal'|'copy'):Promise<void>;
+  importSources(assetId:string):Promise<ImportSourceChoice[]>;
+  previewProjectImport(assetId:string,projectId:string,choiceId:string):Promise<ProjectImportPreview>;
+  executeProjectImport(token:string):Promise<ProjectImportJob>;
+  projectImportJobs(projectId?:string):Promise<ProjectImportJob[]>;
+  cancelProjectImport(id:string):Promise<boolean>;openProjectEditor(id:string):Promise<void>;
+  chooseProject():Promise<AssetRecord|null>;chooseUnityEditor(projectId:string):Promise<boolean>;
   listCollections():Promise<LibraryCollection[]>;saveCollection(input:CollectionInput):Promise<LibraryCollection>;
   updateCollectionMembers(collectionId:string,ids:string[],mode:'add'|'remove'):Promise<void>;deleteCollection(id:string):Promise<void>;
   listTags():Promise<TagSummary[]>;mergeTags(names:string[],target:string):Promise<void>;setTagAliases(name:string,aliases:string[]):Promise<void>;

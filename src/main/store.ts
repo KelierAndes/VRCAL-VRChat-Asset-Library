@@ -201,14 +201,14 @@ export class Store {
   settings():AppSettings {
     const row=this.db.prepare('SELECT value FROM settings WHERE key=?').get('app') as {value:string}|undefined;
     let saved:any;try{saved=row?JSON.parse(row.value):undefined}catch{}
-    return {roots:[...this.rootPaths],...(this.detachedRootPaths.length?{detachedRoots:[...this.detachedRootPaths]}:{}),onlineEnabled:saved?Boolean(saved.onlineEnabled):true,dataDir:this.dataDir,backupDir:typeof saved?.backupDir==='string'&&path.isAbsolute(saved.backupDir)?saved.backupDir:undefined,...(typeof saved?.boothDownloadDir==='string'&&path.isAbsolute(saved.boothDownloadDir)?{boothDownloadDir:saved.boothDownloadDir}:{}),uiZoom:typeof saved?.uiZoom==='number'&&saved.uiZoom>=0.67&&saved.uiZoom<=2?saved.uiZoom:1,downloadConcurrency:validDownloadConcurrency(saved?.downloadConcurrency)?saved.downloadConcurrency:3,...(['grid','list'].includes(saved?.viewMode)?{viewMode:saved.viewMode}:{}),...(['compact','standard','spacious'].includes(saved?.density)?{density:saved.density}:{}),...(['contain','cover'].includes(saved?.coverFit)?{coverFit:saved.coverFit}:{}),...(REVIEW_SORTS.includes(saved?.reviewSort)?{reviewSort:saved.reviewSort}:{}),theme:normalizeTheme(saved?.theme),language:normalizeLanguage(saved?.language),xThemeIntroduced:saved?.xThemeIntroduced===true};
+    return {...(typeof saved?.unityEditorPath==='string'&&path.isAbsolute(saved.unityEditorPath)&&path.basename(saved.unityEditorPath).toLowerCase()==='unity.exe'?{unityEditorPath:saved.unityEditorPath}:{}),roots:[...this.rootPaths],...(this.detachedRootPaths.length?{detachedRoots:[...this.detachedRootPaths]}:{}),onlineEnabled:saved?Boolean(saved.onlineEnabled):true,dataDir:this.dataDir,backupDir:typeof saved?.backupDir==='string'&&path.isAbsolute(saved.backupDir)?saved.backupDir:undefined,...(typeof saved?.boothDownloadDir==='string'&&path.isAbsolute(saved.boothDownloadDir)?{boothDownloadDir:saved.boothDownloadDir}:{}),uiZoom:typeof saved?.uiZoom==='number'&&saved.uiZoom>=0.67&&saved.uiZoom<=2?saved.uiZoom:1,downloadConcurrency:validDownloadConcurrency(saved?.downloadConcurrency)?saved.downloadConcurrency:3,...(['grid','list'].includes(saved?.viewMode)?{viewMode:saved.viewMode}:{}),...(['compact','standard','spacious'].includes(saved?.density)?{density:saved.density}:{}),...(['contain','cover'].includes(saved?.coverFit)?{coverFit:saved.coverFit}:{}),...(REVIEW_SORTS.includes(saved?.reviewSort)?{reviewSort:saved.reviewSort}:{}),theme:normalizeTheme(saved?.theme),language:normalizeLanguage(saved?.language),xThemeIntroduced:saved?.xThemeIntroduced===true};
   }
   /** Run once at application startup, before creating any native window. Both values share one atomic settings write. */
   introduceXTheme():AppSettings {
     const current=this.settings();return current.xThemeIntroduced?current:this.saveSettings({theme:'x',xThemeIntroduced:true});
   }
   saveSettings(patch:Partial<AppSettings>):AppSettings {
-    const current=this.settings(),allowed=new Set(['roots','onlineEnabled','backupDir','uiZoom','downloadConcurrency','boothDownloadDir','viewMode','density','coverFit','reviewSort','theme','language','xThemeIntroduced']);
+    const current=this.settings(),allowed=new Set(['roots','onlineEnabled','unityEditorPath','backupDir','uiZoom','downloadConcurrency','boothDownloadDir','viewMode','density','coverFit','reviewSort','theme','language','xThemeIntroduced']);
     const next={...current,...Object.fromEntries(Object.entries(patch).filter(([key])=>allowed.has(key))),dataDir:this.dataDir};
     next.roots=normalizeSourceRoots(next.roots);
     const enabled=next.roots.filter(root=>!current.roots.some(old=>sourcePathKey(old)===sourcePathKey(root)));
@@ -216,6 +216,7 @@ export class Store {
     next.detachedRoots=normalizeSourceRoots([...this.detachedRootPaths,...removed]).filter(root=>!enabled.some(active=>isWithin(root,active)));
     const protectedPaths=['E:\\VRChat',...next.roots,...next.detachedRoots];
     assertSafeWrite(path.join(this.dataDir,'library.sqlite'),this.dataDir,protectedPaths);
+    if(next.unityEditorPath!==undefined&&(typeof next.unityEditorPath!=='string'||!path.isAbsolute(next.unityEditorPath)||path.basename(next.unityEditorPath).toLowerCase()!=='unity.exe'))throw new Error('请选择 Unity Editor 的 Unity.exe。');
     if(next.backupDir!==undefined){if(typeof next.backupDir!=='string'||!path.isAbsolute(next.backupDir))throw new Error('备份路径必须为绝对路径。');next.backupDir=assertSafeWrite(next.backupDir,this.dataDir,protectedPaths,true)}
     if(next.boothDownloadDir!==undefined){if(typeof next.boothDownloadDir!=='string'||!path.isAbsolute(next.boothDownloadDir))throw new Error('BOOTH 下载路径必须为绝对路径。');next.boothDownloadDir=assertSafeWrite(next.boothDownloadDir,this.dataDir,protectedPaths,true)}
     if(typeof next.uiZoom!=='number'||!Number.isFinite(next.uiZoom)||next.uiZoom<0.67||next.uiZoom>2)throw new Error('界面缩放必须在 67% 到 200% 之间。');

@@ -19,6 +19,9 @@ import {importBoothDownload} from './booth-import';
 import {canonicalSourceKey,searchClue,extractBoothIds} from './matching';
 import {isOrganizationalAsset} from './organization';
 import {inspectProjectMaterials,clearProjectMaterialCache} from './project-materials';
+import {ProjectImports,listProjectFiles} from './project-import';
+import {noLinks,relativeAssetPath,validateProject} from './project-access';
+import {editorVersion} from './unity-editors';
 import {ProxyMonitor} from './proxy';
 import {readLocation,writeLocation,rememberLibraryLocation,prepareSessionData,assertUserStorage,copyLibraryData} from './storage';
 import type {BrowserCookieSnapshot} from './storage';
@@ -53,6 +56,7 @@ let proxy:ProxyMonitor;
 let preview:ProductPreview;
 let booth:BoothWorkspace;let sourceChanges:Promise<void>=Promise.resolve();
 let updater:Updater;
+let projectImports:ProjectImports;
 let store:Store;let scanner:Scanner;let queue:EnrichmentQueue;let debounce:ReturnType<typeof setTimeout>|undefined;
 function emit(event:LibraryEvent){if(!closing && window && !window.isDestroyed())window.webContents.send('library:event',event)}
 function changed(){if(migrating||debounce)return;debounce=setTimeout(()=>{debounce=undefined;emit({type:'change'})},150)}
@@ -71,6 +75,10 @@ function rememberLocation(selected:string,backupDir?:string,roots=protectedRoots
  rememberLibraryLocation(locationFile,fallbackLocationFile,config,roots);
 }
 function setupServices(){
+  projectImports=new ProjectImports({dataDir,roots:()=>store.settings().roots,getAsset:id=>store.get(id),readRoots:boothReadRoots,selectedEditor:()=>store.settings().unityEditorPath,
+    ...(testProfile&&process.env.VRC_LIBRARY_NO_EDITOR_LAUNCH?{findEditor:async()=>undefined}:{}),onChange:changed,onComplete:job=>{
+      const project=store.get(job.projectId);if(project&&project.path===job.projectPath){store.updateManual([project.id],{relatedIds:[...new Set([...(project.manual.relatedIds??[]),job.assetId])]});clearProjectMaterialCache(project.path);changed()}
+    }});
  updater?.close();
  updater=new Updater({version:app.getVersion(),dataDir,roots:protectedRoots,executable:process.env.PORTABLE_EXECUTABLE_FILE,packaged:app.isPackaged,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,fetch:(url,init)=>net.fetch(url,init),onChange:changed,quit:()=>app.quit()});
  preview?.close();
@@ -136,7 +144,7 @@ function parsePatch(input:unknown):ManualInfo{
  return result;
 }
 async function performScan(){await scanner.scan();if(closing)return;await refreshDownloadAvailability();changed();if(store.settings().onlineEnabled && !process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue();}
-function handle(name:string,fn:(...args:any[])=>any){ipcMain.handle(`library:${name}`,async(event,...args)=>{try{if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw new Error('操作来源无效。');if(migrating)throw new Error('正在更改资料库位置，请稍候。');return await fn(...args)}catch(error){if(error instanceof Error)throw new Error(translate(error.message,uiLanguage()));throw error}})}
+function handle(name:string,fn:(...args:any[])=>any){ipcMain.handle(`library:${name}`,async(event,...args)=>{try{if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw new Error('操作来源无效。');if(migrating)throw new Error('正在更改资料库位置，请稍候。');if(projectImports?.busy&&['chooseDataDir','restore','removeRoot','installUpdate'].includes(name))throw new Error('请等待工程素材导入完成后再执行此操作。');return await fn(...args)}catch(error){if(error instanceof Error)throw new Error(translate(error.message,uiLanguage()));throw error}})}
 function registerHandlers(){
  handle('openCommunityLink',async(id:unknown)=>{await shell.openExternal(communityUrl(id))});
  handle('snapshot',()=>({stats:store.stats(),scan:scanner.progress(),queue:queue.progress,settings:store.settings(),proxy:proxy.status,undoAvailable:store.hasUndo(),sourceUndo:store.sourceUndoInfo(),warnings:store.recoveryWarnings.slice(0,100)}));
@@ -174,6 +182,16 @@ function registerHandlers(){
  handle('skipMatching',(id:string)=>{const asset=getAsset(id);if(asset.kind==='unity-project')throw new Error('工程不参与商品匹配。');const ids=expandedIds([id]);store.updateManual(ids,{matchingMode:'manual'});queue.exclude(ids);changed()});
  handle('restoreMatching',(id:string)=>{const asset=getAsset(id);if(asset.kind==='unity-project')throw new Error('工程不参与商品匹配。');store.updateManual(expandedIds([id]),{matchingMode:'auto'});changed()});
  handle('projectMaterials',async(id:string,refresh=false)=>{if(typeof refresh!=='boolean')throw new Error('刷新选项无效。');const project=getAsset(id);if(project.kind!=='unity-project')throw new Error('请选择一个 Unity 工程。');if(refresh)clearProjectMaterialCache(project.path);const catalog=store.list({view:'materials',limit:5000});const result=await inspectProjectMaterials(project,catalog.items,store.settings().roots);if(catalog.total>catalog.items.length){result.truncated=true;result.warnings.push('素材库较大，本次只核对前 5,000 个素材；未覆盖全部来源包。')}return result;});
+ handle('projectFiles',(id:string,relative='',offset=0)=>listProjectFiles(getAsset(id),store.settings().roots,relative,offset));
+ handle('projectFileAction',async(id:string,relative:string,action:string)=>{if(!['reveal','copy'].includes(action))throw new Error('工程文件操作无效。');const access=await validateProject(getAsset(id),store.settings().roots),file=relativeAssetPath(access.assets,relative);await noLinks(file);await fsp.access(file);if(action==='copy')clipboard.writeText(file);else shell.showItemInFolder(file)});
+ handle('importSources',(id:string)=>projectImports.sources(id));
+ handle('previewProjectImport',(assetId:string,projectId:string,choiceId:string)=>projectImports.preview(assetId,projectId,choiceId));
+ handle('executeProjectImport',(token:string)=>projectImports.execute(token));
+ handle('projectImportJobs',(id?:string)=>projectImports.jobs(id));
+ handle('cancelProjectImport',(id:string)=>projectImports.cancel(id));
+ handle('openProjectEditor',(id:string)=>projectImports.openProject(id));
+ handle('chooseUnityEditor',async(id:string)=>{const project=await validateProject(getAsset(id),store.settings().roots);const picked=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'选择相同版本的 Unity Editor',properties:['openFile'],filters:[{name:'Unity Editor',extensions:['exe']}]},uiLanguage()));if(picked.canceled)return false;const file=path.resolve(picked.filePaths[0]),version=await editorVersion(file);if(!project.version||version!==project.version)throw new Error('编辑器版本与工程不一致，未启动或修改工程。');store.saveSettings({unityEditorPath:file});changed();return true;});
+ handle('chooseProject',async()=>{if(scanner.progress().running)throw new Error('请先停止扫描，再添加工程。');const result=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'选择 Unity 工程文件夹',properties:['openDirectory']},uiLanguage()));if(result.canceled)return null;const selected=path.resolve(result.filePaths[0]);await noLinks(selected);await validateProject({kind:'unity-project',path:selected} as AssetRecord,[selected]);if(contained(selected,dataDir)||contained(dataDir,selected)||store.settings().backupDir&&contained(selected,store.settings().backupDir!))throw new Error('工程与资料库或备份目录不能重叠。');if(!store.isPathActive(selected)){const roots=store.settings().roots;store.saveSettings({roots:[...roots.filter(root=>!contained(selected,root)),selected]})}const existing=store.all().find(asset=>path.resolve(asset.path).toLowerCase()===selected.toLowerCase());if(existing?.kind==='unity-project'){changed();return store.get(existing.id)}const stat=await fsp.lstat(selected);const project=store.upsertScan({path:selected,name:path.basename(selected),kind:'unity-project',group:path.basename(path.dirname(selected)),size:0,mtimeMs:stat.mtimeMs,localCategory:'工程',localAvatars:[],hintUrls:[]});changed();return project;});
  handle('saveCollection',(input:unknown)=>{const result=store.saveCollection(input as any);changed();return result});
  handle('updateCollectionMembers',(id:string,ids:unknown,mode:'add'|'remove')=>{if(mode!=='add'&&mode!=='remove')throw new Error('集合操作无效。');store.updateCollectionMembers(id,expandedIds(ids),mode);changed()});
  handle('deleteCollection',(id:string)=>{store.deleteCollection(id);changed()});
@@ -277,4 +295,4 @@ if(primary)app.whenReady().then(async()=>{
 }).catch(error=>{dialog.showErrorBox('素材库启动失败',error instanceof Error?error.message:String(error));app.quit()});
 app.on('window-all-closed',()=>app.quit());
 let exitReady=false;
-app.on('before-quit',event=>{if(exitReady)return;event.preventDefault();closing=true;updater?.close();preview?.close();scanner?.cancel();if(!migrating){proxy?.setEnabled(false);queue?.stop()}void Promise.allSettled([sourceChanges,booth?.shutdown(),queue?.waitIdle(),scanner?.waitIdle()]).then(()=>{exitReady=true;app.quit()})});
+app.on('before-quit',event=>{if(exitReady)return;event.preventDefault();closing=true;updater?.close();preview?.close();scanner?.cancel();if(!migrating){proxy?.setEnabled(false);queue?.stop()}void Promise.allSettled([projectImports?.waitIdle(),sourceChanges,booth?.shutdown(),queue?.waitIdle(),scanner?.waitIdle()]).then(()=>{exitReady=true;app.quit()})});

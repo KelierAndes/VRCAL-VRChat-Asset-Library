@@ -1,6 +1,8 @@
+import {PROJECT_MESSAGES} from './messages-project';
 // Offline UI copy. Keys are Chinese source text, values are [English, Japanese].
 // Domain enums, file names and user content keep their original values.
 export const UI_MESSAGES: Record<string, readonly [string, string]> = {
+  ...PROJECT_MESSAGES,
   "贡献者与社区": ["Contributors & community", "貢献者とコミュニティ"],
   "VRChat 本地素材管理器": ["VRChat Local Asset Manager", "VRChat ローカル素材マネージャー"],
   "开源社区": ["Open source community", "オープンソースコミュニティ"],

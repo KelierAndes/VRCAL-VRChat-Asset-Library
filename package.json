@@ -1,6 +1,6 @@
 {
   "name": "vrchat-asset-library",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "license": "GPL-3.0-only",
   "repository": {
@@ -50,6 +50,7 @@
     "files": [
       "dist/**/*",
       "assets/library.png",
+      "assets/unity/**/*",
       "assets/preview.html",
       "assets/booth-workspace.html",
       "assets/window-themes.css",

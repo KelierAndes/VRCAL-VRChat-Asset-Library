@@ -1,0 +1,7 @@
+{
+  "name": "VRCALImportBridge.Editor",
+  "rootNamespace": "VRCAL.LocalAssets",
+  "references": [],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}
