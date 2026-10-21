@@ -44,7 +44,7 @@ async function language(value){await page.locator('[data-language-selector="head
   assert.equal(await page.locator('.release-card[data-running="true"]').count(),1);
   assert.equal(await page.locator('.updates-nav').getAttribute('aria-current'),'page');
   checks.push('Sidebar opens offline bundled history with actual runtime version and bundled chronological records');
-  await page.locator('[data-release-channel="stable"]').click();assert.equal(await page.locator('.release-card').count(),5);
+  await page.locator('[data-release-channel="stable"]').click();assert.equal(await page.locator('.release-card').count(),6);
   await page.locator('.release-search').fill('1.1.0');assert.equal(await page.locator('.release-card').count(),1);
   await page.locator('[data-release-channel="local"]').click();await page.locator('.release-empty').waitFor();
   await page.locator('.release-empty button').click();assert.equal(await page.locator('.release-card').count(),require('../dist/main/shared/release-notes').RELEASE_NOTES.length);

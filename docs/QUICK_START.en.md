@@ -1,10 +1,10 @@
-# VRC Asset Library 1.2.1
+# VRC Asset Library 1.2.2
 
 **First stable release:** 1.0.0 starts the stable version series. Earlier 1.9.x and 1.10.x releases were test builds. Because their version numbers are higher, their built-in updater will not offer 1.0.0. Close the test build and manually download and run the stable EXE once. Keep your existing library; if asked for a location, select the parent of your existing `VRChatAssetLibrary` folder. Later stable updates can use the built-in updater. Old test executables have been withdrawn; source history remains available.
 
 A local Windows x64 library for VRChat assets. Browsing and scanning are read-only. Only an explicit import writes to the selected Unity project; source assets remain unchanged.
 
-1. Close the older version and run `VRC-Asset-Library-1.2.1-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
+1. Close the older version and run `VRC-Asset-Library-1.2.2-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
 2. Choose **English** in the language selector. Select **X Light**, X Dark, NASA Punk or Swiss International in the theme selector. Choices are saved immediately. Asset names, authors, personal tags and notes remain in their original language.
 3. Open **Settings & backup** to add your main asset folder. Category subfolders are scanned recursively. Adding a parent replaces its registered children. Unity projects stay together.
 4. Use **Remove** beside a source path to exclude it from scanning and browsing. This does not delete files or annotations. Re-adding the path restores its library entries. Keep library data and backups outside the folder being scanned; move data first if necessary.
@@ -42,8 +42,15 @@ In **Contributors & community**, choose **Join the chat** to view the bundled QQ
 
 Keep your existing library when upgrading. Users of 1.2.0-local.* trial builds should run the stable EXE manually once. More implementation and verification details: [project and cloud guide (Chinese)](LOCAL-CLOUD-MA.md).
 
-## 1.2.1
+## 1.2.2
 
 If the saved library cannot be opened, the app shows its path and offers retry or selection of an existing library containing library.sqlite. It does not create an empty replacement.
 
 Settings → Assisted search → Enable Xianyu search is off by default. Accept the usage notice to show Try Xianyu enrichment in match confirmation. Review the official website results, then optionally use a product link for public metadata enrichment or continue to BOOTH with its name. No purchasing or automatic image uploads. Login verification or website changes can prevent enrichment; existing data and source undo remain available. Ordinary backups omit login credentials and cannot silently enable the tool.
+
+
+## Add assets manually
+
+Use **Add assets manually** in the toolbar to select one or more asset folders, or drop folders and local ZIP, RAR, 7z or Unitypackage files from File Explorer. Only the selected content is read; siblings and the entire library are not rescanned. Online enrichment continues only for these entries when enabled.
+
+Manual paths persist across restarts and backups. Repeated additions preserve existing confirmations and annotations. Remove a path in Settings without deleting originals or annotations. Libraries, backups, drive roots and directory links are not accepted as assets. For files inside a Unity project, use **Read products in a project**, or add the whole project folder. Sources are never copied, moved or extracted by this operation.

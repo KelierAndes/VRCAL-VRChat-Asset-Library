@@ -182,6 +182,7 @@ function parsePatch(input:unknown):ManualInfo{
  return result;
 }
 async function performScan(){await scanner.scan();if(closing)return;await refreshDownloadAvailability();changed();if(store.settings().onlineEnabled && !process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue();}
+async function addMaterials(paths:unknown){const result=await scanner.addPaths(paths);if(!closing&&!migrating){changed();if(result.ids.length&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue(result.ids)}return {...result,errors:result.errors.map(error=>{const split=error.lastIndexOf("：");return split<0?translate(error,uiLanguage()):error.slice(0,split+1)+translate(error.slice(split+1),uiLanguage())})};}
 function handle(name:string,fn:(...args:any[])=>any){ipcMain.handle(`library:${name}`,async(event,...args)=>{try{if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw new Error('操作来源无效。');if(migrating)throw new Error('正在更改资料库位置，请稍候。');if(projectImports?.busy&&['chooseDataDir','restore','removeRoot','installUpdate'].includes(name))throw new Error('请等待工程素材导入完成后再执行此操作。');return await fn(...args)}catch(error){if(error instanceof Error)throw new Error(translate(error.message,uiLanguage()));throw error}})}
 function registerHandlers(){
  handle('openCommunityLink',async(id:unknown)=>{await shell.openExternal(communityUrl(id))});
@@ -196,6 +197,8 @@ function registerHandlers(){
  handle('forgetCloudDirectory',(accountKey:string,directoryPath:string)=>{if(typeof accountKey!=='string'||typeof directoryPath!=='string')throw new Error('云端目录无效。');cloud.forget(accountKey,directoryPath);changed()});
  handle('clearBaiduSession',async()=>{await baidu.clearSession();changed()});
  handle('scan',performScan);handle('cancelScan',()=>scanner.cancel());
+ handle('addMaterials',addMaterials);
+ handle('chooseMaterials',async()=>{if(scanner.progress().running)throw new Error('正在扫描或读取素材，请完成后再添加。');const current=store,result=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'选择素材文件夹（可多选）',properties:['openDirectory','multiSelections']},uiLanguage()));if(result.canceled)return null;if(current!==store||migrating||closing)throw new Error('资料库位置已变化，请重新添加素材。');return addMaterials(result.filePaths)});
  handle('annotate',(ids:unknown,patch:unknown)=>{const clean=parsePatch(patch);const views=parseIds(ids).map(getAsset);const shared={...clean};delete shared.title;delete shared.notes;
   store.updateManual([...new Set(views.flatMap(a=>a.members?.map(m=>m.id)||[a.id]))],shared);
   const singular:ManualInfo={};if(clean.title!==undefined)singular.title=clean.title;if(clean.notes!==undefined)singular.notes=clean.notes;if(Object.keys(singular).length)store.updateManual([...new Set(views.map(a=>a.id))],singular);changed()});
@@ -292,7 +295,7 @@ function registerHandlers(){
  handle('removeRoot',async(root:unknown)=>{
   if(scanner.progress().running)throw new Error('请先停止扫描，再修改素材目录。');
   if(typeof root!=='string'||!path.isAbsolute(root)||!store.settings().roots.some(value=>path.resolve(value).toLowerCase()===path.resolve(root).toLowerCase()))throw new Error('素材目录未登记。');
-  const affected=store.all().filter(asset=>contained(root,asset.path)).flatMap(asset=>asset.members?.map(member=>member.id)||[asset.id]);queue.exclude(affected);store.removeRoot(root);preview.close();changed();return true;
+  const affected=store.all().filter(asset=>contained(root,asset.path)).flatMap(asset=>asset.members?.map(member=>member.id)||[asset.id]);store.removeRoot(root);queue.exclude(affected.filter(id=>{const raw=store.getRaw(id);return !raw||!store.isPathActive(raw.path)}));preview.close();changed();return true;
  });
  handle('updateState',()=>updater.state());
  handle('checkForUpdates',()=>updater.check());

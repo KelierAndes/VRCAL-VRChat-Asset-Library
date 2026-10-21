@@ -1,0 +1,7 @@
+.material-drop-overlay{position:fixed;inset:12px;z-index:10000;display:grid;place-items:center;border:2px dashed var(--accent,#1d9bf0);border-radius:22px;background:color-mix(in srgb,var(--bg,#000) 92%,transparent);pointer-events:none;padding:24px;color:var(--ink,#e7e9ea)}
+.material-drop-overlay>div{max-width:540px;text-align:center;padding:32px;border:1px solid var(--line,#2f3336);background:var(--surface,var(--panel,#16181c));border-radius:20px}
+.material-drop-symbol{display:block;font-size:54px;line-height:1.2;color:var(--accent,#1d9bf0)}.material-drop-overlay strong{display:block;font-size:24px;margin:10px 0}.material-drop-overlay p{font-size:15px;line-height:1.6}.material-drop-overlay small{color:var(--muted,#71767b);font-size:13px}.material-drop-overlay.blocked{border-style:solid}
+.manual-add-button{white-space:nowrap}.setting-direct-source{font-size:11px;color:var(--muted);flex-shrink:0}.material-add-hint{color:var(--muted);margin:0;font-size:12px}
+@media(max-width:1050px){.manual-add-button{padding-inline:9px}.material-drop-overlay{inset:6px;padding:12px}.material-drop-overlay>div{padding:20px}.material-drop-overlay strong{font-size:20px}}
+
+.manual-add-errors{padding:10px 18px;border-bottom:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:12px;max-height:180px;overflow:auto}.manual-add-errors li{overflow-wrap:anywhere;margin:8px 0}.manual-add-errors summary{cursor:pointer}

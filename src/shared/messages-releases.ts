@@ -1,4 +1,9 @@
 export const RELEASE_MESSAGES: Record<string, readonly [string,string]> = {
+ '手动添加与拖拽入库':['Manual additions & drag-and-drop','手動追加とドラッグ＆ドロップ'],
+ '工具栏新增手动添加素材，可直接拖入文件夹或素材包，立即识别所选内容。':['Add asset folders from the toolbar or drop folders and packages to recognize just the selected content.','ツールバーで素材フォルダーを追加するか、フォルダーやパッケージをドロップして選択内容を認識できます。'],
+ '手动添加不触发全库扫描，仅对本次识别的素材继续在线补全；重复添加保留原确认、封面和人工标注。':['Manual additions do not rescan the library. Only these entries continue to enrichment; repeated additions retain confirmations, covers and annotations.','手動追加では全体を再スキャンせず、今回の項目のみを補完します。再追加しても出典確認・画像・注釈を保持します。'],
+ '手动来源随重启、备份恢复保留，设置中可移除；支持中日英与四套主题。':['Manual sources survive restart and backup restore and can be removed in Settings. Supports three languages and four themes.','手動の登録先は再起動・バックアップ復元後も保持され、設定で外せます。3 言語・4 テーマに対応。'],
+ '原文件保持只读，不复制或解压素材；资料库、备份、磁盘根目录与目录链接不能作为素材添加。':['Originals remain read-only, without copying or extracting assets. Library, backup, drive-root and linked paths cannot be added as assets.','元ファイルは読み取り専用で、コピー・解凍しません。ライブラリ・バックアップ・ドライブルート・リンクは素材として追加できません。'],
  '资料库恢复与可选闲鱼搜索':['Library recovery & optional Xianyu search','ライブラリの復旧と任意の閑魚検索'],
  '旧资料库无法读取时显示登记路径，可重试连接或重新定位已有资料库，不自动创建空库。':['If the saved library is unavailable, show its path and retry or locate an existing library, without creating an empty one.','保存先を読み取れない場合はパスを表示し、再試行または既存ライブラリの指定ができます。空のライブラリは自動作成しません。'],
  '设置新增默认关闭的闲鱼搜索，确认使用提醒后在匹配确认显示“进行闲鱼尝试补全”。':['Xianyu search is off by default. Accept the usage notice to show Try Xianyu enrichment in match confirmation.','閑魚検索は初期設定では無効です。注意事項を確認すると照合確認に補完ボタンを表示します。'],

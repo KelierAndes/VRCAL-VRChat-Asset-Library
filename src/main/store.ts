@@ -203,20 +203,22 @@ export class Store {
   settings():AppSettings {
     const row=this.db.prepare('SELECT value FROM settings WHERE key=?').get('app') as {value:string}|undefined;
     let saved:any;try{saved=row?JSON.parse(row.value):undefined}catch{}
-    return {...(typeof saved?.unityEditorPath==='string'&&path.isAbsolute(saved.unityEditorPath)&&path.basename(saved.unityEditorPath).toLowerCase()==='unity.exe'?{unityEditorPath:saved.unityEditorPath}:{}),roots:[...this.rootPaths],...(this.detachedRootPaths.length?{detachedRoots:[...this.detachedRootPaths]}:{}),onlineEnabled:saved?Boolean(saved.onlineEnabled):true,dataDir:this.dataDir,backupDir:typeof saved?.backupDir==='string'&&path.isAbsolute(saved.backupDir)?saved.backupDir:undefined,...(typeof saved?.boothDownloadDir==='string'&&path.isAbsolute(saved.boothDownloadDir)?{boothDownloadDir:saved.boothDownloadDir}:{}),uiZoom:typeof saved?.uiZoom==='number'&&saved.uiZoom>=0.67&&saved.uiZoom<=2?saved.uiZoom:1,downloadConcurrency:validDownloadConcurrency(saved?.downloadConcurrency)?saved.downloadConcurrency:3,...(['grid','list'].includes(saved?.viewMode)?{viewMode:saved.viewMode}:{}),...(['compact','standard','spacious'].includes(saved?.density)?{density:saved.density}:{}),...(['contain','cover'].includes(saved?.coverFit)?{coverFit:saved.coverFit}:{}),...(REVIEW_SORTS.includes(saved?.reviewSort)?{reviewSort:saved.reviewSort}:{}),theme:normalizeTheme(saved?.theme),language:normalizeLanguage(saved?.language),xThemeIntroduced:saved?.xThemeIntroduced===true,xianyuEnabled:saved?.xianyuEnabled===true};
+    let directSources:string[]=[];try{directSources=normalizeSourceRoots(saved?.directSources??[]).filter(source=>this.rootPaths.some(root=>sourcePathKey(root)===sourcePathKey(source)))}catch{}
+    return {...(directSources.length?{directSources}:{}),...(typeof saved?.unityEditorPath==='string'&&path.isAbsolute(saved.unityEditorPath)&&path.basename(saved.unityEditorPath).toLowerCase()==='unity.exe'?{unityEditorPath:saved.unityEditorPath}:{}),roots:[...this.rootPaths],...(this.detachedRootPaths.length?{detachedRoots:[...this.detachedRootPaths]}:{}),onlineEnabled:saved?Boolean(saved.onlineEnabled):true,dataDir:this.dataDir,backupDir:typeof saved?.backupDir==='string'&&path.isAbsolute(saved.backupDir)?saved.backupDir:undefined,...(typeof saved?.boothDownloadDir==='string'&&path.isAbsolute(saved.boothDownloadDir)?{boothDownloadDir:saved.boothDownloadDir}:{}),uiZoom:typeof saved?.uiZoom==='number'&&saved.uiZoom>=0.67&&saved.uiZoom<=2?saved.uiZoom:1,downloadConcurrency:validDownloadConcurrency(saved?.downloadConcurrency)?saved.downloadConcurrency:3,...(['grid','list'].includes(saved?.viewMode)?{viewMode:saved.viewMode}:{}),...(['compact','standard','spacious'].includes(saved?.density)?{density:saved.density}:{}),...(['contain','cover'].includes(saved?.coverFit)?{coverFit:saved.coverFit}:{}),...(REVIEW_SORTS.includes(saved?.reviewSort)?{reviewSort:saved.reviewSort}:{}),theme:normalizeTheme(saved?.theme),language:normalizeLanguage(saved?.language),xThemeIntroduced:saved?.xThemeIntroduced===true,xianyuEnabled:saved?.xianyuEnabled===true};
   }
   /** Run once at application startup, before creating any native window. Both values share one atomic settings write. */
   introduceXTheme():AppSettings {
     const current=this.settings();return current.xThemeIntroduced?current:this.saveSettings({theme:'x',xThemeIntroduced:true});
   }
-  saveSettings(patch:Partial<AppSettings>):AppSettings {
-    const current=this.settings(),allowed=new Set(['roots','onlineEnabled','unityEditorPath','backupDir','uiZoom','downloadConcurrency','boothDownloadDir','viewMode','density','coverFit','reviewSort','theme','language','xThemeIntroduced','xianyuEnabled']);
+  saveSettings(patch:Partial<AppSettings>,detachedSources:string[]=[]):AppSettings {
+    const current=this.settings(),allowed=new Set(['roots','directSources','onlineEnabled','unityEditorPath','backupDir','uiZoom','downloadConcurrency','boothDownloadDir','viewMode','density','coverFit','reviewSort','theme','language','xThemeIntroduced','xianyuEnabled']);
     const next={...current,...Object.fromEntries(Object.entries(patch).filter(([key])=>allowed.has(key))),dataDir:this.dataDir};
     if(Object.hasOwn(patch,'xianyuEnabled')&&typeof patch.xianyuEnabled!=='boolean')throw new Error('闲鱼辅助搜索设置无效。');
     next.roots=normalizeSourceRoots(next.roots);
+    next.directSources=normalizeSourceRoots(next.directSources??[]).filter(source=>next.roots.some(root=>sourcePathKey(root)===sourcePathKey(source)));if(!next.directSources.length)delete next.directSources;
     const enabled=next.roots.filter(root=>!current.roots.some(old=>sourcePathKey(old)===sourcePathKey(root)));
     const removed=current.roots.filter(root=>!next.roots.some(active=>isWithin(root,active)));
-    next.detachedRoots=normalizeSourceRoots([...this.detachedRootPaths,...removed]).filter(root=>!enabled.some(active=>isWithin(root,active)));
+    next.detachedRoots=normalizeSourceRoots([...this.detachedRootPaths,...removed,...detachedSources]).filter(root=>!enabled.some(active=>isWithin(root,active)));
     const protectedPaths=['E:\\VRChat',...next.roots,...next.detachedRoots];
     assertSafeWrite(path.join(this.dataDir,'library.sqlite'),this.dataDir,protectedPaths);
     if(next.unityEditorPath!==undefined&&(typeof next.unityEditorPath!=='string'||!path.isAbsolute(next.unityEditorPath)||path.basename(next.unityEditorPath).toLowerCase()!=='unity.exe'))throw new Error('请选择 Unity Editor 的 Unity.exe。');
@@ -236,7 +238,7 @@ export class Store {
   /** Unregister a scan scope; stored records and all original files remain intact. */
   removeRoot(root:string):void {
     const [resolved]=normalizeSourceRoots([root]);
-    this.saveSettings({roots:this.rootPaths.filter(current=>sourcePathKey(current)!==sourcePathKey(resolved))});
+    this.saveSettings({roots:this.rootPaths.filter(current=>sourcePathKey(current)!==sourcePathKey(resolved))},[resolved]);
   }
   /** Retain old aggregate annotations while removing a proven category shelf
    * from current product views. No filesystem or record deletion is involved. */
@@ -265,6 +267,7 @@ export class Store {
     const incomingCloud=cleanCloudCatalog(backup.cloudCatalog);
     const roots=normalizeSourceRoots(backup.settings?.roots),detachedRoots=normalizeSourceRoots(backup.settings?.detachedRoots??[]),backupScopes=[...roots,...detachedRoots];
     const nextRoots=normalizeSourceRoots([...this.rootPaths,...roots]).filter(root=>!detachedRoots.some(detached=>isWithin(root,detached))||roots.some(active=>isWithin(root,active)));
+    const nextDirectSources=normalizeSourceRoots([...(this.settings().directSources??[]),...normalizeSourceRoots(backup.settings?.directSources??[])]).filter(source=>nextRoots.some(root=>sourcePathKey(root)===sourcePathKey(source)));
     const nextDetachedRoots=normalizeSourceRoots([...this.detachedRootPaths.filter(root=>!roots.some(active=>isWithin(root,active))),...detachedRoots]);
     const protectedPaths=['E:\\VRChat',...nextRoots,...nextDetachedRoots];assertSafeWrite(this.dataDir,this.dataDir,protectedPaths);
     const downloads=new Set<string>();if(backup.downloadPaths!==undefined){if(backup.version!==2||!Array.isArray(backup.downloadPaths)||backup.downloadPaths.length>100000)throw new Error('备份的 BOOTH 下载白名单无效。');for(const value of backup.downloadPaths){const reference=safeBoothDownloadPath(value,this.dataDir,protectedPaths),key=this.pathKey(reference);if(downloads.has(key))throw new Error('备份的 BOOTH 下载白名单重复。');downloads.add(key);}}
@@ -299,7 +302,7 @@ export class Store {
     const current=this.settings();let backupDir=current.backupDir;const savedBackup=backup.settings?.backupDir;if(typeof savedBackup==='string'&&path.isAbsolute(savedBackup))try{backupDir=assertSafeWrite(savedBackup,this.dataDir,protectedPaths,true)}catch{}
     const boothDownloadDir=safeBackupDownloadDirectory(backup.settings?.boothDownloadDir,this.dataDir,protectedPaths)??safeBackupDownloadDirectory(current.boothDownloadDir,this.dataDir,protectedPaths);
     const preferences:Partial<AppSettings>={};for(const [key,values] of [['viewMode',['grid','list']],['density',['compact','standard','spacious']],['coverFit',['contain','cover']],['reviewSort',REVIEW_SORTS],['theme',THEME_IDS],['language',LANGUAGE_IDS]] as const)if(values.includes(backup.settings?.[key] as never))(preferences as any)[key]=backup.settings[key];
-    const settings={...current,...preferences,xianyuEnabled:current.xianyuEnabled===true,xThemeIntroduced:current.xThemeIntroduced||backup.settings?.xThemeIntroduced===true,roots:nextRoots,detachedRoots:nextDetachedRoots,dataDir:this.dataDir,onlineEnabled:Boolean(backup.settings?.onlineEnabled),backupDir,boothDownloadDir,uiZoom:typeof backup.settings?.uiZoom==='number'&&Number.isFinite(backup.settings.uiZoom)&&backup.settings.uiZoom>=.67&&backup.settings.uiZoom<=2?backup.settings.uiZoom:current.uiZoom,downloadConcurrency:validDownloadConcurrency(backup.settings?.downloadConcurrency)?backup.settings.downloadConcurrency:3};
+    const settings={...current,...preferences,xianyuEnabled:current.xianyuEnabled===true,xThemeIntroduced:current.xThemeIntroduced||backup.settings?.xThemeIntroduced===true,roots:nextRoots,directSources:nextDirectSources,detachedRoots:nextDetachedRoots,dataDir:this.dataDir,onlineEnabled:Boolean(backup.settings?.onlineEnabled),backupDir,boothDownloadDir,uiZoom:typeof backup.settings?.uiZoom==='number'&&Number.isFinite(backup.settings.uiZoom)&&backup.settings.uiZoom>=.67&&backup.settings.uiZoom<=2?backup.settings.uiZoom:current.uiZoom,downloadConcurrency:validDownloadConcurrency(backup.settings?.downloadConcurrency)?backup.settings.downloadConcurrency:3};
     const stage=assertSafeWrite(path.join(this.dataDir,'.restore-'+crypto.randomUUID()),this.dataDir,protectedPaths),cache=assertSafeWrite(path.join(this.dataDir,'cache'),this.dataDir,protectedPaths),created:string[]=[];fs.mkdirSync(stage);fs.mkdirSync(cache,{recursive:true});
     try{
       for(const item of decoded){const temporary=assertSafeWrite(path.join(stage,item.file),this.dataDir,protectedPaths);if(!fs.existsSync(temporary))fs.writeFileSync(temporary,item.bytes,{flag:'wx'});const target=assertSafeWrite(path.join(cache,item.file),this.dataDir,protectedPaths);if(!fs.existsSync(target)){fs.renameSync(temporary,target);created.push(target)}else if(crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex')!==path.basename(item.file, path.extname(item.file)))fs.renameSync(temporary,target);}

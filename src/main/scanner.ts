@@ -1,10 +1,12 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import {AssetKind,FileListing,ScanProgress,AvatarEvidence} from '../shared/contracts';
+import {AssetKind,FileListing,ScanProgress,AvatarEvidence,ManualAddResult} from '../shared/contracts';
 import {Store,assetId} from './store';
 import {inferLocalCategory,inferAvatars,isAvatarName,extractUrls} from './hints';
-import {copyCover,isWithin} from './safety';
+import {copyCover,isWithin,assertSafeWrite} from './safety';
+import {noLinks} from './project-access';
+import {normalizeSourceRoots} from './source-roots';
 import {readArchive} from './archive-reader';
 import {isOrganizationalFolderName,isOrganizationalAsset} from './organization';
 import {discoverWrapper,wrapperPathKey,isGenericWrapperName} from './wrappers';
@@ -25,7 +27,7 @@ export class Scanner {
   private state:ScanProgress={running:false,found:0,current:'',errors:[]};
   private cancelled=false;
   private scanAbort=new AbortController();
-  private active:Promise<void>|null=null;
+  private active:Promise<unknown>|null=null;
   private archiveCache=new Map<string,{size:number;mtimeMs:number;listing:FileListing}>();
   private bucketCache=new Map<string,boolean>();
   constructor(private store:Store,private onProgress?:(progress:ScanProgress)=>void){}
@@ -34,14 +36,46 @@ export class Scanner {
   async waitIdle():Promise<void>{if(this.active)await this.active}
   private emit():void {this.onProgress?.(this.progress())}
   scan():Promise<void>{
-    if(this.active)return this.active;
+    if(this.active)return this.active as Promise<void>;
     this.cancelled=false;this.bucketCache.clear();this.scanAbort=new AbortController();this.state={running:true,found:0,current:'',errors:[]};this.emit();
-    this.active=this.run().finally(()=>{this.state.running=false;this.state.current=this.cancelled?'扫描已取消':'';this.state.finishedAt=new Date().toISOString();this.active=null;this.emit()});
-    return this.active;
+    const work=this.run().finally(()=>{this.state.running=false;this.state.current=this.cancelled?'扫描已取消':'';this.state.finishedAt=new Date().toISOString();this.active=null;this.emit()});
+    this.active=work;return work;
+  }
+  /** Explicit selections are exact read scopes, never their parent directory. */
+  addPaths(raw:unknown):Promise<ManualAddResult>{
+    if(this.active)return Promise.reject(new Error('正在扫描或读取素材，请完成后再添加。'));
+    if(!Array.isArray(raw)||!raw.length||raw.length>100)return Promise.reject(new Error('每次请选择 1 至 100 个素材文件或文件夹。'));
+    let paths:string[];try{paths=normalizeSourceRoots(raw,100)}catch(error){return Promise.reject(error)}
+    this.cancelled=false;this.bucketCache.clear();this.scanAbort=new AbortController();this.state={running:true,found:0,current:'',errors:[],mode:'manual'};this.emit();
+    const work=this.addSelected(paths).finally(()=>{this.state.running=false;this.state.current=this.cancelled?'扫描已取消':'';this.state.finishedAt=new Date().toISOString();this.active=null;this.emit()});
+    this.active=work;return work;
+  }
+  private async addSelected(paths:string[]):Promise<ManualAddResult>{
+    const valid:string[]=[],directories=new Set<string>(),seen=new Set<string>(),before=new Set(this.store.all().map(a=>a.id));
+    for(const source of paths){
+      if(this.cancelled)break;this.state.current=source;this.emit();
+      try{
+        const settings=this.store.settings();
+        if(source===path.parse(source).root||[settings.dataDir,settings.backupDir].some(target=>target&&(isWithin(source,target)||isWithin(target,source))))throw new Error('素材不能是磁盘根目录，也不能与资料库或备份位置重叠。');
+        await noLinks(source);const stat=await fsp.lstat(source),name=path.basename(source),extension=path.extname(source).toLowerCase();
+        if(!stat.isDirectory()&&!stat.isFile()||stat.isFile()&&!ARCHIVES.has(extension)&&!FILES.has(extension)||CACHES.has(name.toLowerCase())||SOFTWARE.test(name))throw new Error('请选择素材文件夹或受支持的素材文件。');
+        // A Unity project can be added whole; its internal caches/assets are not standalone downloads.
+        for(let parent=path.dirname(source);parent!==path.dirname(parent);parent=path.dirname(parent))if(await this.project(parent,true))throw new Error('工程内部文件请通过“读取工程内商品”查看，或添加完整工程文件夹。');
+        assertSafeWrite(path.join(settings.dataDir,'library.sqlite'),settings.dataDir,['E:\\VRChat',...settings.roots,...(settings.detachedRoots??[]),source]);valid.push(source);if(stat.isDirectory())directories.add(sourcePathKey(source));
+      }catch(error){this.error(source,error)}
+    }
+    const selected=valid.filter(source=>!valid.some(other=>other!==source&&isWithin(source,other)));
+    if(selected.length&&!this.cancelled){
+      const settings=this.store.settings(),normalRoots=new Set(settings.roots.filter(root=>directories.has(sourcePathKey(root))&&!(settings.directSources??[]).some(direct=>sourcePathKey(direct)===sourcePathKey(root))).map(sourcePathKey));
+      this.store.saveSettings({roots:normalizeSourceRoots([...settings.roots,...selected]),directSources:normalizeSourceRoots([...(settings.directSources??[]),...selected.filter(source=>!normalRoots.has(sourcePathKey(source)))])});
+      for(const source of selected){if(this.cancelled)break;if(normalRoots.has(sourcePathKey(source))){await this.run([source],seen);continue}const excluded:string[]=[];await this.add(source,path.basename(path.dirname(source)),seen,excluded,await this.project(source));if(!this.cancelled){await this.preserveContainedRows(source,seen,excluded);this.store.markScanMissing(source,seen,excluded)}}
+    }
+    const ids=[...new Set([...seen].map(id=>this.store.get(id)?.id).filter((id):id is string=>!!id))];
+    return {added:ids.filter(id=>!before.has(id)).length,updated:ids.filter(id=>before.has(id)).length,ids,errors:[...this.state.errors],cancelled:this.cancelled};
   }
   private error(location:string,error:unknown):void {if(this.state.errors.length<100)this.state.errors.push(`${location}：${error instanceof Error?error.message:String(error)}`);this.emit()}
-  private async project(directory:string):Promise<boolean>{
-    const flags=await Promise.all(['Assets','Packages','ProjectSettings'].map(async name=>{const source=path.join(directory,name);if(!this.store.isPathActive(source))return false;try{const stat=await fsp.lstat(source);return stat.isDirectory()&&!stat.isSymbolicLink()}catch{return false}}));return flags.every(Boolean);
+  private async project(directory:string,ignoreInactive=false):Promise<boolean>{
+    const flags=await Promise.all(['Assets','Packages','ProjectSettings'].map(async name=>{const source=path.join(directory,name);if(!ignoreInactive&&!this.store.isPathActive(source))return false;try{const stat=await fsp.lstat(source);return stat.isDirectory()&&!stat.isSymbolicLink()}catch{return false}}));return flags.every(Boolean);
   }
   /** Find category shelves through ordinary parent folders. Engine layouts and
    * loose model sources prove a product boundary, so variants stay one bundle. */
@@ -187,17 +221,19 @@ export class Scanner {
     }catch(error){excluded.push(directory);this.error(directory,error)}
     return result;
   }
-  private async run():Promise<void>{
+  private async run(selectedRoots?:string[],visited?:Set<string>):Promise<void>{
     // Nested roots share a pass only if the ancestor can reach them. A detached
     // intermediate scope blocks traversal, so an explicitly active child needs
     // its own pass. Other children must not mark outer aggregation cards missing.
-    const settings=this.store.settings(),roots=[...new Map(settings.roots.map(root=>[sourcePathKey(root),root])).values()],detachedRoots=settings.detachedRoots??[];
-    const outerRoots=roots.filter(root=>!roots.some(other=>other!==root&&this.store.isPathActive(other)&&isWithin(root,other)&&!detachedRoots.some(detached=>isWithin(detached,other)&&isWithin(root,detached)&&!this.store.isPathActive(detached))));
+    const settings=this.store.settings(),roots=[...new Map(settings.roots.filter(root=>!selectedRoots||selectedRoots.some(selected=>isWithin(root,selected))).map(root=>[sourcePathKey(root),root])).values()],detachedRoots=settings.detachedRoots??[];
+    const direct=new Set((settings.directSources??[]).map(sourcePathKey));
+    const outerRoots=roots.filter(root=>direct.has(sourcePathKey(root))||!roots.some(other=>other!==root&&this.store.isPathActive(other)&&isWithin(root,other)&&!detachedRoots.some(detached=>isWithin(detached,other)&&isWithin(root,detached)&&!this.store.isPathActive(detached))));
     for(const root of outerRoots){
       if(this.cancelled)break;if(!this.store.isPathActive(root))continue;const seen=new Set<string>(),excluded:string[]=[];
       try{
-        const stat=await fsp.lstat(root);if(!stat.isDirectory()||stat.isSymbolicLink())throw new Error('素材根目录不是普通文件夹，目录链接不会扫描。');
-        if(await this.project(root))await this.add(root,path.basename(root),seen,excluded,true);
+        await noLinks(root);const stat=await fsp.lstat(root);if(stat.isSymbolicLink()||!stat.isDirectory()&&!(stat.isFile()&&direct.has(sourcePathKey(root))))throw new Error('素材根目录不是普通文件夹，目录链接不会扫描。');
+        if(direct.has(sourcePathKey(root)))await this.add(root,path.basename(path.dirname(root)),seen,excluded,await this.project(root));
+        else if(await this.project(root))await this.add(root,path.basename(root),seen,excluded,true);
         else if(isOrganizationalFolderName(path.basename(root))||isSourceBucketName(path.basename(root))&&await this.sourceContainer(root))await this.container(root,path.basename(root),seen,excluded);
         else for(const entry of await fsp.readdir(root,{withFileTypes:true})){
           if(this.cancelled)break;const source=path.join(root,entry.name),extension=path.extname(entry.name).toLowerCase();
@@ -214,8 +250,8 @@ export class Scanner {
             }
           }else if(entry.isFile()&&(ARCHIVES.has(extension)||FILES.has(extension)))await this.add(source,path.basename(root),seen,excluded);
         }
-        if(!this.cancelled){await this.preserveContainedRows(root,seen,excluded);this.store.markScanMissing(root,seen,excluded)}
-      }catch(error){this.error(root,error)}
+        if(!this.cancelled){await this.preserveContainedRows(root,seen,excluded);this.store.markScanMissing(root,seen,excluded)}for(const id of seen)visited?.add(id);
+      }catch(error:any){if(direct.has(sourcePathKey(root))&&['ENOENT','ENOTDIR'].includes(error.code))this.store.markScanMissing(root,seen,[]);this.error(root,error)}
     }
   }
   private async preserveContainedRows(root:string,seen:Set<string>,excluded:string[]):Promise<void>{

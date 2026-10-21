@@ -48,7 +48,8 @@ export interface ProjectMaterialEvidence {path:string;name:string;alias:string;k
 export interface ProjectMaterialMatch {assetId:string;asset:AssetRecord;relation:'manual'|'detected'|'both'|'uncertain';evidence:ProjectMaterialEvidence[]}
 export interface ProjectMaterialPage {projectId:string;items:ProjectMaterialMatch[];inspectedEntries:number;scannedAt:string;truncated:boolean;warnings:string[]}
 export interface Stats { total:number; materials:number; projects:number; favorites:number; matched:number; review:number; missing:number; groups:string[]; avatars:string[]; categories:Record<string,number>;manual?:number }
-export interface ScanProgress { running:boolean; found:number; current:string; errors:string[]; finishedAt?:string }
+export interface ManualAddResult {added:number;updated:number;ids:string[];errors:string[];cancelled:boolean}
+export interface ScanProgress {mode?:'scan'|'manual'; running:boolean; found:number; current:string; errors:string[]; finishedAt?:string }
 export interface TransferProgress {id?:string;taskId?:string;url:string;phase:'connecting'|'downloading'|'cache'|'complete'|'waiting'|'error';kind:'search'|'page'|'cover';label:string;receivedBytes:number;totalBytes?:number;downloadBps:number;uploadBps:number;uploadBytes:number;elapsedMs:number}
 export interface TransferSummary {id?:string;taskId?:string;url:string;kind:'search'|'page'|'cover';label:string;receivedBytes:number;fromCache:boolean;finishedAt:string;status:'complete'|'error';downloadBps?:number;durationMs?:number}
 export interface SpeedSample {at:number;downloadBps:number;uploadBps:number}
@@ -58,7 +59,7 @@ export interface SourceUndoInfo {token:string;assetId:string;title:string;source
 export type BoothTab='login'|'favorites'|'gifts'|'library';
 export interface BoothDownload {id:string;name:string;state:'downloading'|'completed'|'interrupted'|'cancelled'|'failed';receivedBytes:number;totalBytes:number;downloadBps:number;startedAt:string;finishedAt?:string;assetId?:string;sourceUrl?:string;error?:string}
 export interface BoothState {downloadDir?:string;sessionSaved:boolean;downloads:BoothDownload[];active:boolean}
-export interface AppSettings extends ViewPreferences { language:AppLanguage;unityEditorPath?:string;detachedRoots?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean;xianyuEnabled:boolean }
+export interface AppSettings extends ViewPreferences { language:AppLanguage;unityEditorPath?:string;detachedRoots?:string[]; directSources?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean;xianyuEnabled:boolean }
 export interface UpdateState {status:'idle'|'checking'|'available'|'up-to-date'|'downloading'|'ready'|'installing'|'error'|'unsupported';currentVersion:string;latestVersion?:string;releaseUrl?:string;releaseNotes?:string;receivedBytes:number;totalBytes?:number;downloadBps?:number;message?:string;canInstall:boolean;checkedAt?:string}
 export interface Snapshot { stats:Stats; scan:ScanProgress; queue:QueueProgress; settings:AppSettings;proxy?:ProxyStatus;undoAvailable?:boolean;sourceUndo?:SourceUndoInfo;warnings?:string[] }
 export interface FileEntry { name:string; size:number; directory:boolean }
@@ -81,6 +82,7 @@ export interface LibraryAPI {
   removeRoot(root:string):Promise<boolean>;
   snapshot():Promise<Snapshot>; list(query:AssetQuery):Promise<AssetPage>; get(id:string):Promise<AssetRecord|null>;
   scan():Promise<void>; cancelScan():Promise<void>;
+  chooseMaterials():Promise<ManualAddResult|null>;addDroppedMaterials(files:File[]):Promise<ManualAddResult>;
   annotate(ids:string[],patch:ManualInfo):Promise<void>;
   reveal(id:string,memberPath?:string):Promise<void>; copyPath(id:string,memberPath?:string):Promise<void>; openSource(id:string):Promise<void>;
   files(id:string):Promise<FileListing>; setCover(id:string):Promise<boolean>;

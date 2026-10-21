@@ -1,4 +1,4 @@
-import {contextBridge,ipcRenderer} from 'electron';
+import {contextBridge,ipcRenderer,webUtils} from 'electron';
 import type {AppTheme,AppLanguage,LibraryAPI,LibraryEvent} from '../shared/contracts';
 // Sandbox preloads cannot require arbitrary local modules. Keep this allowlist aligned with THEME_IDS.
 const requestedTheme=process.argv.find(value=>value.startsWith('--vrc-theme='))?.slice('--vrc-theme='.length);
@@ -14,6 +14,7 @@ const api:LibraryAPI={
  updateState:()=>invoke('updateState'),checkForUpdates:()=>invoke('checkForUpdates'),downloadUpdate:()=>invoke('downloadUpdate'),installUpdate:()=>invoke('installUpdate'),cancelUpdate:()=>invoke('cancelUpdate'),openUpdatePage:()=>invoke('openUpdatePage'),removeRoot:root=>invoke('removeRoot',root),
  snapshot:()=>invoke('snapshot'),list:q=>invoke('list',q),get:id=>invoke('get',id),
  scan:()=>invoke('scan'),cancelScan:()=>invoke('cancelScan'),annotate:(ids,patch)=>invoke('annotate',ids,patch),
+ chooseMaterials:()=>invoke('chooseMaterials'),addDroppedMaterials:files=>{if(!Array.isArray(files)||!files.length||files.length>100)return Promise.reject(new Error('每次请选择 1 至 100 个素材文件或文件夹。'));try{const paths=files.map(file=>webUtils.getPathForFile(file));if(paths.some(value=>!value))throw new Error('请从资源管理器拖入本机素材文件或文件夹。');return invoke('addMaterials',paths)}catch(error){return Promise.reject(error)}},
  reveal:(id,memberPath)=>invoke('reveal',id,memberPath),copyPath:(id,memberPath)=>invoke('copyPath',id,memberPath),openSource:id=>invoke('openSource',id),
  files:id=>invoke('files',id),setCover:id=>invoke('setCover',id),enrich:(ids,retry)=>invoke('enrich',ids,retry),
  pauseEnrichment:()=>invoke('pauseEnrichment'),resumeEnrichment:()=>invoke('resumeEnrichment'),

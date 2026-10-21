@@ -1,3 +1,4 @@
+import {MANUAL_ADD_MESSAGES} from './messages-manual-add';
 import {ASSISTED_SEARCH_MESSAGES} from './messages-xianyu';
 import {PROJECT_PRODUCT_MESSAGES} from './messages-project-products';
 import {PROJECT_CHANGE_MESSAGES} from './messages-project-changes';
@@ -8,6 +9,7 @@ import {PROJECT_MESSAGES} from './messages-project';
 // Offline UI copy. Keys are Chinese source text, values are [English, Japanese].
 // Domain enums, file names and user content keep their original values.
 export const UI_MESSAGES: Record<string, readonly [string, string]> = {
+  ...MANUAL_ADD_MESSAGES,
   ...ASSISTED_SEARCH_MESSAGES,
   ...PROJECT_MESSAGES,
   ...PROJECT_PRODUCT_MESSAGES,

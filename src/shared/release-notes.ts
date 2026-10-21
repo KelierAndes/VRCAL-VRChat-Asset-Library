@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.2.2',date:'2026-10-22',channel:'stable',title:'手动添加与拖拽入库',sections:[
+    {kind:'added',items:['工具栏新增手动添加素材，可直接拖入文件夹或素材包，立即识别所选内容。']},
+    {kind:'improved',items:['手动添加不触发全库扫描，仅对本次识别的素材继续在线补全；重复添加保留原确认、封面和人工标注。','手动来源随重启、备份恢复保留，设置中可移除；支持中日英与四套主题。']},
+    {kind:'notes',items:['原文件保持只读，不复制或解压素材；资料库、备份、磁盘根目录与目录链接不能作为素材添加。']}
+  ]},
   {
     version:'1.2.1',date:'2026-10-21',channel:'stable',title:'资料库恢复与可选闲鱼搜索',
     sections:[{kind:'fixed',items:['旧资料库无法读取时显示登记路径，可重试连接或重新定位已有资料库，不自动创建空库。']},
