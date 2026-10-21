@@ -1,3 +1,5 @@
+import {XianyuWorkspace,prepareXianyuSessionMigration} from './xianyu';
+import {XianyuAccess,XIANYU_USAGE_NOTICE} from './xianyu-access';
 import {inspectProjectProducts,clearProjectProductCache,projectProductInput} from './project-products';
 import type {ProjectImportOptions} from '../shared/project-contracts';
 import {BaiduWorkspace,prepareBaiduSessionMigration} from './baidu-workspace';
@@ -29,6 +31,7 @@ import {noLinks,relativeAssetPath,validateProject} from './project-access';
 import {editorVersion} from './unity-editors';
 import {ProxyMonitor} from './proxy';
 import {readLocation,writeLocation,rememberLibraryLocation,prepareSessionData,assertUserStorage,copyLibraryData} from './storage';
+import {probeLibrary,existingLibraryDirectory} from './library-startup';
 import type {BrowserCookieSnapshot} from './storage';
 import {CATEGORIES,REVIEW_SORTS,THEME_IDS,LANGUAGE_IDS,normalizeTheme,THEME_BACKGROUNDS} from '../shared/contracts';
 import type {AssetRecord,AssetQuery,LibraryEvent,ManualInfo,BoothTab} from '../shared/contracts';
@@ -43,15 +46,19 @@ const localLocation=readLocation(locationFile);
 const location=localLocation.dataDir?localLocation:readLocation(fallbackLocationFile);
 let dataDir=path.resolve(process.env.VRC_LIBRARY_DATA_DIR || location.dataDir || legacyDir);
 const initialRoots=[process.env.VRC_LIBRARY_ROOT || DEFAULT_ROOT];
+const recoverLocation=!testProfile&&!!location.dataDir&&!probeLibrary(dataDir,[DEFAULT_ROOT,...initialRoots]).ok;
+// A missing/disconnected remembered profile must not be recreated by Chromium
+// before the person has selected or reconnected their actual library.
+const chromiumDir=recoverLocation?fs.mkdtempSync(path.join(app.getPath('temp'),'vrcal-location-recovery-')):dataDir;
 // Keep the original user library protected even when a test profile or another library is chosen.
 function contained(parent:string,child:string){const rel=path.relative(path.resolve(parent),path.resolve(child));return !rel || (!rel.startsWith('..'+path.sep)&&rel!=='..'&&!path.isAbsolute(rel))}
-if(contained(DEFAULT_ROOT,dataDir))throw new Error('应用数据目录不能放在素材目录内。');
-assertSafeWrite(dataDir,dataDir,[DEFAULT_ROOT,...initialRoots]);
-app.setPath('userData',dataDir);
+if(contained(DEFAULT_ROOT,chromiumDir))throw new Error('应用数据目录不能放在素材目录内。');
+assertSafeWrite(chromiumDir,chromiumDir,[DEFAULT_ROOT,...initialRoots]);
+app.setPath('userData',chromiumDir);
 // Chromium captures these paths during ready. Changing them afterwards leaves
 // local toolbars and cached images using a different profile from the library.
-app.setPath('sessionData',prepareSessionData(dataDir,[DEFAULT_ROOT,...initialRoots]));
-const crashDir=assertSafeWrite(path.join(dataDir,'crashes'),dataDir,[DEFAULT_ROOT,...initialRoots]);fs.mkdirSync(crashDir,{recursive:true});app.setPath('crashDumps',crashDir);
+app.setPath('sessionData',prepareSessionData(chromiumDir,[DEFAULT_ROOT,...initialRoots]));
+const crashDir=assertSafeWrite(path.join(chromiumDir,'crashes'),chromiumDir,[DEFAULT_ROOT,...initialRoots]);fs.mkdirSync(crashDir,{recursive:true});app.setPath('crashDumps',crashDir);
 protocol.registerSchemesAsPrivileged([{scheme:'library-cover',privileges:{standard:true,secure:true,supportFetchAPI:true,corsEnabled:true}}]);
 app.setName('VRC素材库');
 let window:BrowserWindow|null=null;
@@ -61,17 +68,18 @@ let proxy:ProxyMonitor;
 let preview:ProductPreview;
 let booth:BoothWorkspace;let sourceChanges:Promise<void>=Promise.resolve();
 let updater:Updater;
+let xianyu:XianyuWorkspace;let xianyuAccess:XianyuAccess;
 let projectImports:ProjectImports;let baidu:BaiduWorkspace;let cloud:CloudCatalog;
 let store:Store;let scanner:Scanner;let queue:EnrichmentQueue;let debounce:ReturnType<typeof setTimeout>|undefined;
 function emit(event:LibraryEvent){if(!closing && window && !window.isDestroyed())window.webContents.send('library:event',event)}
 function changed(){if(migrating||debounce)return;debounce=setTimeout(()=>{debounce=undefined;emit({type:'change'})},150)}
 function uiLanguage(){return normalizeLanguage(store?.settings().language)}
-function refreshTheme(){window?.setTitle(translate('VRC素材库',uiLanguage()));window?.setBackgroundColor(THEME_BACKGROUNDS[normalizeTheme(store.settings().theme)]);preview?.refreshTheme();booth?.refreshTheme();baidu?.refreshTheme()}
+function refreshTheme(){window?.setTitle(translate('VRC素材库',uiLanguage()));window?.setBackgroundColor(THEME_BACKGROUNDS[normalizeTheme(store.settings().theme)]);preview?.refreshTheme();booth?.refreshTheme();baidu?.refreshTheme();xianyu?.refreshTheme()}
 function getAsset(id:unknown):AssetRecord{if(typeof id!=='string')throw new Error('请选择一个素材。');const item=store.get(id);if(!item)throw new Error('素材不存在，请刷新列表。');return item}
 function getRawAsset(id:unknown):AssetRecord{if(typeof id!=='string')throw new Error('请选择一个素材。');const item=store.getRaw(id);if(!item)throw new Error('素材不存在，请刷新列表。');return item}
 function matchingAsset(id:string):AssetRecord|null {return matchingCatalog(store).get(id)}
 function protectedRoots(){const settings=store?.settings();return [...new Set([DEFAULT_ROOT,...(settings?.roots??initialRoots),...(settings?.detachedRoots??[])])]}
-async function prepareCookieMigration(directory:string,roots:string[]):Promise<BrowserCookieSnapshot[]>{const booth=await prepareBoothSessionMigration(directory,roots),baidu=await prepareBaiduSessionMigration(directory,roots);return [booth,baidu].filter((v):v is BrowserCookieSnapshot=>!!v)}
+async function prepareCookieMigration(directory:string,roots:string[]):Promise<BrowserCookieSnapshot[]>{const booth=await prepareBoothSessionMigration(directory,roots),baidu=await prepareBaiduSessionMigration(directory,roots),market=await prepareXianyuSessionMigration(directory,roots);return [booth,baidu,market].filter((v):v is BrowserCookieSnapshot=>!!v)}
 function boothReadRoots(asset:AssetRecord):string[]{const roots=new Set<string>();for(const id of asset.members?.map(member=>member.id)||[asset.id]){const raw=store.getRaw(id);if(raw?.group==='BOOTH 下载')try{roots.add(path.dirname(safeBoothDownloadPath(raw.path,dataDir,protectedRoots())))}catch{/* Invalid references do not widen the read scope. */}}return [...roots]}
 async function refreshDownloadAvailability(){let updated=false;for(const asset of store.all()){if(closing||migrating)break;if(asset.group!=='BOOTH 下载')continue;try{const file=safeBoothDownloadPath(asset.path,dataDir,protectedRoots()),stat=await fsp.lstat(file);if(!closing&&!migrating)updated=store.updateAvailability(asset.id,!stat.isFile()||stat.isSymbolicLink())||updated}catch(error:any){if(['ENOENT','ENOTDIR'].includes(error.code)&&!closing&&!migrating)updated=store.updateAvailability(asset.id,true)||updated}}if(updated)changed()}
 function rememberLocation(selected:string,backupDir?:string,roots=protectedRoots()){
@@ -101,6 +109,9 @@ function setupServices(){
   const imported=await importBoothDownload(store,file,sourceItem,path.dirname(file));changed();
   if(store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue([imported.assetId]);return imported;
  }});
+ xianyu?.close();xianyu=new XianyuWorkspace({parent:()=>window,dataDir,roots:protectedRoots,getTheme:()=>normalizeTheme(store.settings().theme),getLanguage:()=>store.settings().language,isEnabled:()=>store.settings().xianyuEnabled,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,validateAsset:id=>{const a=getAsset(id);if(a.kind==='unity-project')throw new Error('请选择素材后进行辅助搜图。');const cover=a.manual.coverFile||a.online.coverFile||a.previewFile;return {title:a.manual.title||a.online.title||a.name,coverPath:cover?safeCoverPath(dataDir,cover):undefined}},searchBooth:(id,query)=>booth.open({tab:'search',assetId:id,query,forceKeyword:true}),applyMarketplace:(id,url)=>changeSource(id,url,false)});
+ const boundXianyu=xianyu,boundStore=store;
+ xianyuAccess=new XianyuAccess({enabled:()=>store.settings().xianyuEnabled,save:enabled=>{store.saveSettings({xianyuEnabled:enabled})},close:()=>boundXianyu.networkChanged(),changed,available:()=>!closing&&!migrating&&xianyu===boundXianyu&&store===boundStore,confirm:async()=>{const answer=await dialog.showMessageBox(window!,localizeDialogOptions({type:'warning',...XIANYU_USAGE_NOTICE,buttons:['取消','我已了解，开启'],defaultId:0,cancelId:0,noLink:true},uiLanguage()));return answer.response===1}});
 }
 function editSource<T>(action:()=>Promise<T>):Promise<T>{const pending=sourceChanges.then(()=>{if(migrating||closing)throw new Error('资料库正在关闭或迁移。');return action()});sourceChanges=pending.then(()=>undefined,()=>undefined);return pending;}
 function changeSource(id:string,url:string,candidate:boolean):Promise<void>{return editSource(async()=>{
@@ -118,7 +129,7 @@ async function pickDataLocation(parent?:BrowserWindow):Promise<string|null>{
 }
 async function initializeLocation():Promise<boolean>{
  if(testProfile)return true;
- if(location.dataDir){assertUserStorage(dataDir,protectedRoots());if(!fs.existsSync(path.join(dataDir,'library.sqlite')))throw new Error('已登记的资料库无法读取，请确认保存资料库的磁盘已连接。原记录未被重建或覆盖。');return true}
+ if(location.dataDir){if(recoverLocation)return recoverLibraryLocation();assertUserStorage(dataDir,protectedRoots());if(!probeLibrary(dataDir,protectedRoots()).ok)return recoverLibraryLocation();return true}
  const target=await pickDataLocation();if(!target)return false;
  if(!fs.existsSync(path.join(target,'library.sqlite'))&&fs.existsSync(path.join(legacyDir,'library.sqlite'))){
   const previous=new Store(legacyDir,initialRoots),settings=previous.settings(),roots=[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])];previous.close();const snapshots=await prepareCookieMigration(legacyDir,roots);await copyLibraryData(legacyDir,target,roots,false,snapshots);
@@ -128,6 +139,26 @@ async function initializeLocation():Promise<boolean>{
  // The folder picker requires ready, so activate the chosen profile in a fresh
  // process instead of changing Chromium storage underneath a running session.
  app.relaunch({execPath:process.env.PORTABLE_EXECUTABLE_FILE || app.getPath('exe')});return false;
+}
+async function recoverLibraryLocation():Promise<boolean>{
+ const language=uiLanguage(),t=(text:string)=>translate(text,language);
+ for(;;){
+  const other=[readLocation(locationFile),readLocation(fallbackLocationFile)].find(record=>record.dataDir&&path.resolve(record.dataDir).toLowerCase()!==dataDir.toLowerCase()&&probeLibrary(record.dataDir,protectedRoots()).ok);
+  const buttons=['重试原位置','重新定位已有资料库',...(other?['使用已找到的资料库']:[]),'退出'];
+  const detail=[t('上次登记的资料库：'),dataDir,t(probeLibrary(dataDir,protectedRoots()).reason||'资料库文件暂时无法读取。'),...(other?[t('另一个位置记录指向已有资料库：'),other.dataDir!]:[]),t('原记录保留。请重试连接磁盘，或选择包含 library.sqlite 的已有资料库。')].join('\n');
+  const answer=await dialog.showMessageBox(localizeDialogOptions({type:'warning',title:'重新定位资料库',message:'无法打开上次使用的资料库',detail,buttons,defaultId:1,cancelId:buttons.length-1,noLink:true},language));
+  let selected:string|undefined;
+  if(answer.response===0){if(probeLibrary(dataDir,protectedRoots()).ok)selected=dataDir;else continue;}
+  else if(answer.response===1){
+   const chosen=await dialog.showOpenDialog(localizeDialogOptions({title:'选择已有资料库文件夹（包含 library.sqlite）',defaultPath:path.dirname(dataDir),properties:['openDirectory']},language));
+   if(chosen.canceled)return false;
+   try{selected=existingLibraryDirectory(chosen.filePaths[0],protectedRoots());}catch(error){await dialog.showMessageBox(localizeDialogOptions({type:'error',title:'重新定位资料库',message:error instanceof Error?error.message:String(error),buttons:['确定']},language));continue;}
+  }else if(other&&answer.response===2)selected=other.dataDir;else return false;
+  // Recheck immediately before recording it. Do not open a Store here: its
+  // constructor creates tables, and Chromium is still using the bootstrap key.
+  if(!selected||!probeLibrary(selected,protectedRoots()).ok)continue;
+  rememberLocation(selected,location.backupDir);app.relaunch({execPath:process.env.PORTABLE_EXECUTABLE_FILE||app.getPath('exe')});return false;
+ }
 }
 async function selectBackupLocation():Promise<boolean>{
  const result=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'选择备份保存位置（C盘之外）',defaultPath:store.settings().backupDir || path.dirname(dataDir),properties:['openDirectory','createDirectory']},uiLanguage()));if(result.canceled)return false;
@@ -183,6 +214,8 @@ function registerHandlers(){
  handle('acceptCandidate',confirmCandidate);
  handle('undoSource',(token:string)=>editSource(async()=>{if(typeof token!=='string'||token.length>100)throw new Error('撤回记录无效。');const ids=store.sourceUndoIds(token);if(!ids)throw new Error('最近的来源确认已变化，请刷新后重试。');queue.exclude(ids);const restored=store.undoSource(token);if(restored){try{if(!store.settings().onlineEnabled||process.env.VRC_LIBRARY_NO_NETWORK)queue.pause();for(const id of new Set(ids.map(id=>store.get(id)?.id).filter((id):id is string=>!!id))){const asset=matchingAsset(id);if(asset?.online.status==='pending'&&asset.manual.sourceUrl)await queue.acceptCandidate(id,asset.manual.sourceUrl,true)}}finally{changed()}}return restored}));
  handle('searchBooth',async(id:string,query:string)=>{getAsset(id);if(typeof query!=='string'||!query.trim()||query.length>300)throw new Error('请输入 1 至 300 字的搜索词。');const ids=extractBoothIds(query),term=/^(?:https:\/\/|\d{1,12}$)/i.test(query.trim())?query.trim():ids.length===1?ids[0]:searchClue(query).query;await booth.open({tab:'search',assetId:id,query:term||query.trim()})});
+ handle('openImageSearch',(id:string)=>xianyu.open(id));handle('setXianyuEnabled',(enabled:unknown)=>xianyuAccess.setEnabled(enabled));
+ handle('attemptXianyu',(id:string)=>{const a=getAsset(id),clue=searchClue(a.manual.title||a.localNameHints?.[0]||a.name).query;return xianyu.search(id,clue||a.name)});
  handle('boothState',()=>booth.snapshot());
  handle('openBooth',async(tab:BoothTab)=>{if(!['login','favorites','gifts','library'].includes(tab))throw new Error('BOOTH 页面无效。');await booth.open({tab})});
  handle('chooseBoothDownloadDir',async()=>{const result=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'选择 BOOTH 下载保存文件夹（C盘之外）',defaultPath:store.settings().boothDownloadDir||dataDir,properties:['openDirectory','createDirectory']},uiLanguage()));if(result.canceled)return false;const target=assertUserStorage(await fsp.realpath(result.filePaths[0]),protectedRoots(),testProfile);store.saveSettings({boothDownloadDir:target});changed();return true});
@@ -238,7 +271,7 @@ function registerHandlers(){
  handle('updateTags',(ids:unknown,add:unknown,remove:unknown)=>{store.updateTags(expandedIds(ids),add as any,remove as any);changed()});
  handle('setViewPreferences',(preferences:unknown)=>{if(!preferences||typeof preferences!=='object'||Array.isArray(preferences))throw new Error('显示设置无效。');const value=preferences as any;if(Object.keys(value).some(key=>!['viewMode','density','coverFit','reviewSort','theme','language'].includes(key))||value.viewMode!==undefined&&!['grid','list'].includes(value.viewMode)||value.density!==undefined&&!['compact','standard','spacious'].includes(value.density)||value.coverFit!==undefined&&!['contain','cover'].includes(value.coverFit)||value.reviewSort!==undefined&&!REVIEW_SORTS.includes(value.reviewSort)||Object.hasOwn(value,'theme')&&!THEME_IDS.includes(value.theme)||Object.hasOwn(value,'language')&&!LANGUAGE_IDS.includes(value.language))throw new Error('显示设置无效。');const settings=store.saveSettings(value);if(Object.hasOwn(value,'theme')||Object.hasOwn(value,'language'))refreshTheme();changed();return settings});
  handle('undoMetadata',()=>{const restored=store.undoMetadata();if(restored)changed();return restored});
- handle('setOnlineEnabled',async(enabled:boolean)=>{if(typeof enabled!=='boolean')throw new Error('设置无效。');store.saveSettings({onlineEnabled:enabled});proxy.setEnabled(enabled);booth.networkChanged();baidu.networkChanged();if(enabled){await proxy.inspect();await queue.resume();await queue.enqueue()}else{updater.cancel();preview.close();booth.close();queue.pause()}changed()});
+ handle('setOnlineEnabled',async(enabled:boolean)=>{if(typeof enabled!=='boolean')throw new Error('设置无效。');store.saveSettings({onlineEnabled:enabled});proxy.setEnabled(enabled);booth.networkChanged();baidu.networkChanged();xianyu.networkChanged();if(enabled){await proxy.inspect();await queue.resume();await queue.enqueue()}else{updater.cancel();preview.close();booth.close();queue.pause()}changed()});
  handle('setZoom',applyZoom);handle('checkProxy',()=>proxy.check());
  handle('setConcurrency',(value:number)=>{if(!Number.isInteger(value)||value<1||value>6)throw new Error('并发数量必须是 1 到 6 的整数。');store.saveSettings({downloadConcurrency:value});queue.setConcurrency(value);changed();return value});
  handle('openNetworkUrl',async(url:string)=>{if(typeof url!=='string'||url.length>4000)throw new Error('网址无效。');const visible=[queue.progress.transfer?.url,...(queue.progress.activeTransfers||[]).map(x=>x.url),...(queue.progress.recentTransfers||[]).map(x=>x.url)];if(!visible.includes(url))throw new Error('只能打开当前网络任务中的链接。');await shell.openExternal(publicHttpsUrl(url).href)});
@@ -247,7 +280,7 @@ function registerHandlers(){
   const target=await pickDataLocation(window!);if(!target||path.resolve(target).toLowerCase()===dataDir.toLowerCase())return false;
   updater.cancel();
   if(fs.existsSync(target)&&(await fsp.readdir(target)).length)throw new Error('目标资料库文件夹已有内容，请选择一个新位置。');
-  const old=dataDir,settings=store.settings();await sourceChanges;await booth.shutdown();await baidu.shutdown();const snapshots=await prepareCookieMigration(old,[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])]);migrating=true;preview.close();if(debounce){clearTimeout(debounce);debounce=undefined}
+  const old=dataDir,settings=store.settings();await sourceChanges;await booth.shutdown();await baidu.shutdown();await xianyu.shutdown();const snapshots=await prepareCookieMigration(old,[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])]);migrating=true;preview.close();if(debounce){clearTimeout(debounce);debounce=undefined}
   proxy.setEnabled(false);queue.stop();scanner.cancel();await Promise.all([queue.waitIdle(),scanner.waitIdle()]);store.close();
   try{
    await copyLibraryData(old,target,[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])],testProfile,snapshots);rememberLocation(target,settings.backupDir,[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])]);
@@ -294,7 +327,7 @@ function registerHandlers(){
   if(contents.format!=='vrchat-asset-library'||![1,2].includes(contents.version)||!Array.isArray(contents.assets))throw new Error('不是有效的素材库备份。');
   const result2=await dialog.showMessageBox(window!,localizeDialogOptions({type:'question',title:'恢复资料库',message:'合并恢复备份中的分类、备注和封面？',detail:'会更新备份里对应的资料库记录，保留现有的其他记录。原素材保持原样；当前资料库会先自动备份。',buttons:['恢复','取消'],defaultId:1,cancelId:1},uiLanguage()));if(result2.response!==0)return false;
   const backup=await ensureBackupLocation();if(!backup)return false;
-  await sourceChanges;await booth.shutdown();await baidu.shutdown();preview.close();queue.pause();scanner.cancel();await Promise.all([queue.waitIdle(),scanner.waitIdle()]);store.exportData(assertUserStorage(path.join(backup,`before-restore-${Date.now()}.json`),protectedRoots(),testProfile));
+  await sourceChanges;await booth.shutdown();await baidu.shutdown();await xianyu.shutdown();preview.close();queue.pause();scanner.cancel();await Promise.all([queue.waitIdle(),scanner.waitIdle()]);store.exportData(assertUserStorage(path.join(backup,`before-restore-${Date.now()}.json`),protectedRoots(),testProfile));
   store.importData(result.filePaths[0]);queue.exclude(store.all().map(asset=>asset.id));store.saveSettings({backupDir:backup});rememberLocation(dataDir,backup);window?.webContents.setZoomFactor(store.settings().uiZoom||1);refreshTheme();changed();return true;
  });
 }
@@ -332,4 +365,4 @@ if(primary)app.whenReady().then(async()=>{
 }).catch(error=>{dialog.showErrorBox('素材库启动失败',error instanceof Error?error.message:String(error));app.quit()});
 app.on('window-all-closed',()=>app.quit());
 let exitReady=false;
-app.on('before-quit',event=>{if(exitReady)return;event.preventDefault();closing=true;updater?.close();preview?.close();scanner?.cancel();if(!migrating){proxy?.setEnabled(false);queue?.stop()}void Promise.allSettled([projectImports?.waitIdle(),sourceChanges,booth?.shutdown(),baidu?.shutdown(),queue?.waitIdle(),scanner?.waitIdle()]).then(()=>{exitReady=true;app.quit()})});
+app.on('before-quit',event=>{if(exitReady)return;event.preventDefault();closing=true;updater?.close();preview?.close();scanner?.cancel();if(!migrating){proxy?.setEnabled(false);queue?.stop()}void Promise.allSettled([projectImports?.waitIdle(),sourceChanges,booth?.shutdown(),baidu?.shutdown(),xianyu?.shutdown(),queue?.waitIdle(),scanner?.waitIdle()]).then(()=>{exitReady=true;app.quit()})});

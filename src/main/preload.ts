@@ -10,6 +10,7 @@ const api:LibraryAPI={
  baiduState:()=>invoke('baiduState'),openBaidu:path=>invoke('openBaidu',path),captureBaiduDirectory:()=>invoke('captureBaiduDirectory'),scanBaiduDirectory:action=>invoke('scanBaiduDirectory',action),cloudCatalog:query=>invoke('cloudCatalog',query),linkCloudEntry:(key,id)=>invoke('linkCloudEntry',key,id),forgetCloudDirectory:(account,path)=>invoke('forgetCloudDirectory',account,path),clearBaiduSession:()=>invoke('clearBaiduSession'),
  openCommunityLink:id=>invoke('openCommunityLink',id),copyCommunityGroup:()=>invoke('copyCommunityGroup'),
  initialTheme,initialLanguage,
+ attemptXianyu:(id:string)=>invoke('attemptXianyu',id),openImageSearch:(id:string)=>invoke('openImageSearch',id),setXianyuEnabled:(enabled:boolean)=>invoke('setXianyuEnabled',enabled),
  updateState:()=>invoke('updateState'),checkForUpdates:()=>invoke('checkForUpdates'),downloadUpdate:()=>invoke('downloadUpdate'),installUpdate:()=>invoke('installUpdate'),cancelUpdate:()=>invoke('cancelUpdate'),openUpdatePage:()=>invoke('openUpdatePage'),removeRoot:root=>invoke('removeRoot',root),
  snapshot:()=>invoke('snapshot'),list:q=>invoke('list',q),get:id=>invoke('get',id),
  scan:()=>invoke('scan'),cancelScan:()=>invoke('cancelScan'),annotate:(ids,patch)=>invoke('annotate',ids,patch),

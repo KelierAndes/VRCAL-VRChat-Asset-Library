@@ -49,6 +49,7 @@ export function isPublicAddress(address:string):boolean {
   return isIP(ip)===6 && /^[23]/.test(ip) && !ip.startsWith('2001:db8:') && !ip.startsWith('2002:') && !ip.startsWith('2001:0:');
 }
 const boothItem=boothProductId;
+function marketItem(raw:string):string|undefined {try{const u=new URL(raw),ids=u.searchParams.getAll('id');return u.protocol==='https:'&&/(?:^|\.)goofish\.com$/i.test(u.hostname)&&u.pathname==='/item'&&ids.length===1&&/^[1-9]\d{0,23}$/.test(ids[0])?ids[0]:undefined}catch{return}}
 function shopAlias(raw:unknown):string|undefined {try{const u=new URL(toText(raw));const match=u.hostname.match(/^([a-z0-9-]+)\.booth\.pm$/i);return match&&!['www','accounts'].includes(match[1])?match[1]:undefined;}catch{return undefined;}}
 function cleanTitle(text:string):string { return text.replace(/\s+-\s+BOOTH\s*$/i,'').replace(/\s+-\s+[^-]+$/,'').trim(); }
 function toText(value:unknown):string { return typeof value==='string'?value:''; }
@@ -78,8 +79,10 @@ function officialTitleAliases(title:string,description:string):string[] {
 export function parseProduct(html:string, rawUrl:string):ParsedProduct {
   const url=publicHttpsUrl(rawUrl).href, $=cheerio.load(html);
   const expectedId=boothItem(url);
+  const marketHost=/(?:^|\.)goofish\.com$/i.test(new URL(url).hostname),marketId=marketItem(url);
+  if(marketHost&&!marketId)throw new RequestFailure('请先打开闲鱼商品详情页，再尝试补全。','not-found');
   let product:any;
-  const visit=(node:any):void=>{ if (!node||typeof node!=='object') return; if (Array.isArray(node)) { node.forEach(visit); return; } const types=Array.isArray(node['@type'])?node['@type']:[node['@type']]; if (types.includes('Product') && (!expectedId || boothItem(toText(node.url))===expectedId)) product ??= node; if (node['@graph']) visit(node['@graph']); };
+  const visit=(node:any):void=>{ if (!node||typeof node!=='object') return; if (Array.isArray(node)) { node.forEach(visit); return; } const types=Array.isArray(node['@type'])?node['@type']:[node['@type']]; if (types.includes('Product') && (!expectedId || boothItem(toText(node.url))===expectedId) && (!marketId || marketItem(toText(node.url))===marketId)) product ??= node; if (node['@graph']) visit(node['@graph']); };
   $('script[type="application/ld+json"]').each((_i,element)=>{try {visit(JSON.parse($(element).text()));} catch { /* Malformed third-party metadata is ignored. */ }});
   const root=$('.market-item-detail-article').first().clone();
   const categoryRoot=root.clone();
@@ -89,9 +92,12 @@ export function parseProduct(html:string, rawUrl:string):ParsedProduct {
   root.find('.shop-items,.item-card,.recommended-items,.recommend-items,script,style,nav').remove();
   const meta=(key:string)=>$(`meta[property="${key}"],meta[name="${key}"]`).first().attr('content')?.trim()||'';
   const og=meta('og:title')||$('title').first().text();
+  const marketOg=!!marketId&&/^(?:og:)?product(?:[.:]|$)/i.test(meta('og:type'))&&marketItem(meta('og:url')||$('link[rel="canonical"]').first().attr('href')||'')===marketId;
+  const marketTitle=toText(product?.name).trim()||(marketOg?meta('og:title'):'');
+  if(marketId&&(!marketTitle||/^(?:闲鱼|閑魚|goofish|xianyu|淘宝登录|淘宝网|login|sign in)$/i.test(marketTitle.trim())||/captcha|access denied|just a moment|登录|登入|ログイン/i.test(marketTitle)))throw new RequestFailure('闲鱼页面未提供可核对的商品信息，请完成网站验证或手动填写资料。','blocked');
   const identity=$(`[data-product-id="${expectedId}"]`).toArray().some(element=>!$(element).closest('.item-card,.recommended-items,.recommend-items,.shop-items,[data-recommendations]').length);
   if (expectedId && !product && !identity) throw new RequestFailure('该商品已下架，或页面需要登录／年龄验证', /ログイン|年齢|成人|認証|captcha|access denied/i.test(og)?'blocked':'not-found');
-  const title=toText(product?.name)||cleanTitle(og)||root.find('h1').first().text().trim();
+  const title=marketId?marketTitle:toText(product?.name)||cleanTitle(og)||root.find('h1').first().text().trim();
   if (!title || /captcha|access denied|just a moment|年齢確認|年齢認証/i.test(title)) throw new RequestFailure('网页需要验证，已停止读取','blocked');
   const brand=product?.brand||product?.manufacturer||product?.author;
   const author=toText(brand?.name)||toText(brand)||root.find('.shop-name,.shop-name-anchor,[data-shop-name]').first().text().trim()||(expectedId?og.match(/\s+-\s+(.+?)\s+-\s+BOOTH\s*$/i)?.[1]:'')||meta('author');
@@ -489,7 +495,7 @@ export class EnrichmentQueue {
     return {html,url:result.url};
   }
   private async product(ctx:TaskContext,url:string):Promise<ParsedProduct> {
-    try{const result=await this.html(ctx,url);let product:ParsedProduct;try{product=parseProduct(result.html,result.url);}catch(error){this.failCompletedTransfer(ctx,result.url);throw error;}this.requireCurrentBinding(ctx,product);
+    try{const result=await this.html(ctx,url);let product:ParsedProduct;try{if(marketItem(url)&&marketItem(url)!==marketItem(result.url))throw new RequestFailure('闲鱼页面未提供可核对的商品信息，请完成网站验证或手动填写资料。','blocked');product=parseProduct(result.html,result.url);}catch(error){this.failCompletedTransfer(ctx,result.url);throw error;}
       this.requireCurrentBinding(ctx,product);return product;}
     catch(error){if(error instanceof RequestFailure&&error.code==='blocked')this.blockedHosts.add(this.hostKey(publicHttpsUrl(url).hostname));throw error;}
   }

@@ -58,7 +58,7 @@ export interface SourceUndoInfo {token:string;assetId:string;title:string;source
 export type BoothTab='login'|'favorites'|'gifts'|'library';
 export interface BoothDownload {id:string;name:string;state:'downloading'|'completed'|'interrupted'|'cancelled'|'failed';receivedBytes:number;totalBytes:number;downloadBps:number;startedAt:string;finishedAt?:string;assetId?:string;sourceUrl?:string;error?:string}
 export interface BoothState {downloadDir?:string;sessionSaved:boolean;downloads:BoothDownload[];active:boolean}
-export interface AppSettings extends ViewPreferences { language:AppLanguage;unityEditorPath?:string;detachedRoots?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean }
+export interface AppSettings extends ViewPreferences { language:AppLanguage;unityEditorPath?:string;detachedRoots?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean;xianyuEnabled:boolean }
 export interface UpdateState {status:'idle'|'checking'|'available'|'up-to-date'|'downloading'|'ready'|'installing'|'error'|'unsupported';currentVersion:string;latestVersion?:string;releaseUrl?:string;releaseNotes?:string;receivedBytes:number;totalBytes?:number;downloadBps?:number;message?:string;canInstall:boolean;checkedAt?:string}
 export interface Snapshot { stats:Stats; scan:ScanProgress; queue:QueueProgress; settings:AppSettings;proxy?:ProxyStatus;undoAvailable?:boolean;sourceUndo?:SourceUndoInfo;warnings?:string[] }
 export interface FileEntry { name:string; size:number; directory:boolean }
@@ -76,6 +76,7 @@ export interface LibraryAPI {
   openCommunityLink(id:string):Promise<void>;copyCommunityGroup():Promise<void>;
   readonly initialTheme?:AppTheme;
   readonly initialLanguage?:AppLanguage;
+  attemptXianyu(id:string):Promise<void>;openImageSearch(id:string):Promise<void>;setXianyuEnabled(enabled:boolean):Promise<boolean>;
   updateState():Promise<UpdateState>;checkForUpdates():Promise<UpdateState>;downloadUpdate():Promise<UpdateState>;installUpdate():Promise<boolean>;cancelUpdate():Promise<void>;openUpdatePage():Promise<void>;
   removeRoot(root:string):Promise<boolean>;
   snapshot():Promise<Snapshot>; list(query:AssetQuery):Promise<AssetPage>; get(id:string):Promise<AssetRecord|null>;

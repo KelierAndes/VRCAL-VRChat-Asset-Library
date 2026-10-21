@@ -15,6 +15,13 @@ export interface ReleaseNote {
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version:'1.2.1',date:'2026-10-21',channel:'stable',title:'资料库恢复与可选闲鱼搜索',
+    sections:[{kind:'fixed',items:['旧资料库无法读取时显示登记路径，可重试连接或重新定位已有资料库，不自动创建空库。']},
+      {kind:'added',items:['设置新增默认关闭的闲鱼搜索，确认使用提醒后在匹配确认显示“进行闲鱼尝试补全”。',
+        '提取关键词打开独立闲鱼搜索，核对后尝试采用商品来源；也可整理名称后继续 BOOTH 核对。']},
+      {kind:'notes',items:['闲鱼仅作辅助搜索，不可用于购买；公开资料不足时保留已有信息，来源确认支持撤回。']}]
+  },
+  {
     version:'1.2.0',date:'2026-10-21',channel:'stable',title:'工程内商品、MA 装配与云端目录',
     sections:[{kind:'added',items:[
       '工程详情、文件浏览和右键菜单新增商品读取，展示封面、工程路径与识别依据。',

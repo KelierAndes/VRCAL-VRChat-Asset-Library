@@ -12,9 +12,9 @@
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.2.0](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.0/VRC-Asset-Library-1.2.0-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+**[下载 Windows x64 免安装版 v1.2.1](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.1/VRC-Asset-Library-1.2.1-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
 
-1. 下载 `VRC-Asset-Library-1.2.0-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
+1. 下载 `VRC-Asset-Library-1.2.1-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
 3. 选择素材目录并扫描；默认目录为 `E:\VRChat`。
 4. 开启在线补全。程序先自动匹配商品，有歧义的条目进入「匹配确认」。
@@ -30,7 +30,7 @@
 
 ## 本次更新与更新记录
 
-**1.2.0** 新增工程内商品读取、可选 MA 装配、导入位置回传、百度网盘目录索引（试验）和离线更新记录。工程读取与云端目录读取保持只读；主动导入或确认 MA 装配时才写入所选工程。详细步骤见 [工程与云端功能说明](docs/LOCAL-CLOUD-MA.md)。
+**1.2.1** 改善资料库无法读取时的重新定位，新增默认关闭的闲鱼辅助搜索。包含 1.2.0 的工程内商品读取、可选 MA 装配、导入位置回传、百度网盘目录索引（试验）和离线更新记录。工程读取与云端目录读取保持只读；主动导入或确认 MA 装配时才写入所选工程。详细步骤见 [工程与云端功能说明](docs/LOCAL-CLOUD-MA.md)。
 
 - [GitHub Releases](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases)：每个正式版的功能说明、免安装程序、完整源码和校验清单；内置更新从这里读取最新正式版。
 - [CHANGELOG.md](CHANGELOG.md)：随源码保存的逐版本更新日志。
@@ -50,6 +50,7 @@
 - **读取工程内商品**：扫描 Assets 中的编号、预制件、说明链接与导入记录，按依据区分商品和待核对线索，支持登记并匹配和内置 BOOTH 搜索。
 - **可选 MA 装配**：导入后选择角色与预制件，装到角色层级最底部；支持一次撤销，回传 Assets 路径，场景由用户检查后保存。
 - **百度网盘目录（试验）**：独立官方网页登录，读取选定母目录与子目录，支持暂停和续读，区分仅云端／仅本地／两处都有；不下载或解压云端包。
+- **可选闲鱼搜索**：在设置开启并确认提醒后，匹配确认显示“进行闲鱼尝试补全”。仅用于关键词／图片线索搜索，不提供购买；公开页面信息不足时保留已有资料，来源可撤回。
 - **三种界面语言**：简体中文、日本語、English，可随时切换，素材名称和人工标注保持原文。
 - **路径管理**：选择母目录递归扫描分类子文件夹，移除路径只停用扫描与显示，重新添加时恢复原有标注。
 - **内置更新**：在设置中检查、下载并校验 GitHub 新版，再确认重启安装。

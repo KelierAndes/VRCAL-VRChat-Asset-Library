@@ -20,7 +20,7 @@ export interface BoothWorkspaceDependencies {
  validateAsset:(id:string)=>{title:string};applyProduct:(id:string,url:string)=>Promise<void>;
  onChanged:()=>void;onDownloaded:(file:string,sourceItem?:string)=>Promise<{assetId?:string}>;
 }
-export interface BoothOpenOptions {tab:BoothTab|'search';query?:string;assetId?:string}
+export interface BoothOpenOptions {tab:BoothTab|'search';query?:string;assetId?:string;forceKeyword?:boolean}
 export const BOOTH_ACCOUNT_URLS={login:'https://accounts.booth.pm/users/sign_in',favorites:'https://accounts.booth.pm/wish_lists',gifts:'https://accounts.booth.pm/library/gifts',library:'https://accounts.booth.pm/library'} as const;
 const HEIGHT=166,MAX_HISTORY=100,COOKIE_AGE=30*24*60*60*1000;
 const officialHost=(hostname:string)=>/(?:^|\.)booth\.pm$/i.test(hostname);
@@ -47,9 +47,9 @@ export function boothBrowserUrl(raw:string):URL {
  return url;
 }
 export function boothAppliedProduct(raw:string):string|undefined {try{const url=boothBrowserUrl(raw);if(!officialHost(url.hostname))return;const match=url.pathname.match(/^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?items\/(\d{1,12})\/?$/i);return match?'https://booth.pm/zh-cn/items/'+match[1]:undefined}catch{return undefined}}
-export function boothSearchUrl(query:string):string {
+export function boothSearchUrl(query:string,forceKeyword=false):string {
  if(typeof query!=='string'||!query.trim()||query.length>300)throw new Error('请输入 1 至 300 字的搜索词。');const value=query.trim();
- if(/^\d{1,12}$/.test(value))return 'https://booth.pm/zh-cn/items/'+value;
+ if(!forceKeyword&&/^\d{1,12}$/.test(value))return 'https://booth.pm/zh-cn/items/'+value;
  if(/^https:\/\//i.test(value)){const product=boothAppliedProduct(value);if(!product)throw new Error('请输入 BOOTH 商品网址、编号或搜索词。');return product}
  return 'https://booth.pm/zh-cn/search/'+encodeURIComponent(value);
 }
@@ -88,7 +88,7 @@ export class BoothWorkspace {
   if(!this.deps.canNetwork())throw new Error('请先开启联网，再打开 BOOTH。');
   if(!options||!['login','favorites','gifts','library','search'].includes(options.tab))throw new Error('BOOTH 页面无效。');
   const title=options.assetId?this.deps.validateAsset(options.assetId).title:'BOOTH 账户与资料库';
-  const target=options.tab==='search'?boothSearchUrl(options.query||''):BOOTH_ACCOUNT_URLS[options.tab];
+  const target=options.tab==='search'?boothSearchUrl(options.query||'',options.forceKeyword===true):BOOTH_ACCOUNT_URLS[options.tab];
   this.stopping=false;await this.initialize();this.installSessionHooks();
   if(this.entry&&!this.entry.closed){const entry=this.entry;entry.assetId=options.assetId;entry.title=title;entry.tab=options.tab;entry.query=options.query||'';entry.applied=undefined;entry.window.setTitle(options.assetId?this.t('为素材选择 BOOTH 商品')+' · '+title:this.t('BOOTH 账户与资料库'));this.emit();if(!process.env.VRC_LIBRARY_TEST_HIDDEN)entry.window.show();await this.navigate(entry,target);return}
   const channel='vrc-booth:'+randomUUID(),toolbarPath=path.resolve(__dirname,'../../../assets/booth-workspace.html');

@@ -14,3 +14,7 @@ VRC-library-location.json
 booth-session/
 __pycache__/
 *.pyc
+
+baidu-session/
+xianyu-session/
+*-session-cookies.bin

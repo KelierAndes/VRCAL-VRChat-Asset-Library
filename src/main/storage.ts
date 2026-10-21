@@ -4,7 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {assertSafeWrite,isWithin} from './safety';
 export interface LocationConfig {dataDir?:string;backupDir?:string}
-export interface BrowserCookieSnapshot {profile:'booth-session'|'baidu-session';sha256:string}
+export interface BrowserCookieSnapshot {profile:'booth-session'|'baidu-session'|'xianyu-session';sha256:string}
 const COOKIE_MIGRATION_FAILED='登录状态无法完整保存，资料库迁移已停止；原位置和登录资料仍保留。';
 export function readLocation(file:string):LocationConfig {
  try {const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>8192)return {};const data=JSON.parse(fs.readFileSync(file,'utf8'));return {dataDir:typeof data.dataDir==='string'&&path.isAbsolute(data.dataDir)?data.dataDir:undefined,backupDir:typeof data.backupDir==='string'&&path.isAbsolute(data.backupDir)?data.backupDir:undefined}}catch{return {}}
@@ -45,7 +45,7 @@ export async function copyLibraryData(source:string,target:string,roots:string[]
  const database=path.join(source,'library.sqlite');const info=await fsp.lstat(database);if(!info.isFile()||info.isSymbolicLink())throw new Error('原资料库数据库无法读取。');
  const snapshots=new Map<string,string>();
  for(const snapshot of cookieSnapshots){
-  if(!snapshot||!['booth-session','baidu-session'].includes(snapshot.profile)||!/^[a-f0-9]{64}$/.test(snapshot.sha256)||snapshots.has(snapshot.profile))throw new Error(COOKIE_MIGRATION_FAILED);
+  if(!snapshot||!['booth-session','baidu-session','xianyu-session'].includes(snapshot.profile)||!/^[a-f0-9]{64}$/.test(snapshot.sha256)||snapshots.has(snapshot.profile))throw new Error(COOKIE_MIGRATION_FAILED);
   const file=assertSafeWrite(path.join(source,snapshot.profile+'-cookies.bin'),source,roots),stat=await fsp.lstat(file);
   if(!stat.isFile()||stat.isSymbolicLink()||stat.size>256*1024||await digest(file)!==snapshot.sha256)throw new Error(COOKIE_MIGRATION_FAILED);
   snapshots.set(snapshot.profile,snapshot.sha256);
@@ -55,7 +55,7 @@ export async function copyLibraryData(source:string,target:string,roots:string[]
  // Browser caches and live lock files are rebuildable and can stay locked after a view closes.
  // Persisted cookies/web storage and encrypted cookie snapshots still migrate and are verified.
  const transientBrowserPath=(file:string)=>{
-  const parts=path.relative(source,file).split(path.sep);if(!['booth-session','baidu-session'].includes(parts[0]))return false;
+  const parts=path.relative(source,file).split(path.sep);if(!['booth-session','baidu-session','xianyu-session'].includes(parts[0]))return false;
   const caches=new Set(['cache','code cache','gpucache','dawngraphitecache','dawnwebgpucache','grshadercache','shadercache','crashpad','blob_storage']);
   // Skip a live cookie DB only after the migration caller exported every eligible cookie
   // and supplied the exact verified encrypted snapshot. Otherwise copy it or fail safely.
@@ -66,7 +66,7 @@ export async function copyLibraryData(source:string,target:string,roots:string[]
  try{
   const parent=path.dirname(destination);await fsp.mkdir(assertUserStorage(parent,roots,allowC),{recursive:true});await make(destination);
   await copy(database,path.join(destination,'library.sqlite'));
-  for(const name of ['Local State','queue.json','baidu-directory-task.json','project-imports.json','project-import-baselines','cache','booth-downloads.json','booth-session-cookies.bin','booth-session','baidu-session','baidu-session-cookies.bin'])if(fs.existsSync(path.join(source,name)))await copy(path.join(source,name),path.join(destination,name));
+  for(const name of ['Local State','queue.json','baidu-directory-task.json','project-imports.json','project-import-baselines','cache','booth-downloads.json','booth-session-cookies.bin','booth-session','baidu-session','baidu-session-cookies.bin','xianyu-session','xianyu-session-cookies.bin'])if(fs.existsSync(path.join(source,name)))await copy(path.join(source,name),path.join(destination,name));
   const sourceSession=path.join(source,'session'),keyFile=path.join(sourceSession,'Local State');
   if(fs.existsSync(keyFile)){const stat=await fsp.lstat(sourceSession);if(!stat.isDirectory()||stat.isSymbolicLink())throw new Error('资料库浏览会话包含目录链接，迁移已停止。');await make(path.join(destination,'session'));await copy(keyFile,path.join(destination,'session','Local State'));}
   for(const [profile,sha256] of snapshots)if(await digest(path.join(source,profile+'-cookies.bin'))!==sha256||await digest(path.join(destination,profile+'-cookies.bin'))!==sha256)throw new Error(COOKIE_MIGRATION_FAILED);

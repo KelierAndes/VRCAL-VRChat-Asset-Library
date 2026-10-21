@@ -1,4 +1,9 @@
 export const RELEASE_MESSAGES: Record<string, readonly [string,string]> = {
+ '资料库恢复与可选闲鱼搜索':['Library recovery & optional Xianyu search','ライブラリの復旧と任意の閑魚検索'],
+ '旧资料库无法读取时显示登记路径，可重试连接或重新定位已有资料库，不自动创建空库。':['If the saved library is unavailable, show its path and retry or locate an existing library, without creating an empty one.','保存先を読み取れない場合はパスを表示し、再試行または既存ライブラリの指定ができます。空のライブラリは自動作成しません。'],
+ '设置新增默认关闭的闲鱼搜索，确认使用提醒后在匹配确认显示“进行闲鱼尝试补全”。':['Xianyu search is off by default. Accept the usage notice to show Try Xianyu enrichment in match confirmation.','閑魚検索は初期設定では無効です。注意事項を確認すると照合確認に補完ボタンを表示します。'],
+ '提取关键词打开独立闲鱼搜索，核对后尝试采用商品来源；也可整理名称后继续 BOOTH 核对。':['Extract keywords for isolated Xianyu search, review and try using a product source, or continue to BOOTH with an edited name.','キーワードで独立した閑魚検索を開き、確認後に出典で補完を試せます。商品名を編集して BOOTH でも確認できます。'],
+ '闲鱼仅作辅助搜索，不可用于购买；公开资料不足时保留已有信息，来源确认支持撤回。':['Xianyu is for assisted search only, not purchasing. Existing data remains if public details are unavailable. Sources support undo.','閑魚は検索補助専用で購入には利用できません。公開情報が不足する場合は既存情報を保持し、出典は取り消せます。'],
   '工程内商品、MA 装配与云端目录':['Project products, MA assembly & cloud folders','プロジェクト内の商品・MA 装着・クラウドフォルダー'],
   '读取工程内商品':['Read products in a project','プロジェクト内の商品を読み取る'],
   '工程详情、文件浏览和右键菜单新增商品读取，展示封面、工程路径与识别依据。':['Read project products from details, file browsing or the context menu, with covers, paths and evidence.','詳細・ファイル閲覧・右クリックから商品を読み取り、画像・パス・識別の根拠を表示します。'],
