@@ -706,5 +706,6 @@ html[data-theme="nasa"] .review-candidate-cover:disabled {opacity:1}
 /* Keep the gallery reachable when zoomed chrome fills a short window. */
 @media (max-height: 560px) {
   html[data-theme="nasa"] .workspace { overflow-y: auto; overflow-x: hidden; }
+  html[data-theme="nasa"] :is(.topbar,.theme-station) { flex-shrink: 0; }
   html[data-theme="nasa"] .content-layout { flex: 1 0 180px; min-height: 180px; }
 }

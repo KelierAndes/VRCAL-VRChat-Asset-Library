@@ -381,6 +381,7 @@ html[data-theme="swiss"] .review-candidate-cover:disabled {opacity:1}
 /* Let the main column scroll rather than crowding the gallery below the footer. */
 @media (max-height: 560px) {
   :root[data-theme='swiss'] .workspace { overflow-y: auto; overflow-x: hidden; }
+  :root[data-theme='swiss'] :is(.topbar,.theme-station) { flex-shrink: 0; }
   :root[data-theme='swiss'] .content-layout { flex: 1 0 180px; min-height: 180px; }
 }
 
