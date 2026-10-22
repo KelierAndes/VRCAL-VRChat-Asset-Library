@@ -5,6 +5,7 @@ const fsp = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
 const Module = require('node:module');
+const {spawnSync} = require('node:child_process');
 const ts = require('typescript');
 
 // Load only this source file, without generating dist or loading Electron.
@@ -39,6 +40,31 @@ function fixture(t) {
 function directoryLink(target, link) { fs.mkdirSync(path.dirname(link), {recursive:true}); fs.symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir'); }
 function project(directory) { fs.mkdirSync(path.join(directory, 'Assets'), {recursive:true}); fs.mkdirSync(path.join(directory, 'ProjectSettings'), {recursive:true}); fs.writeFileSync(path.join(directory, 'ProjectSettings', 'ProjectVersion.txt'), 'm_EditorVersion: 2022.3.22f1'); }
 function recordingTrash(calls) { return async file => { calls.push(file); }; }
+function shortPath(t, file) {
+  if (process.platform !== 'win32') { t.skip('Windows short names require GetShortPathNameW'); return; }
+  const command = `[Console]::OutputEncoding=New-Object System.Text.UTF8Encoding($false)
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class RecycleShortName {
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  public static extern uint GetShortPathName(string path, StringBuilder result, uint capacity);
+}
+'@
+$buffer=New-Object System.Text.StringBuilder 32768
+$length=[RecycleShortName]::GetShortPathName($env:VRCAL_RECYCLE_SHORT_SOURCE,$buffer,32768)
+if($length -eq 0){throw 'GetShortPathNameW failed'}
+[Console]::Write($buffer.ToString())`;
+  const result = spawnSync(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe'), ['-NoProfile','-NonInteractive','-Command',command], {
+    encoding:'utf8',windowsHide:true,timeout:15000,env:{...process.env,VRCAL_RECYCLE_SHORT_SOURCE:file}
+  });
+  assert.equal(result.error, undefined); assert.equal(result.status, 0, result.stderr);
+  const shortened = result.stdout.trim();
+  if (shortened.toLowerCase() === fs.realpathSync(file).toLowerCase()) { t.skip('8.3 aliases are unavailable on the fixture volume'); return; }
+  assert.match(shortened, /~/);
+  return shortened;
+}
 
 test('exports prepare/execute functions and prepares only registered existing files', async t => {
   assert.equal(typeof prepareAssetRecycle, 'function', 'safe recycle preparation is not implemented');
@@ -411,4 +437,40 @@ test('caller mutations after preparation cannot broaden the saved scope or alter
   input.roots[0] = f.area; item.path = path.join(f.area, 'private.zip'); item.id = 'replacement-id';
   const calls = [], result = await executeAssetRecycle(plan, {trashItem:recordingTrash(calls)});
   assert.deepEqual(calls, [path.join(f.root, 'A.zip')]); assert.deepEqual(result.results[0].assetIds, ['asset-0']);
+});
+
+test('real Windows 8.3 file paths are eligible under long-name roots and preserve the displayed original path', async t => {
+  const f = fixture(t), file = f.file('Long original material filename.fbx'), shortened = shortPath(t, file); if (!shortened) return;
+  const item = f.add(shortened), plan = await prepareAssetRecycle(f.options()), calls = [];
+  assert.equal(plan.targets[0].path, shortened);
+  const result = await executeAssetRecycle(plan, {trashItem:recordingTrash(calls)});
+  assert.deepEqual(calls, [shortened]); assert.equal(result.results[0].status, 'recycled'); assert.deepEqual(result.results[0].assetIds, [item.id]);
+});
+
+test('real Windows 8.3 folders validate descendants and cover long-name child records without duplicate trash calls', async t => {
+  const f = fixture(t), file = f.file('Long product folder/Deep material folder/Material.fbx'), folder = path.join(f.root, 'Long product folder'), shortened = shortPath(t, folder); if (!shortened) return;
+  const parent = f.add(shortened, 'folder'), child = f.add(file), plan = await prepareAssetRecycle(f.options()), calls = [];
+  assert.equal(plan.targets.length, 1); assert.deepEqual([...plan.targets[0].assetIds].sort(), [parent.id,child.id].sort());
+  const result = await executeAssetRecycle(plan, {trashItem:recordingTrash(calls)});
+  assert.deepEqual(calls, [shortened]); assert.equal(result.results[0].status, 'recycled');
+});
+
+test('real Windows 8.3 targets still respect long-name fixed, library, known-project and shared-root protection', async t => {
+  const f = fixture(t), file = f.file('Long protected folder/Material.fbx'), folder = path.dirname(file), shortened = shortPath(t, folder); if (!shortened) return;
+  f.add(shortened, 'folder');
+  const base = {roots:[shortened],allowedSourceRootAssets:[shortened]};
+  for (const [name, extra, error] of [
+    ['fixed path',{protectedPaths:[folder]},/保护/],
+    ['library',{dataDir:folder},/资料库|保护/],
+    ['known project',{knownProjectPaths:[folder]},/Unity|工程/],
+    ['shared root',{roots:[folder,shortened]},/根目录|保护/]
+  ]) await t.test(name, async () => { await assert.rejects(prepareAssetRecycle(f.options(undefined, {...base,...extra})), error); });
+});
+
+test('a junction substituted for a real Windows 8.3 ancestor is rejected after confirmation', async t => {
+  const f = fixture(t), file = f.file('Long ordinary ancestor/Material.fbx'), shortened = shortPath(t, file); if (!shortened) return;
+  f.add(shortened); const plan = await prepareAssetRecycle(f.options()), parent = path.dirname(file), moved = path.join(f.area, 'Moved original folder');
+  fs.renameSync(parent, moved); directoryLink(moved, path.dirname(shortened));
+  const calls = [], result = await executeAssetRecycle(plan, {trashItem:recordingTrash(calls)});
+  assert.deepEqual(calls, []); assert.equal(result.results[0].status, 'failed'); assert.match(result.results[0].error, /链接|变化/);
 });

@@ -5,8 +5,8 @@ import type { AppTheme } from '../shared/contracts';
 const themes = [
   { id: 'nasa', name: 'NASA 朋克', note: '航天设备面板 · 暖灰机壳 · 复古铭牌', preview: { kicker: 'STOW 84S / LOCAL ARCHIVE', title: 'ASSET SYSTEM', footer: '▰ ▰ ▰ ▰' } },
   { id: 'swiss', name: '瑞士国际主义', note: '十二栏网格 · 大字排版 · 黑白红', preview: { kicker: '01 / LOCAL ARCHIVE', title: 'Collected.', footer: '2026 / VRC' } },
-  { id: 'x', name: 'X 暗色', note: '纯黑底色 · 清晰边线 · 蓝色重点', preview: { kicker: 'VRC 素材库', title: '你的素材。', footer: '原素材只读 · 本地整理' } },
-  { id: 'x-light', name: 'X 浅色', note: '纯白底色 · 轻盈边线 · 蓝色重点', preview: { kicker: 'VRC 素材库', title: '你的素材。', footer: '原素材只读 · 本地整理' } }
+  { id: 'x', name: 'X 暗色', note: '纯黑底色 · 清晰边线 · 蓝色重点', preview: { kicker: 'VRC 素材库', title: '你的素材。', footer: '扫描与补全只读 · 本地整理' } },
+  { id: 'x-light', name: 'X 浅色', note: '纯白底色 · 轻盈边线 · 蓝色重点', preview: { kicker: 'VRC 素材库', title: '你的素材。', footer: '扫描与补全只读 · 本地整理' } }
 ] as const satisfies readonly { id: AppTheme; name: string; note: string; preview: { kicker: string; title: string; footer: string } }[];
 
 export function ThemeIdentity() {
@@ -26,7 +26,7 @@ export function ThemeStation({ module }: { module: string }) {
 
 export function ThemeFooter() {
   useLanguage();
-  return <footer className="theme-footer"><span aria-hidden="true">{new Date().getFullYear()} / LOCAL</span><span>{t("原素材只读")}</span><span>{t("整理信息独立保存")}</span></footer>;
+  return <footer className="theme-footer"><span aria-hidden="true">{new Date().getFullYear()} / LOCAL</span><span>{t("扫描与补全只读")}</span><span>{t("整理信息独立保存")}</span></footer>;
 }
 
 export function ThemeSwitcher({ value, onChange }: { value: AppTheme; onChange: (theme: AppTheme) => Promise<unknown> }) {

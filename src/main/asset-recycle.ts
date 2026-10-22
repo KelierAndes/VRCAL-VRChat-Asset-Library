@@ -121,35 +121,37 @@ async function unityProject(directory:string):Promise<boolean> {
 
 async function assertScope(file:string,stat:BigIntStats,policy:Policy):Promise<void> {
   if(same(file,path.parse(file).root))throw new Error('磁盘根目录受保护，不能移入回收站。');
-  const approvedFile=stat.isFile()&&policy.allowedDownloadFiles.has(key(file));
-  if((await protectedAliases(policy.dataDir)).some(directory=>within(directory,file)||within(file,directory)&&!approvedFile)) {
+  const files=await pathAliases(file);
+  const approvedFile=stat.isFile()&&files.some(value=>policy.allowedDownloadFiles.has(key(value)));
+  if((await protectedAliases(policy.dataDir)).some(directory=>files.some(value=>within(directory,value)||within(value,directory)&&!approvedFile))) {
     throw new Error('资料库及其祖先、缓存和会话目录受保护，不能移入回收站。');
   }
   for(const protectedPath of policy.protectedPaths) {
-    if((await protectedAliases(protectedPath)).some(directory=>within(directory,file))) {
+    if((await protectedAliases(protectedPath)).some(directory=>files.some(value=>within(directory,value)))) {
       throw new Error('固定保护目录及其祖先不能移入回收站，手动素材根例外不适用。');
     }
   }
   let allowedScope=approvedFile;
   for(const root of policy.roots) {
     const current=await pathAliases(root.source);
-    if(current.some(directory=>within(file,directory)))allowedScope=true;
-    if(![...root.initialAliases,...current].some(directory=>within(directory,file)))continue;
+    if(current.some(directory=>files.some(value=>within(value,directory))))allowedScope=true;
+    if(![...root.initialAliases,...current].some(directory=>files.some(value=>within(directory,value))))continue;
     // The exception belongs to this exact root declaration. A second manual
     // alias cannot override a shared root that points at the same real folder.
-    const approvedManualRoot=same(file,root.source)&&policy.selectedPaths.has(key(file))&&policy.allowedSourceRootAssets.has(key(file));
+    const approvedManualRoot=policy.selectedPaths.has(key(file))&&policy.allowedSourceRootAssets.has(key(root.source))&&current.some(directory=>files.some(value=>same(value,directory)));
     if(!approvedManualRoot)throw new Error('素材根目录及其祖先受保护，不能移入回收站。');
+    await ancestorSnapshot(root.source);
   }
   if(!allowedScope)throw new Error('素材已脱离已登记的扫描或下载范围。');
   for(const project of policy.projectPaths) {
-    if((await protectedAliases(project)).some(directory=>within(directory,file)||within(file,directory))) {
+    if((await protectedAliases(project)).some(directory=>files.some(value=>within(directory,value)||within(value,directory)))) {
       throw new Error('Unity 工程及其祖先和内部文件受保护，不能移入回收站。');
     }
   }
 }
 
 /** Inspect the entire ancestor chain without enumerating any ancestor directory. */
-async function ancestorSnapshot(file:string):Promise<Map<string,string>> {
+async function ordinaryAncestors(file:string):Promise<Map<string,string>> {
   const result=new Map<string,string>();
   for(let cursor=file;;cursor=path.dirname(cursor)) {
     const stat=await ordinary(cursor);
@@ -158,8 +160,19 @@ async function ancestorSnapshot(file:string):Promise<Map<string,string>> {
     if(stat.isDirectory()&&await unityProject(cursor))throw new Error(`Unity 工程及其内部文件受保护：${cursor}`);
     if(path.dirname(cursor)===cursor)break;
   }
-  const actual=await fsp.realpath(file);
-  if(!same(actual,file))throw new Error('素材真实路径与登记路径不一致，可能包含目录链接。');
+  return result;
+}
+async function ancestorSnapshot(file:string):Promise<Map<string,string>> {
+  const result=await ordinaryAncestors(file),actual=await fsp.realpath(file);
+  if(!same(actual,file)) {
+    // Windows 8.3 names may spell the same ordinary tree differently. Both
+    // chains must be link-free and identify every ancestor in the same order.
+    const canonical=await ordinaryAncestors(actual),originalIdentities=[...result.values()],canonicalIdentities=[...canonical.values()];
+    if(process.platform!=='win32'||originalIdentities.length!==canonicalIdentities.length||originalIdentities.some((value,index)=>value!==canonicalIdentities[index])) {
+      throw new Error('素材真实路径与登记路径不一致，可能包含目录链接。');
+    }
+    assertMapUnchanged(result,await ordinaryAncestors(file));
+  }
   return result;
 }
 function assertMapUnchanged(before:Map<string,string>,after:Map<string,string>):void {
@@ -171,9 +184,10 @@ function assertMapUnchanged(before:Map<string,string>,after:Map<string,string>):
 /** Only selected folder subtrees are enumerated, with explicit depth and entry limits. */
 async function inspectTarget(target:AssetRecycleTarget,policy:Policy):Promise<Snapshot> {
   const stat=await ordinary(target.path);
+  const ancestors=await ancestorSnapshot(target.path);
   await assertScope(target.path,stat,policy);
   if((stat.isDirectory()?'folder':'file')!==target.kind)throw new Error('素材文件或文件夹类型已变化，请重新确认。');
-  const ancestors=await ancestorSnapshot(target.path),entries=new Map<string,string>();
+  const canonicalRoot=await fsp.realpath(target.path),entries=new Map<string,string>();
   let count=0;
   async function visit(file:string,current:BigIntStats,depth:number):Promise<void> {
     if(++count>policy.maxEntries)throw new Error(`待回收文件夹超过检查规模上限（${policy.maxEntries} 项），请缩小选择范围。`);
@@ -181,7 +195,8 @@ async function inspectTarget(target:AssetRecycleTarget,policy:Policy):Promise<Sn
     entries.set(key(file),metadata(current));
     if(!current.isDirectory())return;
     if(await unityProject(file))throw new Error(`待回收文件夹包含 Unity 工程，已保护整个文件夹：${file}`);
-    if(!same(await fsp.realpath(file),file))throw new Error(`素材子目录包含目录链接：${file}`);
+    const expected=path.resolve(canonicalRoot,path.relative(target.path,file));
+    if(!same(await fsp.realpath(file),expected))throw new Error(`素材子目录包含目录链接：${file}`);
     const directory=await fsp.opendir(file);
     for await(const entry of directory) {
       const child=path.join(file,entry.name);
@@ -230,15 +245,23 @@ export async function prepareAssetRecycle(input:PrepareAssetRecycleInput):Promis
     projectPaths:await Promise.all([...records.filter(record=>record.kind==='unity-project').map(record=>record.path),...(input.knownProjectPaths??[])].map(policyPath)),
     maxEntries:positiveLimit(input.maxEntries,100_000),maxDepth:positiveLimit(input.maxDepth,64,true)
   };
+  const recordPaths=new Map(await Promise.all(records.map(async record=>[record.id,await pathAliases(record.path)] as const)));
+  const pathsFor=(record:RecycleAsset)=>recordPaths.get(record.id)!;
+  const candidatePaths=new Map<string,string[]>();
+  const coveredBy=(record:RecycleAsset,target:AssetRecycleTarget)=>pathsFor(record).some(file=>candidatePaths.get(target.path)!.some(parent=>same(file,parent)||target.kind==='folder'&&within(file,parent)));
   const candidates:AssetRecycleTarget[]=[];
   for(const record of selected) {
     const stat=await ordinary(record.path);
+    await ancestorSnapshot(record.path);
     await assertScope(record.path,stat,policy);
-    if(!candidates.some(target=>same(target.path,record.path)))candidates.push({path:record.path,assetIds:[],kind:stat.isDirectory()?'folder':'file'});
+    if(!candidates.some(target=>pathsFor(record).some(file=>candidatePaths.get(target.path)!.some(existing=>same(file,existing))))) {
+      candidatePaths.set(record.path,pathsFor(record));
+      candidates.push({path:record.path,assetIds:[],kind:stat.isDirectory()?'folder':'file'});
+    }
   }
-  const targets=candidates.filter(target=>!candidates.some(parent=>parent!==target&&parent.kind==='folder'&&within(target.path,parent.path))).map(target=>Object.freeze({
+  const targets=candidates.filter(target=>!candidates.some(parent=>parent!==target&&parent.kind==='folder'&&candidatePaths.get(target.path)!.some(file=>candidatePaths.get(parent.path)!.some(directory=>within(file,directory))))).map(target=>Object.freeze({
     ...target,
-    assetIds:Object.freeze(records.filter(record=>same(record.path,target.path)||target.kind==='folder'&&within(record.path,target.path)).map(record=>record.id))
+    assetIds:Object.freeze(records.filter(record=>coveredBy(record,target)).map(record=>record.id))
   }));
   const snapshots:Snapshot[]=[];
   let totalEntries=0;

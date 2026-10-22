@@ -18,7 +18,7 @@
     "dev": "npm run build && electron .",
     "build": "tsc -p tsconfig.main.json && vite build",
     "check": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
-    "test": "tsc -p tsconfig.main.json && node --test --test-concurrency=4 tests/*.test.cjs",
+    "test": "tsc -p tsconfig.main.json && node --test --test-concurrency=1 tests/*.test.cjs",
     "package": "npm run build && install-electron && electron-builder --win portable --x64 && node scripts/verify-package.cjs"
   },
   "dependencies": {

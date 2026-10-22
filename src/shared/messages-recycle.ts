@@ -35,6 +35,8 @@ const PATH_MESSAGES: Record<string, readonly [string, string]> = {
 
 export const RECYCLE_MESSAGES: Record<string, readonly [string, string]> = {
   '扫描与补全只读': ['Scanning and enrichment are read-only', 'スキャンと補完は読み取り専用'],
+  '扫描与补全只读 · 本地整理': ['Read-only scan and enrichment · Local organization', 'スキャンと補完は読み取り専用 · ローカルで整理'],
+  '扫描与补全只读 · 删除需确认并移入回收站': ['Read-only scan and enrichment · Confirm deletion to move to Recycle Bin', 'スキャンと補完は読み取り専用 · 削除は確認後にゴミ箱へ移動'],
   '关闭': ['Close', '閉じる'],
   ...PATH_MESSAGES,
   '删除素材': ['Delete material', '素材を削除'],
