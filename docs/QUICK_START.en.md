@@ -1,10 +1,10 @@
-# VRC Asset Library 1.2.3
+# VRC Asset Library 1.2.4
 
 **First stable release:** 1.0.0 starts the stable version series. Earlier 1.9.x and 1.10.x releases were test builds. Because their version numbers are higher, their built-in updater will not offer 1.0.0. Close the test build and manually download and run the stable EXE once. Keep your existing library; if asked for a location, select the parent of your existing `VRChatAssetLibrary` folder. Later stable updates can use the built-in updater. Old test executables have been withdrawn; source history remains available.
 
 A local Windows x64 library for VRChat assets. Browsing and scanning are read-only. Only an explicit import writes to the selected Unity project; source assets remain unchanged.
 
-1. Close the older version and run `VRC-Asset-Library-1.2.3-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
+1. Close the older version and run `VRC-Asset-Library-1.2.4-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
 2. Choose **English** in the language selector. Select **X Light**, X Dark, NASA Punk or Swiss International in the theme selector. Choices are saved immediately. Asset names, authors, personal tags and notes remain in their original language.
 3. Open **Settings & backup** to add your main asset folder. Category subfolders are scanned recursively. Adding a parent replaces its registered children. Unity projects stay together.
 4. Use **Remove** beside a source path to exclude it from scanning and browsing. This does not delete files or annotations. Re-adding the path restores its library entries. Keep library data and backups outside the folder being scanned; move data first if necessary.
@@ -59,3 +59,10 @@ Manual paths persist across restarts and backups. Repeated additions preserve ex
 ## 1.2.3: sponsor credits
 
 Below the code contributors, the community page now shows public sponsor names, optional repository-hosted avatars, social links and anonymous credits. The owner maintains `community/sponsors.json`; changes do not require an app release. Cached credits appear immediately, with checks on entry/every five minutes and a manual refresh button. Disabled networking or failed requests preserve the previous list. The cache follows library migration; ordinary material-library backups do not include this public feed. Payment records are not read or automatically verified. See the [maintainer guide](COMMUNITY_SPONSORS.md).
+
+
+## 1.2.4: hidden items and rematching
+
+Right-click a material or open its details and choose **Hide from library**. Original files, covers and annotations remain intact. **Settings → Hidden materials** lists hidden names and paths, supports search, and restores individual or selected items. Refreshing, restarting and backup restore retain hidden flags.
+
+**Force rematch** returns a confirmed or manually classified item to review while keeping its current source and details. Use **Match this material again** to discover candidates; a replacement always needs your confirmation. With optional Xianyu enabled, open the product page and click **Apply this product**. Public details are read from the loaded page; if unavailable, enter a verified product name in the local toolbar. Search/login pages cannot be applied. Source changes can be undone. This helper is for search assistance only, never purchases.

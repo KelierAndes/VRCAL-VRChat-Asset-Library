@@ -21,7 +21,7 @@ test('history separates unpublished trials from stable releases and keeps chrono
   assert.equal(RELEASE_NOTES[0].version, require('../package.json').version);
   assert.equal(RELEASE_NOTES[0].channel, 'stable');
   const stable = filterReleaseNotes({channel:'stable',language:'zh-CN'});
-  assert.deepEqual(stable.map(entry=>entry.version), ['1.2.3','1.2.2','1.2.1','1.2.0','1.1.1','1.1.0','1.0.0']);
+  assert.deepEqual(stable.map(entry=>entry.version), ['1.2.4','1.2.3','1.2.2','1.2.1','1.2.0','1.1.1','1.1.0','1.0.0']);
   assert(RELEASE_NOTES.every((entry,index)=>!index || entry.date <= RELEASE_NOTES[index-1].date));
   assert.equal(new Set(RELEASE_NOTES.map(entry=>entry.version)).size, RELEASE_NOTES.length);
 });

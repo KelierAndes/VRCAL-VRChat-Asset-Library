@@ -7,6 +7,9 @@ import {validateWrapper,wrapperPathKey,wrapperCompatible,wrapperDisplayName} fro
 const unique=(values:string[])=>[...new Set(values)];
 const compact=(value:string)=>value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 const itemId=boothProductId;
+// A user-requested review keeps the old identity until a replacement is chosen.
+// A manually chosen replacement remains the binding even when its page fails.
+const identityUrl=(record:AssetRecord)=>record.manual.sourceUrl||(record.online.status==='matched'||record.online.rematchRequested?record.online.url:undefined);
 
 /** Conservative product identity: versions and avatar variants of one download. */
 export function productName(value:string):string {
@@ -23,10 +26,10 @@ export function productName(value:string):string {
 }
 function localIdentity(record:AssetRecord):{ids:string[];author?:string} {
   const named=extractBoothIds(record.name);
-  const matched=record.online.status==='matched'?itemId(record.online.url):undefined;
+  const matched=itemId(identityUrl(record));
   // README links often credit a base avatar or shader. They are discovery
   // clues, never product identity capable of overriding explicit item IDs.
-  const creator=creatorClue(record.name)??(record.online.status==='matched'?record.online.author:undefined);
+  const creator=creatorClue(record.name)??(identityUrl(record)?record.online.author:undefined);
   return {ids:unique([...named,...(matched?[matched]:[])]),author:creator?canonicalCreator(creator):undefined};
 }
 function canMerge(a:AssetRecord,b:AssetRecord,wrappers:Map<string,AssetRecord[]>):boolean {
@@ -36,7 +39,7 @@ function canMerge(a:AssetRecord,b:AssetRecord,wrappers:Map<string,AssetRecord[]>
   if(ai.ids.length&&bi.ids.length&&ai.ids[0]!==bi.ids[0])return false;
   if(!wrapperCompatible(a,b))return false;
   if(a.kind==='folder'&&b.kind==='folder'&&(wrappers.get(wrapperPathKey(a.path))??[]).some(wrapper=>validateWrapper(wrapper.wrapper,wrapper.path)!.chain.some(entry=>wrapperPathKey(entry)===wrapperPathKey(b.path))&&wrapperCompatible(wrapper,a)&&wrapperCompatible(wrapper,b)))return true;
-  const aa=a.online.status==='matched'?itemId(a.online.url):undefined,ba=b.online.status==='matched'?itemId(b.online.url):undefined;
+  const aa=itemId(identityUrl(a)),ba=itemId(identityUrl(b));
   if(aa&&ba)return aa===ba;
   if(path.dirname(a.path).toLowerCase()!==path.dirname(b.path).toLowerCase())return false;
   const an=productName(wrapperDisplayName(a)),bn=productName(wrapperDisplayName(b));
@@ -74,7 +77,7 @@ function aggregate(records:AssetRecord[]):AssetRecord {
 
 /** Display projection only. Original rows and their persistent IDs stay intact. */
 export function projectionKeys(record:AssetRecord):string[] {
-  const booth=record.online.status==='matched'?itemId(record.online.url):undefined;
+  const booth=itemId(identityUrl(record));
   const wrapper=validateWrapper(record.wrapper,record.path);
   return [`name:${path.dirname(record.path).toLowerCase()}:${productName(wrapperDisplayName(record))}`,...(booth?[`booth:${booth}`]:[]),`wrapper-path:${wrapperPathKey(record.path)}`,...(wrapper?.chain.slice(1).map(entry=>`wrapper-path:${wrapperPathKey(entry)}`)??[])];
 }

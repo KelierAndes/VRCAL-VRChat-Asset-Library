@@ -1,6 +1,24 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {parseProduct,EnrichmentQueue}=require('../dist/main/main/online');
 const url='https://www.goofish.com/item?id=1234567890123';
+
+test('a loaded public page snapshot supplies a bound product without a second anonymous HTML request',()=>{
+ const {captureMarketplaceProduct}=require('../dist/main/main/online');
+ const html='<script type="application/ld+json">'+JSON.stringify({'@type':'Product',url,name:'猫のメガネ💝',brand:{name:'Creator'},image:'https://img.alicdn.com/cover.jpg',description:'Public description'})+'</script><script>PRIVATE_LOGIN_TOKEN</script>';
+ const captured=captureMarketplaceProduct(url,{url:url+'&tracking=ignored',html});const p=parseProduct(captured,url);assert.equal(p.title,'猫のメガネ💝');assert.equal(p.author,'Creator');assert.equal(p.coverUrl,'https://img.alicdn.com/cover.jpg');assert(!captured.includes('PRIVATE_LOGIN_TOKEN'));
+ assert.throws(()=>captureMarketplaceProduct(url,{url:'https://www.goofish.com/item?id=222',html},'Manual name'),/页面已切换/);
+ assert.throws(()=>captureMarketplaceProduct(url,{url,html:'<title>闲鱼</title>'}),/填写.*商品名称/);
+ const manual=parseProduct(captureMarketplaceProduct(url,{url,html:'<title>闲鱼</title>'},'手动核对商品'),url);assert.equal(manual.title,'手动核对商品');assert.equal(manual.author,undefined);assert.equal(manual.coverUrl,undefined);
+});
+
+test('captured marketplace application persists the source, title and undo without refetching a login shell',async t=>{
+ const {captureMarketplaceProduct}=require('../dist/main/main/online'),{Store}=require('../dist/main/main/store'),{matchingCatalog}=require('../dist/main/main/matching-catalog');
+ const area=fs.mkdtempSync(path.join(__dirname,'.fixtures-marketplace-captured-')),root=path.join(area,'Source'),dataDir=path.join(area,'Library');fs.mkdirSync(root);fs.writeFileSync(path.join(root,'glasses.zip'),'KEEP');const store=new Store(dataDir,[root]);
+ const item=store.upsertScan({path:path.join(root,'glasses.zip'),name:'glasses.zip',kind:'archive',group:'Test',size:1,mtimeMs:1,localCategory:'饰品',localAvatars:[],hintUrls:[]});store.updateOnline(item.id,{status:'matched',title:'Original title',url:'https://booth.pm/ja/items/1111111'});store.requestRematch([item.id]);const before=store.getRaw(item.id).online;
+ const html=captureMarketplaceProduct(url,{url,html:'<title>闲鱼</title>'},'手动核对的眼镜'),undo=store.beginSourceChange([item.id],url,item.id,item.name);let fetches=0;
+ const queue=new EnrichmentQueue({dataDir,roots:()=>[root],...matchingCatalog(store),fetch:async()=>{fetches++;throw Error('anonymous shell must not be fetched')}});t.after(async()=>{queue.stop();await queue.waitIdle();try{store.close()}catch{}fs.rmSync(area,{recursive:true,force:true,maxRetries:3})});
+ await queue.acceptCandidate(item.id,url,true,html);await queue.waitIdle();assert.equal(fetches,0);assert.equal(store.get(item.id).online.status,'matched');assert.equal(store.get(item.id).online.title,'手动核对的眼镜');assert.equal(store.get(item.id).online.url,url);assert.equal(store.get(item.id).online.rematchRequested,false);assert(store.undoSource(undo.token));assert.deepEqual(store.getRaw(item.id).online,before);
+});
 test('marketplace login, generic shells and another item metadata cannot become matched products',()=>{
  for(const html of ['<title>闲鱼</title><div id="root"></div>','<title>淘宝登录</title>','<script type="application/ld+json">'+JSON.stringify({'@type':'Product',url:'https://www.goofish.com/item?id=222',name:'Another product'})+'</script>','<title>闲鱼</title><script type="application/ld+json">'+JSON.stringify({'@type':'Product',url})+'</script>','<meta property="og:type" content="product"><meta property="og:url" content="'+url+'"><title>闲鱼</title>'])assert.throws(()=>parseProduct(html,url));
  assert.throws(()=>parseProduct('<title>Search</title>','https://www.goofish.com/search?q=dress'));

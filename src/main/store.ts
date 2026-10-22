@@ -8,6 +8,7 @@ import {DatabaseSync} from 'node:sqlite';
 import {AssetRecord,AssetQuery,AssetPage,Stats,ManualInfo,OnlineInfo,AppSettings,AvatarEvidence,FileIdentity,LibraryCollection,CollectionInput,TagSummary,SourceUndoInfo,CATEGORIES,REVIEW_SORTS,THEME_IDS,LANGUAGE_IDS,normalizeTheme,displayCategory,displayAvatars,displayTags,displayTitle} from '../shared/contracts';
 import {assertSafeWrite,isWithin,safeCoverPath} from './safety';
 import {ProjectionIndex} from './projection';
+import {projectAssets} from './grouping';
 import {SearchIndex,normalizeSearch} from './search';
 import {isOrganizationalAsset} from './organization';
 import {inferLocalCategory,inferProductCategory,normalizeCategory,officialProductCategory} from './hints';
@@ -55,6 +56,7 @@ function manualInfo(value:any):ManualInfo {
   if('category' in value){const category=normalizeCategory(value.category);if(!category)throw new Error('分类无效。');result.category=category}
   for(const key of ['tags','avatars','relatedIds'] as const)if(key in value){if(!Array.isArray(value[key]))throw new Error('标签列表无效。');result[key]=cleanStrings(value[key])}
   if('favorite' in value)result.favorite=Boolean(value.favorite);
+  if('hidden' in value){if(typeof value.hidden!=='boolean')throw new Error('隐藏状态无效。');result.hidden=value.hidden;}
   if('projectStatus' in value){if(!['制作中','已完成'].includes(value.projectStatus))throw new Error('工程状态无效。');result.projectStatus=value.projectStatus}
   if('coverFile' in value){if(typeof value.coverFile!=='string'||(value.coverFile&&path.basename(value.coverFile)!==value.coverFile))throw new Error('封面路径无效。');result.coverFile=value.coverFile}
   if('sourceUrl' in value)result.sourceUrl=sourceUrl(value.sourceUrl);
@@ -71,6 +73,7 @@ function onlineInfo(value:any):OnlineInfo {
   if(Array.isArray(value?.tags))online.tags=cleanStrings(value.tags);
   const inferredCategory=inferProductCategory({...online,categories:categoryEvidence?[categoryEvidence.rawCategory]:undefined});if(inferredCategory!=='未分类'&&!(online.classificationPending&&savedCategory&&!categoryEvidence))online.category=inferredCategory;
   if(Array.isArray(value?.avatars))online.avatars=cleanStrings(value.avatars);
+  if(typeof value?.rematchRequested==='boolean')online.rematchRequested=value.rematchRequested;
   if(typeof value?.confirmedSource==='boolean')online.confirmedSource=value.confirmedSource;
   if(Array.isArray(value?.rejectedUrls))online.rejectedUrls=cleanStrings(value.rejectedUrls,100);
   const evidence=value?.matchEvidence;if(evidence&&['filename-id','readme-link','name-search','child-package','manual','known-source'].includes(evidence.method)&&typeof evidence.ruleVersion==='string'&&typeof evidence.recordedAt==='string')online.matchEvidence={method:evidence.method,signals:cleanStrings(evidence.signals,20),ruleVersion:evidence.ruleVersion.slice(0,100),recordedAt:evidence.recordedAt.slice(0,100)};
@@ -111,7 +114,7 @@ export class Store {
   private protectedPaths():string[]{return ['E:\\VRChat',...this.rootPaths,...this.detachedRootPaths]}
   isPathActive(source:string):boolean{return sourcePathActive(source,this.rootPaths,this.detachedRootPaths)}
   private active(record:AssetRecord):boolean{return this.isPathActive(record.path)}
-  private visible(record:StoredAsset):boolean{return this.active(record)&&!record.scanContainer&&!isOrganizationalAsset(record)}
+  private visible(record:StoredAsset):boolean{return this.active(record)&&!record.manual.hidden&&!record.scanContainer&&!isOrganizationalAsset(record)}
   private writable():void {assertSafeWrite(path.join(this.dataDir,'library.sqlite'),this.dataDir,this.protectedPaths())}
   private transaction(action:()=>void):void {this.writable();this.db.exec('BEGIN IMMEDIATE');try{action();this.db.exec('COMMIT')}catch(error){this.db.exec('ROLLBACK');this.loadRaw();throw error}}
   private put(record:AssetRecord):void {this.db.prepare('INSERT INTO assets(id,path,record) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET path=excluded.path,record=excluded.record').run(record.id,record.path,JSON.stringify(record));const previous=this.raw.get(record.id);if(previous){this.paths.delete(this.pathKey(previous.path));this.indexIdentity(previous,false)}const next=clone(record);this.raw.set(record.id,next);if(this.visible(next))this.projection?.update(previous&&this.visible(previous)?previous:undefined,next);else if(previous&&this.visible(previous))this.projection=undefined;this.paths.set(this.pathKey(record.path),record.id);this.indexIdentity(record,true);this.groups.set(record.id,record.group);this.invalidate()}
@@ -120,6 +123,24 @@ export class Store {
   getRaw(id:string):AssetRecord|null {const record=this.raw.get(id);return record?clone(record):null}
   private displayed():AssetRecord[]{return (this.projection??(this.projection=new ProjectionIndex([...this.raw.values()].filter(record=>this.visible(record))))).values()}
   get(id:string):AssetRecord|null {if(this.raw.has(id)&&!this.visible(this.raw.get(id)!))return null;this.displayed();const record=this.projection!.get(id);return record?clone(record):null}
+  private hiddenCards():AssetRecord[]{return projectAssets([...this.raw.values()].filter(record=>this.active(record)&&record.manual.hidden&&!record.scanContainer&&!isOrganizationalAsset(record)))}
+  hiddenAssets(query:AssetQuery={}):AssetPage {
+    const terms=typeof query.search==='string'?normalizeSearch(query.search).split(/\s+/).filter(Boolean):[];
+    const items=this.hiddenCards().filter(record=>{const text=normalizeSearch([displayTitle(record),record.name,record.path,...(record.members??[]).map(member=>member.path)].join(' '));return terms.every(term=>text.includes(term))}).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+    const offset=Number.isFinite(query.offset)?Math.max(0,Math.floor(query.offset!)):0,limit=Number.isFinite(query.limit)?Math.max(1,Math.min(5000,Math.floor(query.limit!))):100;
+    return {total:items.length,items:items.slice(offset,offset+limit).map(clone)};
+  }
+  setHidden(ids:string[],hidden:boolean):void {
+    if(typeof hidden!=='boolean')throw new Error('隐藏状态无效。');
+    const cards=[...this.displayed(),...this.hiddenCards()],byId=new Map<string,AssetRecord>();
+    for(const card of cards)for(const member of card.members??[card])byId.set(member.id,card);
+    const members=[...new Set(cleanStrings(ids,10000).flatMap(id=>{const card=byId.get(id);if(!card)throw new Error('请选择有效的素材。');return card.members?.map(member=>member.id)||[card.id]}))];
+    this.updateManual(members,{hidden});
+  }
+  requestRematch(ids:string[]):void {
+    const records=[...new Set(cleanStrings(ids,10000).flatMap(id=>{const card=this.get(id);if(!card||card.kind==='unity-project')throw new Error('请选择有效的素材。');return card.members?.map(member=>member.id)||[card.id]}))].map(id=>this.getRaw(id)!);
+    this.transaction(()=>{for(const record of records){record.manual.matchingMode='auto';record.online={...record.online,status:'review',rematchRequested:true,message:'已进入强制重新匹配；旧资料保留，确认新商品后才替换。'};record.updatedAt=new Date().toISOString();this.put(record)}});
+  }
   private aliases():Record<string,string[]> {const result:Record<string,string[]>=Object.create(null);for(const row of this.db.prepare('SELECT name,record FROM tag_aliases').all() as {name:string;record:string}[])try{const values=JSON.parse(row.record);if(!Array.isArray(values)||values.some(value=>typeof value!=='string'))throw new Error('标签别名格式无效');result[row.name]=cleanStrings(values,20)}catch(error){this.noteRecovery({kind:'tag-alias',key:row.name,record:row.record,error:error instanceof Error?error.message:'别名记录损坏'})}return result}
   private ensureSearch():void {if(!this.searchDirty)return;this.search.rebuild(this.displayed(),this.aliases(),this.groups);this.searchDirty=false}
   list(query:AssetQuery={}):AssetPage {
@@ -174,7 +195,7 @@ export class Store {
     this.transaction(()=>{
       this.db.prepare('INSERT INTO source_undo(token,record) VALUES(?,?)').run(info.token,serialized);
       this.db.exec('DELETE FROM source_undo WHERE id NOT IN (SELECT id FROM source_undo ORDER BY id DESC LIMIT 50)');
-      for(const record of records){record.manual.sourceUrl=source;const metadataSourceUrl=record.online.metadataSourceUrl||(record.online.status==='matched'?record.online.url:undefined);record.online={...record.online,status:'pending',url:source,metadataSourceUrl,confirmedSource:false,candidates:[],message:'正在读取已确认的来源'};record.updatedAt=info.recordedAt;this.put(record)}
+      for(const record of records){record.manual.sourceUrl=source;const metadataSourceUrl=record.online.metadataSourceUrl||(record.online.status==='matched'?record.online.url:undefined);record.online={...record.online,rematchRequested:false,status:'pending',url:source,metadataSourceUrl,confirmedSource:false,candidates:[],message:'正在读取已确认的来源'};record.updatedAt=info.recordedAt;this.put(record)}
     });return clone(info);
   }
   private lastSourceUndo():SourceUndo|undefined {

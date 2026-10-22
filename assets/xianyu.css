@@ -9,4 +9,5 @@ html[data-theme=x]{color-scheme:dark;--paper:#000;--panel:#16181c;--ink:#e7e9ea;
 
 html[data-theme=x-light]{color-scheme:light;--paper:#fff;--panel:#f7f9f9;--ink:#0f1419;--muted:#536471;--line:#cfd9de;--accent:#1d9bf0;--font:Inter,'Microsoft YaHei UI',sans-serif}html[data-theme=x-light] button{border-radius:999px}html[data-theme=x-light] input,html[data-theme=x-light] textarea,html[data-theme=x-light] .panel{border-radius:12px}#search-form{margin:8px 0}#search-form input{min-width:0}#web-actions{margin-top:8px}
 
+#item-title-label{display:flex;flex:1 1 260px;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}#item-title-label[hidden]{display:none}#item-title{min-width:0;flex:1 1 180px;width:100%;padding:7px 10px}#url{overflow-wrap:anywhere}
 .web #chrome{max-height:calc(100vh - 80px);overflow-y:auto}img{filter:none}

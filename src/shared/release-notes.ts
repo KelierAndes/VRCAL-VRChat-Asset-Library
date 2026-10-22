@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.2.4',date:'2026-10-22',channel:'stable',title:'隐藏名单与重新匹配',sections:[
+    {kind:'added',items:['素材右键及详情新增“从资料库隐藏”，设置可查看名单、搜索路径并单项或批量恢复。']},
+    {kind:'improved',items:['强制重新匹配可把已确认、未找到或手动归类素材送回确认页；重新检索保留旧资料，确认后才替换。','闲鱼详情页新增明确的“应用此商品”；优先读取当前网页公开资料，无法读取时可填写核对后的商品名，来源支持撤回。']},
+    {kind:'notes',items:['隐藏与重新匹配不删除或修改原素材；闲鱼功能仍默认关闭，仅作辅助搜索，不可用于购买。']}
+  ]},
   {version:'1.2.3',date:'2026-10-22',channel:'stable',title:'联网赞助者名单',sections:[
     {kind:'added',items:['贡献者下方新增赞助者名单，从项目公开 JSON 同步昵称、头像和社交链接，无需重新发布程序。']},
     {kind:'improved',items:['名单进入页面时及每五分钟检查，支持立即刷新、本地缓存和匿名展示；联网关闭或读取失败时保留上次内容。']},

@@ -15,12 +15,12 @@ export interface OnlineInfo {
   title?:string; titleAliases?:string[];author?:string;authorAliases?:string[]; url?:string; category?:Category;categoryEvidence?:CategoryEvidence; tags?:string[]; avatars?:string[];
   coverUrl?:string; coverFile?:string; description?:string; fetchedAt?:string;
   status:MatchStatus; message?:string; candidates?:ProductCandidate[];
-  confirmedSource?:boolean;rejectedUrls?:string[];matchEvidence?:MatchEvidence;metadataSourceUrl?:string;
+  rematchRequested?:boolean;confirmedSource?:boolean;rejectedUrls?:string[];matchEvidence?:MatchEvidence;metadataSourceUrl?:string;
   classificationCheckedVersion?:string;
   classificationPending?:boolean;
   matchingCheckedVersion?:string;
 }
-export interface ManualInfo { title?:string; category?:Category; tags?:string[]; avatars?:string[]; favorite?:boolean; notes?:string; coverFile?:string; projectStatus?:'制作中'|'已完成'; relatedIds?:string[];sourceUrl?:string;matchingMode?:'auto'|'manual' }
+export interface ManualInfo { hidden?:boolean; title?:string; category?:Category; tags?:string[]; avatars?:string[]; favorite?:boolean; notes?:string; coverFile?:string; projectStatus?:'制作中'|'已完成'; relatedIds?:string[];sourceUrl?:string;matchingMode?:'auto'|'manual' }
 export interface LocalMember {id:string;path:string;name:string;kind:AssetKind;missing:boolean;manual?:ManualInfo;version?:string;mtimeMs?:number}
 export interface AvatarEvidence {avatar:string;files:string[];basis:'filename'|'archive-entry'|'manual'}
 export interface AssetRecord {
@@ -83,6 +83,7 @@ export interface LibraryAPI {
   updateState():Promise<UpdateState>;checkForUpdates():Promise<UpdateState>;downloadUpdate():Promise<UpdateState>;installUpdate():Promise<boolean>;cancelUpdate():Promise<void>;openUpdatePage():Promise<void>;
   removeRoot(root:string):Promise<boolean>;
   snapshot():Promise<Snapshot>; list(query:AssetQuery):Promise<AssetPage>; get(id:string):Promise<AssetRecord|null>;
+  hiddenAssets(query?:AssetQuery):Promise<AssetPage>;setHidden(ids:string[],hidden:boolean):Promise<void>;forceRematch(ids:string[]):Promise<void>;
   scan():Promise<void>; cancelScan():Promise<void>;
   chooseMaterials():Promise<ManualAddResult|null>;addDroppedMaterials(files:File[]):Promise<ManualAddResult>;
   annotate(ids:string[],patch:ManualInfo):Promise<void>;

@@ -24,6 +24,7 @@ const api:LibraryAPI={
  boothState:()=>invoke('boothState'),openBooth:tab=>invoke('openBooth',tab),chooseBoothDownloadDir:()=>invoke('chooseBoothDownloadDir'),revealBoothDownload:id=>invoke('revealBoothDownload',id),cancelBoothDownload:id=>invoke('cancelBoothDownload',id),retryBoothImport:id=>invoke('retryBoothImport',id),clearBoothSession:()=>invoke('clearBoothSession'),
  previewSource:(id,url)=>invoke('previewSource',id,url),loadCandidateCovers:ids=>invoke('loadCandidateCovers',ids),
  rejectCandidate:(id,url)=>invoke('rejectCandidate',id,url),restoreRejectedCandidates:id=>invoke('restoreRejectedCandidates',id),
+ hiddenAssets:query=>invoke('hiddenAssets',query),setHidden:(ids,hidden)=>invoke('setHidden',ids,hidden),forceRematch:ids=>invoke('forceRematch',ids),
  skipMatching:id=>invoke('skipMatching',id),restoreMatching:id=>invoke('restoreMatching',id),
  projectMaterials:(id,refresh)=>invoke('projectMaterials',id,refresh),projectProducts:(id,refresh)=>invoke('projectProducts',id,refresh),registerProjectProduct:(id,key)=>invoke('registerProjectProduct',id,key),
  projectFiles:(id,relative,offset)=>invoke('projectFiles',id,relative,offset),projectFileAction:(id,relative,action)=>invoke('projectFileAction',id,relative,action),

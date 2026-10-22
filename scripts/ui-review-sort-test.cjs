@@ -240,7 +240,7 @@ function report(ok, error) { return { ok, checked, errors, error, durationMs: Da
 
   await merged.locator('.review-local-area').click({ button: 'right' });
   await menu().waitFor();
-  assert.deepEqual(await menu().getByRole('menuitem').allTextContents(), ['打开所在文件夹', '复制路径']);
+  assert.deepEqual(await menu().getByRole('menuitem').allTextContents(), ['打开所在文件夹', '复制路径', '从资料库隐藏']);
   await menu().getByRole('menuitem', { name: '复制路径', exact: true }).click();
   await wait(async () => await clipboardText() === bundleFolder.path, '默认菜单应复制代表目录原路径');
   clipboardTestPath = bundleFolder.path;
@@ -253,7 +253,7 @@ function report(ok, error) { return { ok, checked, errors, error, durationMs: Da
 
   await merged.locator('.review-member-list').locator('summary').click();
   assert.equal(await merged.locator('.review-member-entry').count(), 2);
-  const archiveEntry = merged.locator(`.review-member-entry[data-member-id="${bundleArchive.id}"]`);
+  const archiveEntry = merged.locator('.review-member-entry').filter({hasText:bundleArchive.path});
   await archiveEntry.getByRole('button', { name: `操作本地文件：${bundleArchive.name}`, exact: true }).click();
   await menu().getByRole('menuitem', { name: '复制路径', exact: true }).click();
   await wait(async () => await clipboardText() === bundleArchive.path, '合并条目具体包必须使用成员原始ID和路径');

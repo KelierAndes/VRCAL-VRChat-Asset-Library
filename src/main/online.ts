@@ -15,7 +15,7 @@ const HTML_LIMIT = 3 * 1024 * 1024;
 const IMAGE_LIMIT = 16 * 1024 * 1024;
 const CACHE_AGE = 7 * 24 * 60 * 60 * 1000;
 type Fetch = (url:string, init?:RequestInit)=>Promise<Response>;
-type Task = { id:string; url?:string; accept?:boolean; previews?:boolean; attempts?:number; notBefore?:number;manualRequest?:boolean;correction?:boolean };
+type Task = { id:string; url?:string; accept?:boolean; previews?:boolean; attempts?:number; notBefore?:number;manualRequest?:boolean;correction?:boolean;rematch?:boolean;capturedHtml?:string };
 interface Persisted { tasks:Task[]; activeTasks?:Task[]; paused:boolean; completed:number; recentTransfers?:TransferSummary[]; recentDownloads?:TransferSummary[]; speedHistory?:SpeedSample[]; downloadedBytes?:number; peakDownloadBps?:number; hosts?:Record<string,HostState> }
 export interface QueueDependencies {
   dataDir:string; roots:()=>string[]; all:()=>AssetRecord[]; get:(id:string)=>AssetRecord|null;
@@ -118,6 +118,20 @@ export function parseProduct(html:string, rawUrl:string):ParsedProduct {
   return {url,title,titleAliases:officialTitleAliases(title,description),author:author||undefined,authorAliases,coverUrl,description,category,categoryEvidence,avatars,tags,metadataFields:{description:descriptionAvailable,tags:root.length>0,avatars:avatars.length>0||root.length>0}};
 }
 
+/** Keep only public product fields. Browser HTML and account data never enter the queue or backup. */
+export function captureMarketplaceProduct(url:string,snapshot:unknown,manualTitle?:unknown):string {
+  const id=marketItem(url),page=snapshot as {url?:unknown;html?:unknown}|undefined;
+  if(!id||!page||typeof page.url!=='string'||marketItem(page.url)!==id)throw new Error('商品页面已切换，请重载并核对后采用来源。');
+  if(typeof page.html!=='string'||page.html.length>HTML_LIMIT)throw new Error('商品页面内容过大，无法读取。');
+  let product:ParsedProduct;
+  try{product=parseProduct(page.html,url)}catch{
+    if(typeof manualTitle!=='string'||!manualTitle.trim()||manualTitle.trim().length>500||/[\x00-\x1f]/.test(manualTitle)||/^(?:闲鱼|閑魚|goofish|xianyu|login|sign in)$/i.test(manualTitle.trim()))throw new Error('网页未提供商品资料，请在上方填写已核对的商品名称后应用。');
+    product={url,title:manualTitle.trim(),category:'未分类',tags:[],avatars:[],description:''};
+  }
+  const data={'@type':'Product',url,title:undefined,name:product.title.slice(0,500),brand:product.author?{name:product.author.slice(0,500)}:undefined,image:product.coverUrl?.slice(0,2048),description:product.description.slice(0,16000)};
+  return '<script type="application/ld+json">'+JSON.stringify(data).replace(/</g,'\\u003c')+'</script>';
+}
+
 export function parseSearch(html:string, url:string):ProductCandidate[] {
   const $=cheerio.load(html), results:ProductCandidate[]=[];
   if(/captcha|access denied|just a moment|年齢確認|年齢認証|ログイン - BOOTH/i.test($('title').text()))throw new RequestFailure('网站需要验证，已停止读取','blocked');
@@ -204,7 +218,7 @@ export class EnrichmentQueue {
     return {running:!this.paused&&!this.stopped&&(this.contexts.size>0||this.tasks.length>0),paused:this.paused,pending:this.tasks.length+this.contexts.size,completed:this.completed,current:[...this.contexts.values()].map(c=>c.current).join(' · '),message:this.message||undefined,transfer:this.transfer?{...this.transfer}:undefined,recentTransfers:this.recentTransfers.map(t=>({...t})),activeTransfers,speedHistory:this.speedHistory.map(s=>({...s})),downloadedBytes:this.downloadedBytes,peakDownloadBps:this.peakDownloadBps,totalDownloadBps,totalUploadBps:0,concurrency:this.concurrency,activeTasks:this.contexts.size};
   }
   private emit():void {this.deps.onProgress?.(this.progress);}
-  private check(ctx:TaskContext):void {if(ctx.controller.signal.aborted)throw ctx.controller.signal.reason||new QueuePaused();const current=this.deps.get(ctx.task.id);if(!current||current.manual.matchingMode==='manual'&&!(ctx.task.url&&ctx.task.manualRequest===true)){const error=new QueueSuperseded('此素材已转入手动归类或不再参与匹配');ctx.controller.abort(error);throw error;}if(this.paused||this.stopped)throw new QueuePaused();}
+  private check(ctx:TaskContext):void {if(ctx.controller.signal.aborted)throw ctx.controller.signal.reason||new QueuePaused();const current=this.deps.get(ctx.task.id);if(!current||current.online.rematchRequested&&!ctx.task.rematch&&!ctx.task.url&&!ctx.task.previews||current.manual.matchingMode==='manual'&&!(ctx.task.url&&ctx.task.manualRequest===true)){const error=new QueueSuperseded('此素材已转入手动归类或不再参与匹配');ctx.controller.abort(error);throw error;}if(this.paused||this.stopped)throw new QueuePaused();}
   private stopHeartbeat():void {if(this.heartbeat)clearInterval(this.heartbeat);this.heartbeat=undefined;}
   private ensureHeartbeat():void {
     if(this.heartbeat||this.paused||this.stopped)return;
@@ -264,11 +278,13 @@ export class EnrichmentQueue {
     const tasks=[...this.tasks,...active.filter(t=>!pendingIds.has(t.id))];
     fs.writeFileSync(temp,JSON.stringify({version:2,tasks,activeTasks:active,paused:this.paused,completed:this.completed,recentTransfers:this.recentTransfers,recentDownloads:this.recentTransfers,speedHistory:this.speedHistory,downloadedBytes:this.downloadedBytes,peakDownloadBps:this.peakDownloadBps,hosts:Object.fromEntries(this.hosts)}),{encoding:'utf8',mode:0o600});fs.renameSync(temp,this.statePath);this.lastSave=Date.now();
   }
-  private update(ctx:TaskContext,patch:Partial<OnlineInfo>):void {this.check(ctx);this.deps.updateOnline(ctx.task.id,patch);this.deps.onChange?.();}
+  private update(ctx:TaskContext,patch:Partial<OnlineInfo>):void {this.check(ctx);
+    if(ctx.task.rematch&&this.deps.get(ctx.task.id)?.online.rematchRequested&&!ctx.task.url){patch={...patch,status:'review'};for(const key of ['url','confirmedSource','matchEvidence','metadataSourceUrl'] as const)delete patch[key];}
+    this.deps.updateOnline(ctx.task.id,patch);this.deps.onChange?.();}
   private rejected(id:string,url:string):boolean {const key=canonicalSourceKey(url);return !!this.deps.get(id)?.online.rejectedUrls?.some(source=>canonicalSourceKey(source)===key);}
   private requireCurrentBinding(ctx:TaskContext,product:ProductCandidate):void {
     this.check(ctx);const current=this.deps.get(ctx.task.id),chosen=current?.manual.sourceUrl;
-    if(!chosen)return;
+    if(!chosen||ctx.task.rematch&&current?.online.rematchRequested&&!ctx.task.url)return;
     const key=canonicalSourceKey(chosen),taskSource=ctx.task.url||ctx.sourceUrl;
     if(key!==canonicalSourceKey(product.url)&&(!taskSource||key!==canonicalSourceKey(taskSource))){
       const error=new QueueSuperseded('本地来源已改变，已停止旧商品任务');ctx.controller.abort(error);throw error;
@@ -302,12 +318,12 @@ export class EnrichmentQueue {
     const selected=(ids?ids.map(id=>this.deps.get(this.canonicalId(id))).filter((a):a is AssetRecord=>!!a):this.deps.all().filter(a=>a.kind!=='unity-project'&&(!retry||a.online.status!=='matched'||this.needsCorrection(a)))).filter(a=>a.manual.matchingMode!=='manual');
     if(retry){const requested=new Set(selected.map(a=>a.id));this.tasks=this.tasks.filter(task=>!task.previews||!requested.has(task.id));for(const ctx of this.contexts.values())if(ctx.task.previews&&requested.has(ctx.task.id))ctx.controller.abort(new QueueSuperseded());}
     const queued=new Set([...this.tasks.map(t=>t.id),...[...this.contexts.values()].filter(ctx=>!retry||!ctx.task.previews).map(ctx=>ctx.task.id)]);
-    for(const asset of selected){const id=this.canonicalId(asset.id),correction=this.needsCorrection(asset);if(asset.missing||asset.kind==='unity-project'||(!retry&&asset.online.status!=='pending'&&!correction)||queued.has(id))continue;this.tasks.push({id,...(correction?{correction:true}:{})});queued.add(id);}
+    for(const asset of selected){const id=this.canonicalId(asset.id),correction=this.needsCorrection(asset);if(asset.missing||asset.kind==='unity-project'||(!retry&&asset.online.status!=='pending'&&!correction)||queued.has(id))continue;this.tasks.push({id,...(asset.online.rematchRequested?{rematch:true}:{}),...(correction?{correction:true}:{})});queued.add(id);}
     this.message='';this.save();this.emit();this.start();
   }
   async enqueueCandidateCovers(ids:string[]):Promise<void> {
     const queued=new Set([...this.tasks.map(task=>task.id),...this.contexts.keys()]);
-    for(const id of new Set(ids.map(id=>this.canonicalId(id)))){const asset=this.deps.get(id);if(!asset||asset.manual.matchingMode==='manual'||asset.missing||asset.online.status!=='review'||queued.has(id)||!asset.online.candidates?.some(candidate=>candidate.coverUrl&&!candidate.coverFile))continue;this.tasks.push({id,previews:true});queued.add(id);}
+    for(const id of new Set(ids.map(id=>this.canonicalId(id)))){const asset=this.deps.get(id);if(!asset||asset.manual.matchingMode==='manual'||asset.missing||asset.online.status!=='review'||queued.has(id)||!asset.online.candidates?.some(candidate=>candidate.coverUrl&&!candidate.coverFile))continue;this.tasks.push({id,previews:true,...(asset.online.rematchRequested?{rematch:true}:{})});queued.add(id);}
     this.save();this.emit();this.start();
   }
   private cancelAll():void {
@@ -336,13 +352,14 @@ export class EnrichmentQueue {
     const metadataSourceUrl=asset.online.metadataSourceUrl||(asset.online.status==='matched'?asset.online.url:undefined);
     this.deps.updateOnline(id,{status:'pending',url,metadataSourceUrl,confirmedSource:false,candidates:[],message:'正在读取手动添加的来源'});this.deps.onChange?.();this.replaceTask({id,url,manualRequest:asset.manual.matchingMode==='manual'});
   }
-  async acceptCandidate(id:string,rawUrl:string,groupConfirmed=false):Promise<void> {
+  async acceptCandidate(id:string,rawUrl:string,groupConfirmed=false,capturedHtml?:string):Promise<void> {
     id=this.canonicalId(id);
     const asset=this.deps.get(id);if(!asset)throw new Error('素材不存在');const url=publicHttpsUrl(rawUrl).href;
     if(this.rejected(id,url))throw new Error('已排除此商品，请恢复候选后再确认');
     const trustedGroup=groupConfirmed&&!!asset.manual.sourceUrl&&canonicalSourceKey(asset.manual.sourceUrl)===canonicalSourceKey(url);
     if(!trustedGroup&&asset.online.url!==url&&!asset.online.candidates?.some(c=>publicHttpsUrl(c.url).href===url))throw new Error('请先添加来源或选择当前候选商品');
-    this.message='';this.replaceTask({id,url,accept:true,manualRequest:asset.manual.matchingMode==='manual'});
+    if(capturedHtml!==undefined){if(!marketItem(url)||capturedHtml.length>HTML_LIMIT)throw new Error('商品页面资料无效。');parseProduct(capturedHtml,url);}
+    this.message='';this.replaceTask({id,url,accept:true,manualRequest:asset.manual.matchingMode==='manual',...(capturedHtml?{capturedHtml}:{})});
   }
   private start():void {
     if(this.paused||this.stopped)return;
@@ -508,6 +525,7 @@ export class EnrichmentQueue {
   }
   private async apply(ctx:TaskContext,asset:AssetRecord,product:ParsedProduct,method:MatchEvidence['method']='name-search',confirmed=false):Promise<void> {
     this.requireCurrentBinding(ctx,product);
+    if(ctx.task.rematch&&this.deps.get(asset.id)?.online.rematchRequested&&!ctx.task.accept){await this.showReview(ctx,[{...product,reason:'重新匹配找到的候选，请核对后应用；旧来源尚未替换。'}],'重新检索已完成，请确认新的商品来源。');return;}
     if(this.rejected(asset.id,product.url))return;
     let classificationCheckedVersion=product.categoryEvidence?MATCH_RULE_VERSION:undefined,categoryFailure:unknown;
     if(boothItem(product.url)&&!product.categoryEvidence){
@@ -525,7 +543,7 @@ export class EnrichmentQueue {
     const retained=previous&&(!coverFile&&previous.coverFile||!product.coverUrl&&previous.coverUrl||!product.author&&previous.author||product.category==='未分类'&&previous.category||fields?.tags===false&&previous.tags?.length||fields?.avatars===false&&previous.avatars?.length||fields?.description===false&&previous.description);
     if(retained)message=[message,'本次未获取完整资料或封面，部分内容沿用上次记录'].filter(Boolean).join('；');
     if(categoryFailure){message=[message,'官方分类读取未完成，保留上次分类并稍后重试'].filter(Boolean).join('；');if((ctx.task.attempts??0)<3&&!this.tasks.some(task=>task.id===ctx.task.id)){this.tasks.push({...ctx.task,correction:true,attempts:(ctx.task.attempts??0)+1,notBefore:Date.now()+Math.max(60000,categoryFailure instanceof RequestFailure?categoryFailure.retryAfter??0:0)});}}
-    this.update(ctx,{status:'matched',title:product.title,titleAliases:unique([...(product.titleAliases??[]),...(previous?.titleAliases??[])]),author:product.author||previous?.author,authorAliases:unique([...(product.authorAliases??[]),...(previous?.authorAliases??[])]),url:product.url,metadataSourceUrl:product.url,category:((categoryFailure||!product.categoryEvidence&&previous?.categoryEvidence)&&previous?.category)?previous.category:product.category==='未分类'?previous?.category:product.category,categoryEvidence:product.categoryEvidence||previous?.categoryEvidence,classificationCheckedVersion:classificationCheckedVersion||previous?.classificationCheckedVersion,classificationPending:!!categoryFailure,tags:previous&&fields?.tags===false?previous.tags:product.tags,avatars:previous&&fields?.avatars===false?previous.avatars:product.avatars,description:previous&&fields?.description===false?previous.description:product.description,coverUrl:product.coverUrl||previous?.coverUrl,coverFile:coverFile||previous?.coverFile,fetchedAt:new Date().toISOString(),candidates:[],message,confirmedSource:confirmed,matchEvidence:this.evidence(asset,product,method,confirmed)});
+    this.update(ctx,{status:'matched',rematchRequested:false,title:product.title,titleAliases:unique([...(product.titleAliases??[]),...(previous?.titleAliases??[])]),author:product.author||previous?.author,authorAliases:unique([...(product.authorAliases??[]),...(previous?.authorAliases??[])]),url:product.url,metadataSourceUrl:product.url,category:((categoryFailure||!product.categoryEvidence&&previous?.categoryEvidence)&&previous?.category)?previous.category:product.category==='未分类'?previous?.category:product.category,categoryEvidence:product.categoryEvidence||previous?.categoryEvidence,classificationCheckedVersion:classificationCheckedVersion||previous?.classificationCheckedVersion,classificationPending:!!categoryFailure,tags:previous&&fields?.tags===false?previous.tags:product.tags,avatars:previous&&fields?.avatars===false?previous.avatars:product.avatars,description:previous&&fields?.description===false?previous.description:product.description,coverUrl:product.coverUrl||previous?.coverUrl,coverFile:coverFile||previous?.coverFile,fetchedAt:new Date().toISOString(),candidates:[],message,confirmedSource:confirmed,matchEvidence:this.evidence(asset,product,method,confirmed)});
   }
   private async candidateCovers(ctx:TaskContext,asset:AssetRecord):Promise<void> {
     for(const candidate of asset.online.candidates?.slice(0,5)||[]){
@@ -552,14 +570,15 @@ export class EnrichmentQueue {
     let registered:string|undefined;
     if((asset.online.status==='matched'||asset.online.matchEvidence?.method==='known-source')&&asset.online.url){try{registered=publicHttpsUrl(asset.online.url).href;}catch{/* An invalid legacy URL is not an identity binding. */}}
     const legacy=!task.url&&!asset.manual.sourceUrl&&!asset.online.confirmedSource&&!!registered;
-    const chosen=task.url||asset.manual.sourceUrl||(asset.online.confirmedSource?asset.online.url:undefined)||registered;
+    const chosen=task.url||(task.rematch?undefined:asset.manual.sourceUrl||(asset.online.confirmedSource?asset.online.url:undefined)||registered);
     if(chosen){
       const source=publicHttpsUrl(chosen).href;
       ctx.sourceUrl=source;
       if(!asset.online.metadataSourceUrl&&asset.online.status==='matched'&&asset.online.url)this.update(ctx,{metadataSourceUrl:asset.online.url});
       if(this.rejected(asset.id,source)){this.update(ctx,{status:'review',matchingCheckedVersion:MATCH_RULE_VERSION,candidates:[],message:'已排除此来源，请添加新的商品网址或恢复候选'});return;}
       if(legacy)this.update(ctx,{matchEvidence:{method:'known-source',signals:['刷新已登记商品来源；不视为新增人工确认'],ruleVersion:MATCH_RULE_VERSION,recordedAt:new Date().toISOString()}});
-      const product=await this.product(ctx,source);if(this.rejected(asset.id,product.url))return;
+      if(task.capturedHtml&&(!marketItem(source)||task.capturedHtml.length>HTML_LIMIT))throw new Error('商品页面资料无效。');
+      const product=task.capturedHtml?parseProduct(task.capturedHtml,source):await this.product(ctx,source);if(this.rejected(asset.id,product.url))return;
       const changedItem=!!boothItem(source)&&boothItem(source)!==boothItem(product.url);
       const trusted=!!task.accept||!!asset.online.confirmedSource&&!!asset.online.url&&canonicalSourceKey(asset.online.url)===canonicalSourceKey(source);
       const method:MatchEvidence['method']=legacy?'known-source':'manual';

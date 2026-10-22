@@ -12,9 +12,9 @@
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.2.3](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.3/VRC-Asset-Library-1.2.3-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+**[下载 Windows x64 免安装版 v1.2.4](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.4/VRC-Asset-Library-1.2.4-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
 
-1. 下载 `VRC-Asset-Library-1.2.3-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
+1. 下载 `VRC-Asset-Library-1.2.4-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
 3. 选择素材目录并扫描；默认目录为 `E:\VRChat`。
 4. 开启在线补全。程序先自动匹配商品，有歧义的条目进入「匹配确认」。
@@ -29,6 +29,8 @@
 当前发布包未进行代码签名。请从本仓库 Releases 下载，并用随包 SHA-256 清单核对文件。
 
 ## 本次更新与更新记录
+
+**1.2.4 新增隐藏名单和强制重新匹配。** 右键或详情点击“从资料库隐藏”，只隐藏应用条目；在设置查看已隐藏名单、按名称或路径搜索，单项或批量恢复。强制重新匹配可把已确认和手动归类素材送回确认页，保留旧资料直到你确认新商品。开启可选闲鱼辅助搜索后，可在商品详情点击“应用此商品”；优先读取当前页面的公开资料，不足时填写已核对的商品名，来源可撤回。原文件保持原样。
 
 **1.2.3 新增联网赞助者名单。** 在“贡献者与社区”的代码贡献者下方展示支持者，维护者编辑 [公开名单](community/sponsors.json) 即可更新，无需重发程序。支持头像、社交链接、匿名展示、五分钟检查与离线缓存，详见 [维护说明](docs/COMMUNITY_SPONSORS.md)。
 
