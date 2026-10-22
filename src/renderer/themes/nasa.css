@@ -702,3 +702,9 @@ html[data-theme="nasa"] .toast .icon-button { color: inherit; }
 html[data-theme="nasa"] .theme-preview-swiss>strong {color:var(--accent)}
 
 html[data-theme="nasa"] .review-candidate-cover:disabled {opacity:1}
+
+/* Keep the gallery reachable when zoomed chrome fills a short window. */
+@media (max-height: 560px) {
+  html[data-theme="nasa"] .workspace { overflow-y: auto; overflow-x: hidden; }
+  html[data-theme="nasa"] .content-layout { flex: 1 0 180px; min-height: 180px; }
+}

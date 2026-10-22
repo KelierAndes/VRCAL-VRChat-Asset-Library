@@ -378,6 +378,12 @@
 
 html[data-theme="swiss"] .review-candidate-cover:disabled {opacity:1}
 
+/* Let the main column scroll rather than crowding the gallery below the footer. */
+@media (max-height: 560px) {
+  :root[data-theme='swiss'] .workspace { overflow-y: auto; overflow-x: hidden; }
+  :root[data-theme='swiss'] .content-layout { flex: 1 0 180px; min-height: 180px; }
+}
+
 /* High zoom uses compact controls so the archive keeps a visible working area. */
 @media(max-height:560px){
  :root[data-theme='swiss'] .theme-station{padding:5px 0;gap:8px}
