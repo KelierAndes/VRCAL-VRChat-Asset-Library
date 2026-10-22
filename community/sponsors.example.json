@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-22T00:00:00Z",
+  "sponsors": [
+    {
+      "id": "example-supporter",
+      "name": "示例支持者（非真实名单）",
+      "note": "这一条仅说明填写格式，不会在应用中读取。",
+      "links": [{"label": "GitHub", "url": "https://github.com/example"}],
+      "order": 10
+    },
+    {"id": "example-anonymous", "anonymous": true, "order": 20}
+  ]
+}

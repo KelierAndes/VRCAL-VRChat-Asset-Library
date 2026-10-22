@@ -1,10 +1,10 @@
-# VRC Asset Library 1.2.2
+# VRC Asset Library 1.2.3
 
 **First stable release:** 1.0.0 starts the stable version series. Earlier 1.9.x and 1.10.x releases were test builds. Because their version numbers are higher, their built-in updater will not offer 1.0.0. Close the test build and manually download and run the stable EXE once. Keep your existing library; if asked for a location, select the parent of your existing `VRChatAssetLibrary` folder. Later stable updates can use the built-in updater. Old test executables have been withdrawn; source history remains available.
 
 A local Windows x64 library for VRChat assets. Browsing and scanning are read-only. Only an explicit import writes to the selected Unity project; source assets remain unchanged.
 
-1. Close the older version and run `VRC-Asset-Library-1.2.2-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
+1. Close the older version and run `VRC-Asset-Library-1.2.3-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
 2. Choose **English** in the language selector. Select **X Light**, X Dark, NASA Punk or Swiss International in the theme selector. Choices are saved immediately. Asset names, authors, personal tags and notes remain in their original language.
 3. Open **Settings & backup** to add your main asset folder. Category subfolders are scanned recursively. Adding a parent replaces its registered children. Unity projects stay together.
 4. Use **Remove** beside a source path to exclude it from scanning and browsing. This does not delete files or annotations. Re-adding the path restores its library entries. Keep library data and backups outside the folder being scanned; move data first if necessary.
@@ -54,3 +54,8 @@ Settings → Assisted search → Enable Xianyu search is off by default. Accept 
 Use **Add assets manually** in the toolbar to select one or more asset folders, or drop folders and local ZIP, RAR, 7z or Unitypackage files from File Explorer. Only the selected content is read; siblings and the entire library are not rescanned. Online enrichment continues only for these entries when enabled.
 
 Manual paths persist across restarts and backups. Repeated additions preserve existing confirmations and annotations. Remove a path in Settings without deleting originals or annotations. Libraries, backups, drive roots and directory links are not accepted as assets. For files inside a Unity project, use **Read products in a project**, or add the whole project folder. Sources are never copied, moved or extracted by this operation.
+
+
+## 1.2.3: sponsor credits
+
+Below the code contributors, the community page now shows public sponsor names, optional repository-hosted avatars, social links and anonymous credits. The owner maintains `community/sponsors.json`; changes do not require an app release. Cached credits appear immediately, with checks on entry/every five minutes and a manual refresh button. Disabled networking or failed requests preserve the previous list. The cache follows library migration; ordinary material-library backups do not include this public feed. Payment records are not read or automatically verified. See the [maintainer guide](COMMUNITY_SPONSORS.md).

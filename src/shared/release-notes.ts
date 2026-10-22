@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.2.3',date:'2026-10-22',channel:'stable',title:'联网赞助者名单',sections:[
+    {kind:'added',items:['贡献者下方新增赞助者名单，从项目公开 JSON 同步昵称、头像和社交链接，无需重新发布程序。']},
+    {kind:'improved',items:['名单进入页面时及每五分钟检查，支持立即刷新、本地缓存和匿名展示；联网关闭或读取失败时保留上次内容。']},
+    {kind:'notes',items:['赞助者名单由维护者手动维护，不读取支付记录，不自动确认赞助到账。']}
+  ]},
   {version:'1.2.2',date:'2026-10-22',channel:'stable',title:'手动添加与拖拽入库',sections:[
     {kind:'added',items:['工具栏新增手动添加素材，可直接拖入文件夹或素材包，立即识别所选内容。']},
     {kind:'improved',items:['手动添加不触发全库扫描，仅对本次识别的素材继续在线补全；重复添加保留原确认、封面和人工标注。','手动来源随重启、备份恢复保留，设置中可移除；支持中日英与四套主题。']},
