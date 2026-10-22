@@ -12,7 +12,11 @@
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.2.7](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.7/VRC-Asset-Library-1.2.7-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+**[下载 Windows x64 免安装版 v1.2.7](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.7/VRC-Asset-Library-1.2.7-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [功能与开发参考](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+
+**第一次使用？先看[零基础图文手册](docs/BEGINNER_GUIDE.zh-CN.md)。** 按任务逐步点击，配有实机截图，覆盖首次启动、素材整理、匹配确认、工程导入、备份与排障。
+
+v1.2.7 手册附件：[PDF 手册](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.7/VRCAL-1.2.7-Beginner-Guide-zh-CN.pdf) · [离线图文包 ZIP](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.7/VRCAL-1.2.7-Guide-Offline.zip)
 
 1. 下载 `VRC-Asset-Library-1.2.7-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。

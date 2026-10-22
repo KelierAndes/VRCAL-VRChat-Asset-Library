@@ -1,0 +1,183 @@
+{
+  "version": "1.2.7",
+  "programPackaged": true,
+  "date": "2026-10-23",
+  "uiScreenshotMethod": "Electron webContents.capturePage, including native region captures",
+  "screenshotsRetouched": false,
+  "demoOnly": true,
+  "privateAccountsUsed": false,
+  "unityLaunched": false,
+  "realImportSubmitted": false,
+  "sourceFilesHashChecked": 19,
+  "sourceUnchanged": true,
+  "guideTasks": 50,
+  "guideNumberedFigures": 33,
+  "guidePages": 61,
+  "screenshots": [
+    {
+      "file": "booth-account-offline.png",
+      "sha256": "8d8065a4813787fc6438adb40f87e684a79cf955c12815af7ca544839c7130ac",
+      "bytes": 115503
+    },
+    {
+      "file": "booth-browser-toolbar.png",
+      "sha256": "678ca0edc7505f4e6e2a432f26a8f84fc8a61c76275497cefc606d67b041e8f0",
+      "bytes": 24430
+    },
+    {
+      "file": "booth-download-panel-focus-1.png",
+      "sha256": "cdc1a72199e30b004516c339d1b8f1a0cee8680ddc0ab5d7bc6eb7e4b513f677",
+      "bytes": 10012
+    },
+    {
+      "file": "booth-download-panel-focus-2.png",
+      "sha256": "77660a2dcf6c6ca3e4797b79deb04394582e5acd0e8d0310f249f59b28454a55",
+      "bytes": 12723
+    },
+    {
+      "file": "cloud-offline.png",
+      "sha256": "cd1c5a39829e712e602099309c316989231c654de9baf402a912c5ffafacb3e7",
+      "bytes": 114238
+    },
+    {
+      "file": "collection-view.png",
+      "sha256": "0bba9084e0bdbc25060c3a7f421ac842e68b2569f09b21a59904fd80dfd1e007",
+      "bytes": 103845
+    },
+    {
+      "file": "contributors-community.png",
+      "sha256": "cd750a5ece0c70fd01f66ef7f0630eb5e2389284c78b52e3d2aacbe2d68453f7",
+      "bytes": 125859
+    },
+    {
+      "file": "hidden-bulk-restore.png",
+      "sha256": "a924ba96a8a16a535f7af955ed95d8d911410469f578b3ad3fe5f25412147240",
+      "bytes": 84657
+    },
+    {
+      "file": "home-annotations-focus.png",
+      "sha256": "ab15f1d6a94e851c88152bebde762d6b62ef5d49e06bc372d94729975b3dd0cf",
+      "bytes": 17437
+    },
+    {
+      "file": "home-compatibility-focus.png",
+      "sha256": "938a4228c4e22fd0bda60966b8907cb3ee4c6f7a4dfd665d10fb5f3d628b8b93",
+      "bytes": 16128
+    },
+    {
+      "file": "home-context-menu-focus.png",
+      "sha256": "e7ea47e3d1954a12a198ccfaca4b5c4296b79494311d668cd311a3ec77a9a014",
+      "bytes": 28427
+    },
+    {
+      "file": "home-detail-focus.png",
+      "sha256": "9fa6672976451df124e918a2d7f1637436cce2298efb39cbdecb48fc03eb3cd9",
+      "bytes": 26055
+    },
+    {
+      "file": "home-gallery-focus.png",
+      "sha256": "e2fd27d392a9cec57a34b728074f6e84abf10a86b1df1f9fd31c9466cfd26ab0",
+      "bytes": 14489
+    },
+    {
+      "file": "home-gallery.png",
+      "sha256": "3e57f1a4ba4acd022d1bbfdb63158eae5bb8504ecb6f000f47e5437c1a69874d",
+      "bytes": 127781
+    },
+    {
+      "file": "home-search-filter-focus.png",
+      "sha256": "048a1a60b00ac0e5b5ac1962a0c5bf84f848d1ca655168d4f3126950cd599280",
+      "bytes": 13972
+    },
+    {
+      "file": "manual-organization.png",
+      "sha256": "62d4ae888c21810fc8116c257504e2dc7b12e45e700ed8a728a31b4c7e01108d",
+      "bytes": 125164
+    },
+    {
+      "file": "project-detail-focus.png",
+      "sha256": "8c0970dd97506a20a0ed0c5cd5743884dde91b518c43b2552a9a2556add8d816",
+      "bytes": 22753
+    },
+    {
+      "file": "project-files-focus.png",
+      "sha256": "87442a3dda934bf05d44a1c894e16429da71d7cb535e10fd00246fd99721a439",
+      "bytes": 44392
+    },
+    {
+      "file": "project-import-preview-focus.png",
+      "sha256": "0d92637da0482cb4227fb9d8e702f156f85e6c71971c5406d48e88f4e750d3d5",
+      "bytes": 83657
+    },
+    {
+      "file": "project-products-focus.png",
+      "sha256": "7dac99004366de6c48d0e2ac53251fb55879852da2478fc706773b07d019de61",
+      "bytes": 87919
+    },
+    {
+      "file": "release-notes.png",
+      "sha256": "648a624e6809e5a4b40d9fc0c6d9b03bda102a580ecb01b83b2fefaf644df182",
+      "bytes": 132002
+    },
+    {
+      "file": "review-compact-local.png",
+      "sha256": "0b75aa5172d73eea99e1646901d289be4e7f44207ad3c1ce1d27011b7e0aca41",
+      "bytes": 16984
+    },
+    {
+      "file": "review-compact.png",
+      "sha256": "7f8a7cefe61c5a5fed43f6148343dbd1e281271c1a338c15a8f9fc7c159ab644",
+      "bytes": 152571
+    },
+    {
+      "file": "review-pinned-scrolled.png",
+      "sha256": "47d5c384da31f2e35d692a3ddf0d00a64c416ead543330d6a38e9ab396388144",
+      "bytes": 142646
+    },
+    {
+      "file": "review-source-entry-focus.png",
+      "sha256": "79ff5e6a3df70447ed603957c61a5c8c233e0c593a5b3b2a9a13279408864158",
+      "bytes": 8534
+    },
+    {
+      "file": "review-unpinned-scrolled.png",
+      "sha256": "40a0db86115992c194449eef295aaa1b984b18a05b94ab1d3eaac32a44251376",
+      "bytes": 138868
+    },
+    {
+      "file": "settings-backup-focus.png",
+      "sha256": "af9645a0b76775f8b8deb73b85cd99a363c54193938e7c0dac442beaa5002b94",
+      "bytes": 16271
+    },
+    {
+      "file": "settings-context-menu-focus.png",
+      "sha256": "be6555e948ab2d1a6f2202aef2ce22852a8fe3870c6e86a81125209f41e11160",
+      "bytes": 53302
+    },
+    {
+      "file": "settings-paths-focus-1.png",
+      "sha256": "10a8d7c5c69946f781b6a2be5a4206bae7658c9af730b1d176d4f0b743bb1b0b",
+      "bytes": 22465
+    },
+    {
+      "file": "settings-paths-focus-2.png",
+      "sha256": "0ad3fc76b20c193b22a35aa24647a0a6022b689383cd592f85d5293dc1904262",
+      "bytes": 16265
+    },
+    {
+      "file": "settings-updates-focus.png",
+      "sha256": "42c2cf15eebac86bff3346e3cd28239a9e012a4a6fc89d628701f4aabe58fa38",
+      "bytes": 15800
+    },
+    {
+      "file": "settings-zoom-focus.png",
+      "sha256": "8ff8ca3dbac788a41d19db61b57861c9a86221fef8565407a8f0ea5e26ad220d",
+      "bytes": 8076
+    },
+    {
+      "file": "tags-manager-focus.png",
+      "sha256": "63f215f25749cac895f941e95a0f61ddc8f7bfa9d56659a57f0eafec27561c28",
+      "bytes": 30760
+    }
+  ]
+}
