@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.2.7',date:'2026-10-23',channel:'stable',title:'匹配确认顶部锁定',sections:[
+    {kind:'added',items:['匹配确认右上角新增小锁，默认解锁；标题、搜索、筛选和下载状态随确认内容滚动。']},
+    {kind:'improved',items:['锁定后顶部固定，内容过多时可独立滚动，最多占匹配工作区高度的 45%，为候选保留空间。','小锁在滚动后仍可操作；切换保留当前素材位置与确认顺序。','“跳过自动匹配”改为醒目的整行按钮，跳过后移至“手动归类”，可稍后继续整理。','时间、本地文件和匹配依据默认折叠，手动填写商品来源也可展开输入；BOOTH 搜索保持可见。','匹配确认不再显示适配标签，原有适配资料和人工标注继续保留。']},
+    {kind:'notes',items:['锁定偏好自动保存，重启、迁移及备份恢复后继续沿用；旧资料库默认解锁。']}
+  ]},
   {version:'1.2.6',date:'2026-10-23',channel:'stable',title:'独立隐藏素材页',sections:[
     {kind:'added',items:['左侧“手动归类”下新增“已隐藏素材”入口与数量，集中查看隐藏条目。','独立页面支持按名称或路径搜索、定位原文件夹，以及单项或批量恢复显示、移入回收站。']},
     {kind:'improved',items:['设置中的隐藏长列表改为简短跳转入口，统一在独立页面管理。']},

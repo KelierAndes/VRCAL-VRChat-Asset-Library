@@ -12,9 +12,9 @@
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.2.6](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.6/VRC-Asset-Library-1.2.6-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+**[下载 Windows x64 免安装版 v1.2.7](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.7/VRC-Asset-Library-1.2.7-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
 
-1. 下载 `VRC-Asset-Library-1.2.6-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
+1. 下载 `VRC-Asset-Library-1.2.7-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
 3. 选择素材目录并扫描；默认目录为 `E:\VRChat`。
 4. 开启在线补全。程序先自动匹配商品，有歧义的条目进入「匹配确认」。
@@ -29,6 +29,10 @@
 当前发布包未进行代码签名。请从本仓库 Releases 下载，并用随包 SHA-256 清单核对文件。
 
 ## 本次更新与更新记录
+
+**1.2.7 新增匹配确认顶部锁定。** 右上角小锁默认解锁，标题、搜索、筛选和下载状态随确认内容滚动；点击后固定顶部。窄屏或高缩放下，锁定顶部可独立滚动，最多占匹配工作区高度的45%，为候选保留空间。小锁滚动后仍可操作，切换保留当前素材位置与确认顺序；偏好自动保存，重启、迁移与备份恢复后沿用。
+
+“跳过自动匹配”改为醒目的整行按钮，跳过后进入“手动归类”。时间、本地文件、匹配依据和手动来源输入收进折叠区，BOOTH 搜索保持可见；匹配确认不再展示适配标签，原有资料和人工标注保留。
 
 **1.2.6 将隐藏名单移到左侧独立页面。** 在“手动归类”下点击带数量的“已隐藏素材”，按名称或路径搜索、定位原文件夹，单项或批量恢复显示，也可确认移入系统回收站。设置只保留“查看已隐藏素材”跳转入口。恢复显示沿用原封面和人工标注；取消删除不会移动文件或改变隐藏状态。
 

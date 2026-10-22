@@ -1,10 +1,10 @@
-# VRC Asset Library 1.2.6
+# VRC Asset Library 1.2.7
 
 **First stable release:** 1.0.0 starts the stable version series. Earlier 1.9.x and 1.10.x releases were test builds. Because their version numbers are higher, their built-in updater will not offer 1.0.0. Close the test build and manually download and run the stable EXE once. Keep your existing library; if asked for a location, select the parent of your existing `VRChatAssetLibrary` folder. Later stable updates can use the built-in updater. Old test executables have been withdrawn; source history remains available.
 
 A local Windows x64 library for VRChat assets. Browsing and scanning are read-only. An explicit import writes to the selected Unity project. Confirmed deletion moves selected original assets to the Windows Recycle Bin.
 
-1. Close the older version and run `VRC-Asset-Library-1.2.6-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
+1. Close the older version and run `VRC-Asset-Library-1.2.7-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
 2. Choose **English** in the language selector. Select **X Light**, X Dark, NASA Punk or Swiss International in the theme selector. Choices are saved immediately. Asset names, authors, personal tags and notes remain in their original language.
 3. Open **Settings & backup** to add your main asset folder. Category subfolders are scanned recursively. Adding a parent replaces its registered children. Unity projects stay together.
 4. Use **Remove** beside a source path to exclude it from scanning and browsing. This does not delete files or annotations. Re-adding the path restores its library entries. Keep library data and backups outside the folder being scanned; move data first if necessary.
@@ -60,6 +60,14 @@ Manual paths persist across restarts and backups. Repeated additions preserve ex
 
 Below the code contributors, the community page now shows public sponsor names, optional repository-hosted avatars, social links and anonymous credits. The owner maintains `community/sponsors.json`; changes do not require an app release. Cached credits appear immediately, with checks on entry/every five minutes and a manual refresh button. Disabled networking or failed requests preserve the previous list. The cache follows library migration; ordinary material-library backups do not include this public feed. Payment records are not read or automatically verified. See the [maintainer guide](COMMUNITY_SPONSORS.md).
 
+
+## 1.2.7: pin the match review header
+
+The small lock in the upper-right of match review starts unpinned. The title, search, filters and download status scroll away with the review content. Choose **Pin header** to keep them at the top, or **Unpin header** to return to normal scrolling. The lock remains accessible after scrolling, and switching modes keeps the current material position and review order.
+
+On narrow windows or at high zoom, the pinned header uses at most 45% of the review workspace height. Scroll inside it when its controls need more room; candidates remain visible below. Your choice is saved automatically and retained after restarting, library migration and backup restore. Older libraries start unpinned. Existing source confirmation, undo and file protections still apply.
+
+**Skip automatic matching** is now a prominent full-width button. It moves the material to **Manual organization**, where you can continue later; its action is unchanged. Expand **Local details and files** to view timestamps, full paths, merged files and match evidence. Expand **Enter product source manually** to enter a product URL or ID. BOOTH search remains visible. Compatibility tags are no longer displayed in review, while compatibility data, covers and annotations remain saved.
 
 ## 1.2.6: manage hidden materials on a dedicated page
 

@@ -7,6 +7,7 @@ const { DatabaseSync } = require('node:sqlite');
 const { _electron } = require('playwright');
 
 const root = path.resolve(__dirname, '..');
+const testExecutable = process.env.VRC_TEST_APP_EXECUTABLE || process.env.VRC_UI_EXECUTABLE;
 const startedAt = Date.now();
 const runDir = path.resolve(root, '..', `review-sort-qa-${startedAt}`);
 const source = path.join(runDir, '素材 中文 日本語 📦');
@@ -100,6 +101,10 @@ async function expectPage(expected, message) {
   assert.deepEqual(await ids(), expected);
 }
 async function enterReview() { await nav('匹配确认').click(); await sortSelect().waitFor(); }
+async function expandReviewDetails(target, selector) {
+  const details = target.locator(selector);
+  if (!await details.evaluate(element => element.open)) await details.locator(':scope > summary').click();
+}
 async function clipboardText() { return app.evaluate(({ clipboard }) => clipboard.readText()); }
 async function restoreClipboard() {
   if (app && clipboardTestPath) await app.evaluate(async ({ clipboard }, expected) => {
@@ -109,8 +114,8 @@ async function restoreClipboard() {
 }
 async function close() { if (app) { await restoreClipboard(); await app.close(); app = undefined; } }
 async function launch() {
-  app = await _electron.launch({ executablePath: process.env.VRC_UI_EXECUTABLE || require('electron'),
-    args: process.env.VRC_UI_EXECUTABLE ? [] : [root], env: { ...process.env, VRC_LIBRARY_DATA_DIR: profile,
+  app = await _electron.launch({ executablePath: testExecutable || require('electron'),
+    args: testExecutable ? [] : [root], env: { ...process.env, VRC_LIBRARY_DATA_DIR: profile,
       VRC_LIBRARY_ROOT: source, VRC_LIBRARY_NO_NETWORK: '1', VRC_LIBRARY_NO_AUTOSCAN: '1', VRC_LIBRARY_TEST_HIDDEN: '1' } });
   page = await app.firstWindow(); page.setDefaultTimeout(12000); page.on('pageerror', error => errors.push(error.message));
   await page.waitForFunction(() => !!window.library);
@@ -184,7 +189,7 @@ async function reviewReactDiagnostics() {
     return { current: collect(fiber), alternate: collect(fiber.alternate) };
   });
 }
-function report(ok, error) { return { ok, checked, errors, error, durationMs: Date.now() - startedAt, runDir, source, profile, backup,
+function report(ok, error) { return { ok, checked, errors, error, packaged: !!testExecutable, executablePath: testExecutable || require('electron'), durationMs: Date.now() - startedAt, runDir, source, profile, backup,
   screenshots: [path.join(runDir, 'review-sort.png'), path.join(runDir, 'review-menu-200-percent.png')] }; }
 
 (async () => {
@@ -224,6 +229,7 @@ function report(ok, error) { return { ok, checked, errors, error, durationMs: Da
   await expectPage(expectedOrder('modified').slice(0, 10), '返回全部待确认结果应保持修改时间排序');
 
   const merged = row(bundleFolder.id);
+  await expandReviewDetails(merged, 'details.review-local-details');
   const modifiedTime = merged.locator('.review-local-times time').nth(0);
   const addedTime = merged.locator('.review-local-times time').nth(1);
   assert((await merged.locator('.review-local-times').innerText()).includes('文件修改'));
@@ -231,6 +237,7 @@ function report(ok, error) { return { ok, checked, errors, error, durationMs: Da
   assert.equal(await modifiedTime.getAttribute('datetime'), new Date(bundleArchive.mtimeMs).toISOString());
   assert.equal(await addedTime.getAttribute('datetime'), bundleFolder.createdAt);
   const alpha = row(fixtures[0].id);
+  await expandReviewDetails(alpha, 'details.review-local-details');
   assert.equal(await alpha.locator('.review-local-times time').nth(0).getAttribute('datetime'),
     new Date(fixtures[0].mtimeMs).toISOString());
   assert.equal(await alpha.locator('.review-local-times time').nth(1).getAttribute('datetime'), fixtures[0].createdAt);
@@ -251,9 +258,26 @@ function report(ok, error) { return { ok, checked, errors, error, durationMs: Da
   assert.equal(await latestReveal(), bundleFolder.path);
   pass('default-review-row-menu-real-ipc-reveals-and-copies-representative-path');
 
-  await merged.locator('.review-member-list').locator('summary').click();
+  const memberSummary = merged.locator('.review-member-list > summary');
+  await memberSummary.scrollIntoViewIfNeeded(); await memberSummary.focus();
+  await nav('全部素材').click(); await enterReview();
+  await expectPage(expectedOrder('modified').slice(0, 10), '返回匹配确认应保留原批次');
+  await wait(async () => await memberSummary.evaluate(element => document.activeElement === element), '返回页面未恢复成员摘要焦点');
+  assert.equal(await memberSummary.isVisible(), true, '成员摘要焦点必须实际可见');
+  assert.equal(await merged.locator('details.review-local-details').evaluate(element => element.open), true);
+  assert.equal(await merged.locator('.review-member-list').evaluate(element => element.open), false, '恢复摘要焦点不应强制展开摘要自身');
+  pass('returning-to-member-summary-restores-visible-focus-and-only-expands-its-ancestor-details');
+  await memberSummary.click();
   assert.equal(await merged.locator('.review-member-entry').count(), 2);
   const archiveEntry = merged.locator('.review-member-entry').filter({hasText:bundleArchive.path});
+  const memberAction = archiveEntry.getByRole('button', { name: `操作本地文件：${bundleArchive.name}`, exact: true });
+  await memberAction.focus(); await nav('全部素材').click(); await enterReview();
+  await expectPage(expectedOrder('modified').slice(0, 10), '返回具体成员操作时应保留原批次');
+  await wait(async () => await memberAction.evaluate(element => document.activeElement === element), '返回页面未恢复具体成员操作焦点');
+  assert.equal(await memberAction.isVisible(), true, '成员操作焦点必须实际可见');
+  assert.equal(await merged.locator('details.review-local-details').evaluate(element => element.open), true);
+  assert.equal(await merged.locator('.review-member-list').evaluate(element => element.open), true);
+  pass('returning-to-raw-member-action-opens-both-details-ancestors-and-restores-visible-focus');
   await archiveEntry.getByRole('button', { name: `操作本地文件：${bundleArchive.name}`, exact: true }).click();
   await menu().getByRole('menuitem', { name: '复制路径', exact: true }).click();
   await wait(async () => await clipboardText() === bundleArchive.path, '合并条目具体包必须使用成员原始ID和路径');
@@ -302,7 +326,7 @@ function report(ok, error) { return { ok, checked, errors, error, durationMs: Da
   fs.copyFileSync(backup, sessionBase);
   const sessionIds = expectedOrder('modified'), firstBatch = sessionIds.slice(0, 10), skipId = firstBatch[4];
   diagnosticSkipId = skipId;
-  const reviewList = () => region().locator('.review-list');
+  const reviewList = () => page.locator('main.review-workspace.review-header-unpinned,main.review-workspace.review-header-pinned section.review-page');
   async function scrollAnchor(excluded) {
     return reviewList().evaluate((element, excludedIds) => {
       const top = element.getBoundingClientRect().top;
@@ -409,8 +433,9 @@ function report(ok, error) { return { ok, checked, errors, error, durationMs: Da
   await close(); const onlineStore = new Store(profile, [source]); onlineStore.saveSettings({ onlineEnabled: true }); onlineStore.close();
   await launch(); await enterReview(); await sortSelect().selectOption('name');
   const betaId = fixtures[1].id, betaRow = row(betaId), betaInput = betaRow.getByRole('textbox', { name: `商品网址或 BOOTH 编号：${fixtures[1].name}`, exact: true });
+  await expandReviewDetails(betaRow, 'details.review-source-tools');
   await betaInput.fill('待填写草稿');
-  await nav('全部素材').click(); await enterReview(); await betaInput.waitFor(); assert.equal(await betaInput.inputValue(), '待填写草稿');
+  await nav('全部素材').click(); await enterReview(); await expandReviewDetails(betaRow, 'details.review-source-tools'); await betaInput.waitFor(); assert.equal(await betaInput.inputValue(), '待填写草稿');
   pass('review-source-row-draft-preserved-across-navigation');
   for (const invalid of ['javascript:alert(1)', 'http://example.org/product', 'https://127.0.0.1/product', '1234567890123']) {
     await betaInput.fill(invalid); await betaRow.getByRole('button', { name: '读取并采用来源', exact: true }).click();
@@ -434,6 +459,7 @@ function report(ok, error) { return { ok, checked, errors, error, durationMs: Da
   const gammaId = fixtures[2].id;
   await search().fill('QAReview Gamma');
   const gammaRow = row(gammaId); await gammaRow.waitFor();
+  await expandReviewDetails(gammaRow, 'details.review-source-tools');
   const gammaInput = gammaRow.getByRole('textbox', { name: `商品网址或 BOOTH 编号：${fixtures[2].name}`, exact: true });
   await gammaInput.fill('https://example.org/public-product?variant=shinra');
   await gammaRow.getByRole('button', { name: '读取并采用来源', exact: true }).click();
@@ -442,6 +468,7 @@ function report(ok, error) { return { ok, checked, errors, error, durationMs: Da
   pass('public-https-direct-source-is-saved-and-queued-without-downloading-private-fixtures');
 
   await search().fill('QAReview Alpha');
+  await expandReviewDetails(row(fixtures[0].id), 'details.review-source-tools');
   const alphaInput = row(fixtures[0].id).getByRole('textbox', { name: `商品网址或 BOOTH 编号：${fixtures[0].name}`, exact: true });
   await alphaInput.fill('5053999'); await page.evaluate(() => window.library.setOnlineEnabled(false));
   await wait(async () => await row(fixtures[0].id).getByRole('button', { name: '读取并采用来源', exact: true }).isDisabled(),
