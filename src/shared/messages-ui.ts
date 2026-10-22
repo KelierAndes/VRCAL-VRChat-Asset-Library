@@ -1,4 +1,6 @@
 import {HIDDEN_REMATCH_MESSAGES} from './messages-hidden-rematch';
+import {CONTEXT_MENU_MESSAGES} from './messages-context-menu';
+import {RECYCLE_MESSAGES} from './messages-recycle';
 import {MANUAL_ADD_MESSAGES} from './messages-manual-add';
 import {SPONSOR_MESSAGES} from './messages-sponsors';
 import {ASSISTED_SEARCH_MESSAGES} from './messages-xianyu';
@@ -11,6 +13,8 @@ import {PROJECT_MESSAGES} from './messages-project';
 // Offline UI copy. Keys are Chinese source text, values are [English, Japanese].
 // Domain enums, file names and user content keep their original values.
 export const UI_MESSAGES: Record<string, readonly [string, string]> = {
+  ...CONTEXT_MENU_MESSAGES,
+  ...RECYCLE_MESSAGES,
   ...HIDDEN_REMATCH_MESSAGES,
   ...SPONSOR_MESSAGES,
   ...MANUAL_ADD_MESSAGES,

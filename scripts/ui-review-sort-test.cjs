@@ -240,7 +240,7 @@ function report(ok, error) { return { ok, checked, errors, error, durationMs: Da
 
   await merged.locator('.review-local-area').click({ button: 'right' });
   await menu().waitFor();
-  assert.deepEqual(await menu().getByRole('menuitem').allTextContents(), ['打开所在文件夹', '复制路径', '从资料库隐藏']);
+  assert.deepEqual(await menu().getByRole('menuitem').allTextContents(), ['打开所在文件夹', '复制路径', '从资料库隐藏', '删除（移入回收站）', '设置右键菜单']);
   await menu().getByRole('menuitem', { name: '复制路径', exact: true }).click();
   await wait(async () => await clipboardText() === bundleFolder.path, '默认菜单应复制代表目录原路径');
   clipboardTestPath = bundleFolder.path;

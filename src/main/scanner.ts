@@ -30,12 +30,13 @@ export class Scanner {
   private active:Promise<unknown>|null=null;
   private archiveCache=new Map<string,{size:number;mtimeMs:number;listing:FileListing}>();
   private bucketCache=new Map<string,boolean>();
-  constructor(private store:Store,private onProgress?:(progress:ScanProgress)=>void){}
+  constructor(private store:Store,private onProgress?:(progress:ScanProgress)=>void,private canStart:()=>boolean=()=>true){}
   progress():ScanProgress{return {...this.state,errors:[...this.state.errors]}}
   cancel():void {this.cancelled=true;this.scanAbort.abort()}
   async waitIdle():Promise<void>{if(this.active)await this.active}
   private emit():void {this.onProgress?.(this.progress())}
   scan():Promise<void>{
+    if(!this.canStart())return Promise.reject(new Error('正在处理回收站操作，请稍候。'));
     if(this.active)return this.active as Promise<void>;
     this.cancelled=false;this.bucketCache.clear();this.scanAbort=new AbortController();this.state={running:true,found:0,current:'',errors:[]};this.emit();
     const work=this.run().finally(()=>{this.state.running=false;this.state.current=this.cancelled?'扫描已取消':'';this.state.finishedAt=new Date().toISOString();this.active=null;this.emit()});
@@ -43,6 +44,7 @@ export class Scanner {
   }
   /** Explicit selections are exact read scopes, never their parent directory. */
   addPaths(raw:unknown):Promise<ManualAddResult>{
+    if(!this.canStart())return Promise.reject(new Error('正在处理回收站操作，请稍候。'));
     if(this.active)return Promise.reject(new Error('正在扫描或读取素材，请完成后再添加。'));
     if(!Array.isArray(raw)||!raw.length||raw.length>100)return Promise.reject(new Error('每次请选择 1 至 100 个素材文件或文件夹。'));
     let paths:string[];try{paths=normalizeSourceRoots(raw,100)}catch(error){return Promise.reject(error)}

@@ -1,4 +1,7 @@
 import {XianyuWorkspace,prepareXianyuSessionMigration} from './xianyu';
+import {prepareAssetRecycle,executeAssetRecycle} from './asset-recycle';
+import type {AssetRecycleResult} from '../shared/recycle-contracts';
+import {normalizeContextMenuPreferences} from '../shared/context-menu';
 import {XianyuAccess,XIANYU_USAGE_NOTICE} from './xianyu-access';
 import {inspectProjectProducts,clearProjectProductCache,projectProductInput} from './project-products';
 import type {ProjectImportOptions} from '../shared/project-contracts';
@@ -65,6 +68,7 @@ app.setName('VRC素材库');
 let window:BrowserWindow|null=null;
 let closing=false;
 let migrating=false;
+let recycleOperation:Promise<AssetRecycleResult>|undefined;
 let proxy:ProxyMonitor;
 let preview:ProductPreview;
 let booth:BoothWorkspace;let sourceChanges:Promise<void>=Promise.resolve();
@@ -83,7 +87,7 @@ function matchingAsset(id:string):AssetRecord|null {return matchingCatalog(store
 function protectedRoots(){const settings=store?.settings();return [...new Set([DEFAULT_ROOT,...(settings?.roots??initialRoots),...(settings?.detachedRoots??[])])]}
 async function prepareCookieMigration(directory:string,roots:string[]):Promise<BrowserCookieSnapshot[]>{const booth=await prepareBoothSessionMigration(directory,roots),baidu=await prepareBaiduSessionMigration(directory,roots),market=await prepareXianyuSessionMigration(directory,roots);return [booth,baidu,market].filter((v):v is BrowserCookieSnapshot=>!!v)}
 function boothReadRoots(asset:AssetRecord):string[]{const roots=new Set<string>();for(const id of asset.members?.map(member=>member.id)||[asset.id]){const raw=store.getRaw(id);if(raw?.group==='BOOTH 下载')try{roots.add(path.dirname(safeBoothDownloadPath(raw.path,dataDir,protectedRoots())))}catch{/* Invalid references do not widen the read scope. */}}return [...roots]}
-async function refreshDownloadAvailability(){let updated=false;for(const asset of store.all()){if(closing||migrating)break;if(asset.group!=='BOOTH 下载')continue;try{const file=safeBoothDownloadPath(asset.path,dataDir,protectedRoots()),stat=await fsp.lstat(file);if(!closing&&!migrating)updated=store.updateAvailability(asset.id,!stat.isFile()||stat.isSymbolicLink())||updated}catch(error:any){if(['ENOENT','ENOTDIR'].includes(error.code)&&!closing&&!migrating)updated=store.updateAvailability(asset.id,true)||updated}}if(updated)changed()}
+async function refreshDownloadAvailability(){const current=store;let updated=false;for(const asset of current.all()){if(closing||migrating||recycleOperation||current!==store)break;if(asset.group!=='BOOTH 下载')continue;try{const file=safeBoothDownloadPath(asset.path,dataDir,protectedRoots()),stat=await fsp.lstat(file);if(!closing&&!migrating&&!recycleOperation&&current===store)updated=current.updateAvailability(asset.id,!stat.isFile()||stat.isSymbolicLink(),asset)||updated}catch(error:any){if(['ENOENT','ENOTDIR'].includes(error.code)&&!closing&&!migrating&&!recycleOperation&&current===store)updated=current.updateAvailability(asset.id,true,asset)||updated}}if(updated)changed()}
 function rememberLocation(selected:string,backupDir?:string,roots=protectedRoots()){
  const config={dataDir:selected,backupDir};
  if(testProfile){if(process.env.VRC_LIBRARY_LOCATION_FILE)writeLocation(locationFile,config,roots);return}
@@ -101,7 +105,7 @@ function setupServices(){
  updater=new Updater({version:app.getVersion(),dataDir,roots:protectedRoots,executable:process.env.PORTABLE_EXECUTABLE_FILE,packaged:app.isPackaged,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,fetch:(url,init)=>net.fetch(url,init),onChange:changed,quit:()=>app.quit()});
  preview?.close();
  booth?.close();
- scanner=new Scanner(store,p=>{emit({type:'scan',progress:p});changed()});
+ scanner=new Scanner(store,p=>{emit({type:'scan',progress:p});changed()},()=>!recycleOperation&&!closing&&!migrating);
  proxy=new ProxyMonitor({resolveProxy:url=>session.defaultSession.resolveProxy(url),fetch:(url,init)=>net.fetch(url,init),onChange:changed});
  proxy.setEnabled(store.settings().onlineEnabled && !process.env.VRC_LIBRARY_NO_NETWORK);
  const catalog=matchingCatalog(store);
@@ -184,9 +188,36 @@ function parsePatch(input:unknown):ManualInfo{
  if(p.projectStatus!==undefined){if(!['制作中','已完成'].includes(p.projectStatus as string))throw new Error('工程状态无效。');result.projectStatus=p.projectStatus as ManualInfo['projectStatus']}
  return result;
 }
-async function performScan(){await scanner.scan();if(closing)return;await refreshDownloadAvailability();changed();if(store.settings().onlineEnabled && !process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue();}
-async function addMaterials(paths:unknown){const result=await scanner.addPaths(paths);if(!closing&&!migrating){changed();if(result.ids.length&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue(result.ids)}return {...result,errors:result.errors.map(error=>{const split=error.lastIndexOf("：");return split<0?translate(error,uiLanguage()):error.slice(0,split+1)+translate(error.slice(split+1),uiLanguage())})};}
-function handle(name:string,fn:(...args:any[])=>any){ipcMain.handle(`library:${name}`,async(event,...args)=>{try{if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw new Error('操作来源无效。');if(migrating)throw new Error('正在更改资料库位置，请稍候。');if(projectImports?.busy&&['chooseDataDir','restore','removeRoot','installUpdate'].includes(name))throw new Error('请等待工程素材导入完成后再执行此操作。');return await fn(...args)}catch(error){if(error instanceof Error)throw new Error(translate(error.message,uiLanguage()));throw error}})}
+async function performScan(){if(recycleOperation||closing||migrating)return;await scanner.scan();if(closing)return;await refreshDownloadAvailability();changed();if(store.settings().onlineEnabled && !process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue();}
+async function addMaterials(paths:unknown){assertNotRecycling();const result=await scanner.addPaths(paths);if(!closing&&!migrating){changed();if(result.ids.length&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue(result.ids)}return {...result,errors:result.errors.map(error=>{const split=error.lastIndexOf("：");return split<0?translate(error,uiLanguage()):error.slice(0,split+1)+translate(error.slice(split+1),uiLanguage())})};}
+function assertNotRecycling(){if(recycleOperation)throw new Error('正在处理回收站操作，请稍候。')}
+function handle(name:string,fn:(...args:any[])=>any){ipcMain.handle(`library:${name}`,async(event,...args)=>{try{if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw new Error('操作来源无效。');if(migrating)throw new Error('正在更改资料库位置，请稍候。');if(recycleOperation&&['recycleAssets','chooseDataDir','restore','removeRoot','chooseRoot','scan','chooseMaterials','addMaterials','chooseProject','executeProjectImport','setHidden','forceRematch'].includes(name))throw new Error('正在处理回收站操作，请稍候。');if(projectImports?.busy&&['chooseDataDir','restore','removeRoot','installUpdate','recycleAssets'].includes(name))throw new Error('请等待工程素材导入完成后再执行此操作。');return await fn(...args)}catch(error){if(error instanceof Error)throw new Error(translate(error.message,uiLanguage()));throw error}})}
+async function recycleMaterials(input:unknown,scope:'card'|'file'='card'):Promise<AssetRecycleResult> {
+ if(closing||migrating||recycleOperation)throw new Error('正在处理回收站操作，请稍候。');
+ const activeStore=store,activeScanner=scanner,activeQueue=queue,selected=store.selectedRawIds(parseIds(input),scope),settings=store.settings();
+ const scopeKey=()=>JSON.stringify([store.settings().roots,store.settings().directSources,store.settings().detachedRoots,dataDir,store.knownProjectPaths()]);
+ let originalScope=scopeKey();
+ const stillCurrent=()=>!closing&&!migrating&&store===activeStore&&scopeKey()===originalScope;
+ const work=(async()=>{
+  // Freeze scanning before collecting the registered children and known projects.
+  activeScanner.cancel();await activeScanner.waitIdle();
+  if(!stillCurrent())throw new Error('资料库状态已变化，请重新选择素材。');
+  const records=activeStore.recycleRecords();originalScope=scopeKey();
+  const allowedDownloadFiles:string[]=[];for(const record of records)if(record.group==='BOOTH 下载')try{allowedDownloadFiles.push(safeBoothDownloadPath(record.path,dataDir,protectedRoots()))}catch{/* Invalid download references never widen the delete scope. */}
+  const plan=await prepareAssetRecycle({selectedIds:selected,assets:records,roots:settings.roots,protectedPaths:[DEFAULT_ROOT,...(settings.detachedRoots??[])],dataDir,allowedDownloadFiles,allowedSourceRootAssets:(settings.directSources??[]).filter(file=>path.resolve(file).toLowerCase()!==path.resolve(DEFAULT_ROOT).toLowerCase()),knownProjectPaths:records.filter(record=>record.kind==='unity-project').map(record=>record.path)});
+  const language=uiLanguage(),detail=[translate('以下路径将移入系统回收站。文件夹包含的文件也会一并处理；隐藏不会执行此操作。',language),...plan.targets.map(target=>target.path),translate('可在 Windows 回收站还原文件，然后刷新素材。不会永久删除，也不会删除 Unity 工程。',language)].join('\n\n');
+  if(detail.length>24000)throw new Error('待确认路径过多，请分批选择后删除。');
+  const answer=await dialog.showMessageBox(window!,{type:'warning',title:translate('删除素材（移入回收站）',language),message:translate('将 {count} 个路径移入系统回收站？',language,{count:plan.targets.length}),detail,buttons:[translate('取消',language),translate('移入回收站',language)],defaultId:0,cancelId:0,noLink:true});
+  if(answer.response!==1)return {cancelled:true,results:[]};
+  if(!stillCurrent())throw new Error('资料库状态已变化，请重新选择素材。');
+  const covered=[...new Set(plan.targets.flatMap(target=>target.assetIds))];activeQueue.exclude(covered);await sourceChanges;
+  const result=await executeAssetRecycle(plan,{trashItem:file=>{if(!stillCurrent())throw new Error('资料库状态已变化，请重新选择素材。');return shell.trashItem(path.resolve(file))},shouldCancel:()=>!stillCurrent()});
+  for(const entry of result.results)if(entry.status==='recycled')try{activeStore.markRecycled(entry.assetIds)}catch{entry.error=translate('文件已移入回收站，但资料库记录未能更新，请重新读取资料库后刷新。',language);}
+  changed();return result;
+ })();
+ recycleOperation=work;try{return await work}finally{recycleOperation=undefined}
+}
+
 function registerHandlers(){
  handle('openCommunityLink',async(id:unknown)=>{await shell.openExternal(communityUrl(id))});
  handle('copyCommunityGroup',()=>clipboard.writeText(QQ_GROUP_NUMBER));
@@ -236,6 +267,8 @@ function registerHandlers(){
  handle('rejectCandidate',(id:string,url:string)=>{const asset=getAsset(id),source=publicHttpsUrl(url).href,key=canonicalSourceKey(source);if(!asset.online.candidates?.some(candidate=>canonicalSourceKey(candidate.url)===key))throw new Error('请选择当前候选商品。');for(const memberId of asset.members?.map(member=>member.id)||[asset.id]){const raw=getRawAsset(memberId);store.updateOnline(memberId,{rejectedUrls:[...new Set([...(raw.online.rejectedUrls||[]),source])],candidates:(raw.online.candidates||[]).filter(candidate=>canonicalSourceKey(candidate.url)!==key),message:'已排除此商品；后续匹配会记住你的选择，可随时恢复排除记录'});}changed()});
  handle('restoreRejectedCandidates',async(id:string)=>{const ids=expandedIds([id]);for(const memberId of ids)store.updateOnline(memberId,{rejectedUrls:[],status:'pending',message:'已恢复排除记录，等待重新匹配'});if(store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue(ids,true);changed()});
  handle('listCollections',()=>store.listCollections());
+ handle('setContextMenuPreferences',(value:unknown)=>{const settings=store.saveSettings({contextMenu:normalizeContextMenuPreferences(value,true)});changed();return settings});
+ handle('recycleAssets',recycleMaterials);
  handle('hiddenAssets',(query:AssetQuery={})=>store.hiddenAssets(query));
  handle('setHidden',(input:unknown,hidden:boolean)=>{if(typeof hidden!=='boolean')throw new Error('隐藏状态无效。');const ids=parseIds(input);if(hidden)queue.exclude(expandedIds(ids));store.setHidden(ids,hidden);changed()});
  handle('forceRematch',(input:unknown)=>{const ids=expandedIds(input);for(const id of ids)if(getRawAsset(id).kind==='unity-project')throw new Error('工程不参与商品匹配。');queue.exclude(ids);store.requestRematch(ids);changed()});
@@ -273,7 +306,7 @@ function registerHandlers(){
  handle('cancelProjectImport',(id:string)=>projectImports.cancel(id));
  handle('openProjectEditor',(id:string)=>projectImports.openProject(id));
  handle('chooseUnityEditor',async(id:string)=>{const project=await validateProject(getAsset(id),store.settings().roots);const picked=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'选择相同版本的 Unity Editor',properties:['openFile'],filters:[{name:'Unity Editor',extensions:['exe']}]},uiLanguage()));if(picked.canceled)return false;const file=path.resolve(picked.filePaths[0]),version=await editorVersion(file);if(!project.version||version!==project.version)throw new Error('编辑器版本与工程不一致，未启动或修改工程。');store.saveSettings({unityEditorPath:file});changed();return true;});
- handle('chooseProject',async()=>{if(scanner.progress().running)throw new Error('请先停止扫描，再添加工程。');const result=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'选择 Unity 工程文件夹',properties:['openDirectory']},uiLanguage()));if(result.canceled)return null;const selected=path.resolve(result.filePaths[0]);await noLinks(selected);await validateProject({kind:'unity-project',path:selected} as AssetRecord,[selected]);if(contained(selected,dataDir)||contained(dataDir,selected)||store.settings().backupDir&&contained(selected,store.settings().backupDir!))throw new Error('工程与资料库或备份目录不能重叠。');if(!store.isPathActive(selected)){const roots=store.settings().roots;store.saveSettings({roots:[...roots.filter(root=>!contained(selected,root)),selected]})}const existing=store.all().find(asset=>path.resolve(asset.path).toLowerCase()===selected.toLowerCase());if(existing?.kind==='unity-project'){changed();return store.get(existing.id)}const stat=await fsp.lstat(selected);const project=store.upsertScan({path:selected,name:path.basename(selected),kind:'unity-project',group:path.basename(path.dirname(selected)),size:0,mtimeMs:stat.mtimeMs,localCategory:'工程',localAvatars:[],hintUrls:[]});changed();return project;});
+ handle('chooseProject',async()=>{if(scanner.progress().running)throw new Error('请先停止扫描，再添加工程。');const result=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'选择 Unity 工程文件夹',properties:['openDirectory']},uiLanguage()));if(result.canceled)return null;assertNotRecycling();const selected=path.resolve(result.filePaths[0]);await noLinks(selected);await validateProject({kind:'unity-project',path:selected} as AssetRecord,[selected]);if(contained(selected,dataDir)||contained(dataDir,selected)||store.settings().backupDir&&contained(selected,store.settings().backupDir!))throw new Error('工程与资料库或备份目录不能重叠。');assertNotRecycling();if(!store.isPathActive(selected)){const roots=store.settings().roots;store.saveSettings({roots:[...roots.filter(root=>!contained(selected,root)),selected]})}const existing=store.all().find(asset=>path.resolve(asset.path).toLowerCase()===selected.toLowerCase());if(existing?.kind==='unity-project'){changed();return store.get(existing.id)}const stat=await fsp.lstat(selected);assertNotRecycling();const project=store.upsertScan({path:selected,name:path.basename(selected),kind:'unity-project',group:path.basename(path.dirname(selected)),size:0,mtimeMs:stat.mtimeMs,localCategory:'工程',localAvatars:[],hintUrls:[]});changed();return project;});
  handle('saveCollection',(input:unknown)=>{const result=store.saveCollection(input as any);changed();return result});
  handle('updateCollectionMembers',(id:string,ids:unknown,mode:'add'|'remove')=>{if(mode!=='add'&&mode!=='remove')throw new Error('集合操作无效。');store.updateCollectionMembers(id,expandedIds(ids),mode);changed()});
  handle('deleteCollection',(id:string)=>{store.deleteCollection(id);changed()});
@@ -293,7 +326,7 @@ function registerHandlers(){
   updater.cancel();
   if(fs.existsSync(target)&&(await fsp.readdir(target)).length)throw new Error('目标资料库文件夹已有内容，请选择一个新位置。');
   const old=dataDir,settings=store.settings();await sourceChanges;await booth.shutdown();await baidu.shutdown();await xianyu.shutdown();const snapshots=await prepareCookieMigration(old,[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])]);migrating=true;sponsors.close();preview.close();if(debounce){clearTimeout(debounce);debounce=undefined}
-  proxy.setEnabled(false);queue.stop();scanner.cancel();await Promise.all([queue.waitIdle(),scanner.waitIdle()]);store.close();
+  proxy.setEnabled(false);queue.stop();scanner.cancel();await Promise.all([queue.waitIdle(),scanner.waitIdle(),recycleOperation]);store.close();
   try{
    await copyLibraryData(old,target,[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])],testProfile,snapshots);rememberLocation(target,settings.backupDir,[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])]);
    if(process.env.VRC_LIBRARY_NO_RELAUNCH){dataDir=target;store=new Store(dataDir,settings.roots);setupServices();migrating=false;changed();return true}
@@ -320,7 +353,7 @@ function registerHandlers(){
  handle('chooseRoot',async()=>{
   if(scanner.progress().running)throw new Error('请先停止扫描，再修改素材目录。');
   const result=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'添加素材目录',defaultPath:DEFAULT_ROOT,properties:['openDirectory']},uiLanguage()));if(result.canceled)return false;
-  const root=await fsp.realpath(result.filePaths[0]);if(contained(root,dataDir)||store.settings().backupDir&&contained(root,store.settings().backupDir!))throw new Error('此母目录包含资料库或备份位置。请先在设置中将资料库和备份迁移到母目录之外，再添加；原素材不需要移动。');
+  const root=await fsp.realpath(result.filePaths[0]);assertNotRecycling();if(contained(root,dataDir)||store.settings().backupDir&&contained(root,store.settings().backupDir!))throw new Error('此母目录包含资料库或备份位置。请先在设置中将资料库和备份迁移到母目录之外，再添加；原素材不需要移动。');
   const roots=store.settings().roots;if(roots.some(x=>contained(x,root))&&store.isPathActive(root))throw new Error('此文件夹已包含在素材范围内，无需再次添加。');
   const nextRoots=[...roots.filter(value=>!contained(root,value)),root];store.saveSettings({roots:nextRoots});changed();setTimeout(()=>void performScan().catch(error=>emit({type:'scan',progress:{running:false,found:0,current:'',errors:[error.message]}})),0);return true;
  });
@@ -339,7 +372,7 @@ function registerHandlers(){
   if(contents.format!=='vrchat-asset-library'||![1,2].includes(contents.version)||!Array.isArray(contents.assets))throw new Error('不是有效的素材库备份。');
   const result2=await dialog.showMessageBox(window!,localizeDialogOptions({type:'question',title:'恢复资料库',message:'合并恢复备份中的分类、备注和封面？',detail:'会更新备份里对应的资料库记录，保留现有的其他记录。原素材保持原样；当前资料库会先自动备份。',buttons:['恢复','取消'],defaultId:1,cancelId:1},uiLanguage()));if(result2.response!==0)return false;
   const backup=await ensureBackupLocation();if(!backup)return false;
-  await sourceChanges;await booth.shutdown();await baidu.shutdown();await xianyu.shutdown();preview.close();queue.pause();scanner.cancel();await Promise.all([queue.waitIdle(),scanner.waitIdle()]);store.exportData(assertUserStorage(path.join(backup,`before-restore-${Date.now()}.json`),protectedRoots(),testProfile));
+  await sourceChanges;await recycleOperation;await booth.shutdown();await baidu.shutdown();await xianyu.shutdown();preview.close();queue.pause();scanner.cancel();await Promise.all([queue.waitIdle(),scanner.waitIdle()]);store.exportData(assertUserStorage(path.join(backup,`before-restore-${Date.now()}.json`),protectedRoots(),testProfile));
   store.importData(result.filePaths[0]);sponsors.networkChanged();queue.exclude(store.all().map(asset=>asset.id));store.saveSettings({backupDir:backup});rememberLocation(dataDir,backup);window?.webContents.setZoomFactor(store.settings().uiZoom||1);refreshTheme();changed();return true;
  });
 }
@@ -377,4 +410,4 @@ if(primary)app.whenReady().then(async()=>{
 }).catch(error=>{dialog.showErrorBox('素材库启动失败',error instanceof Error?error.message:String(error));app.quit()});
 app.on('window-all-closed',()=>app.quit());
 let exitReady=false;
-app.on('before-quit',event=>{if(exitReady)return;event.preventDefault();closing=true;sponsors?.close();updater?.close();preview?.close();scanner?.cancel();if(!migrating){proxy?.setEnabled(false);queue?.stop()}void Promise.allSettled([projectImports?.waitIdle(),sourceChanges,booth?.shutdown(),baidu?.shutdown(),xianyu?.shutdown(),queue?.waitIdle(),scanner?.waitIdle()]).then(()=>{exitReady=true;app.quit()})});
+app.on('before-quit',event=>{if(exitReady)return;event.preventDefault();closing=true;sponsors?.close();updater?.close();preview?.close();scanner?.cancel();if(!migrating){proxy?.setEnabled(false);queue?.stop()}void Promise.allSettled([recycleOperation,projectImports?.waitIdle(),sourceChanges,booth?.shutdown(),baidu?.shutdown(),xianyu?.shutdown(),queue?.waitIdle(),scanner?.waitIdle()]).then(()=>{exitReady=true;app.quit()})});

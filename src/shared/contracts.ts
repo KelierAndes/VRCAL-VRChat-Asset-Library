@@ -1,4 +1,6 @@
 import type {ProjectProductPage,ProjectProductRegistration} from './project-product-contracts';
+import type {ContextMenuPreferences} from './context-menu';
+import type {AssetRecycleResult} from './recycle-contracts';
 import type {SponsorsState} from './sponsors';
 import type {StorageLocation,BaiduState,CloudPage,CloudQuery} from './cloud-contracts';
 import type {ProjectFilePage,ImportSourceChoice,ProjectImportPreview,ProjectImportJob,ProjectImportOptions} from './project-contracts';
@@ -24,7 +26,7 @@ export interface ManualInfo { hidden?:boolean; title?:string; category?:Category
 export interface LocalMember {id:string;path:string;name:string;kind:AssetKind;missing:boolean;manual?:ManualInfo;version?:string;mtimeMs?:number}
 export interface AvatarEvidence {avatar:string;files:string[];basis:'filename'|'archive-entry'|'manual'}
 export interface AssetRecord {
-  id:string; path:string; name:string; group:string; kind:AssetKind; size:number; mtimeMs:number; missing:boolean;
+  recycledAt?:string;id:string; path:string; name:string; group:string; kind:AssetKind; size:number; mtimeMs:number; missing:boolean;
   localCategory:Category; localAvatars:string[]; hintUrls:string[]; previewFile?:string;
   manual:ManualInfo; online:OnlineInfo; createdAt:string; updatedAt:string;
   members?:LocalMember[];localEvidence?:AvatarEvidence[];compatibilityComplete?:boolean;aggregationKey?:string;localNameHints?:string[];
@@ -60,7 +62,7 @@ export interface SourceUndoInfo {token:string;assetId:string;title:string;source
 export type BoothTab='login'|'favorites'|'gifts'|'library';
 export interface BoothDownload {id:string;name:string;state:'downloading'|'completed'|'interrupted'|'cancelled'|'failed';receivedBytes:number;totalBytes:number;downloadBps:number;startedAt:string;finishedAt?:string;assetId?:string;sourceUrl?:string;error?:string}
 export interface BoothState {downloadDir?:string;sessionSaved:boolean;downloads:BoothDownload[];active:boolean}
-export interface AppSettings extends ViewPreferences { language:AppLanguage;unityEditorPath?:string;detachedRoots?:string[]; directSources?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean;xianyuEnabled:boolean }
+export interface AppSettings extends ViewPreferences { contextMenu?:ContextMenuPreferences; language:AppLanguage;unityEditorPath?:string;detachedRoots?:string[]; directSources?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean;xianyuEnabled:boolean }
 export interface UpdateState {status:'idle'|'checking'|'available'|'up-to-date'|'downloading'|'ready'|'installing'|'error'|'unsupported';currentVersion:string;latestVersion?:string;releaseUrl?:string;releaseNotes?:string;receivedBytes:number;totalBytes?:number;downloadBps?:number;message?:string;canInstall:boolean;checkedAt?:string}
 export interface Snapshot { stats:Stats; scan:ScanProgress; queue:QueueProgress; settings:AppSettings;proxy?:ProxyStatus;undoAvailable?:boolean;sourceUndo?:SourceUndoInfo;warnings?:string[] }
 export interface FileEntry { name:string; size:number; directory:boolean }
@@ -83,6 +85,7 @@ export interface LibraryAPI {
   updateState():Promise<UpdateState>;checkForUpdates():Promise<UpdateState>;downloadUpdate():Promise<UpdateState>;installUpdate():Promise<boolean>;cancelUpdate():Promise<void>;openUpdatePage():Promise<void>;
   removeRoot(root:string):Promise<boolean>;
   snapshot():Promise<Snapshot>; list(query:AssetQuery):Promise<AssetPage>; get(id:string):Promise<AssetRecord|null>;
+  setContextMenuPreferences(value:ContextMenuPreferences):Promise<AppSettings>;recycleAssets(ids:string[],scope?:'card'|'file'):Promise<AssetRecycleResult>;
   hiddenAssets(query?:AssetQuery):Promise<AssetPage>;setHidden(ids:string[],hidden:boolean):Promise<void>;forceRematch(ids:string[]):Promise<void>;
   scan():Promise<void>; cancelScan():Promise<void>;
   chooseMaterials():Promise<ManualAddResult|null>;addDroppedMaterials(files:File[]):Promise<ManualAddResult>;

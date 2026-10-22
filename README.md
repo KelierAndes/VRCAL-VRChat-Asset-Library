@@ -8,13 +8,13 @@
 
 [![Windows CI](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/actions/workflows/ci.yml/badge.svg)](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/actions/workflows/ci.yml) · [贡献指南](CONTRIBUTING.md) · [社区讨论](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/discussions) · [路线图](docs/ROADMAP.md)
 
-**浏览和扫描保持只读；仅在主动导入时向选定 Unity 工程写入。原素材保持原样。** 整理信息、封面缓存和备份保存在用户选择的位置。
+**浏览、扫描和联网补全保持只读；主动导入会写入选定 Unity 工程，确认删除会将原素材移入系统回收站。** 整理信息、封面缓存和备份保存在用户选择的位置。
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.2.4](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.4/VRC-Asset-Library-1.2.4-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+**[下载 Windows x64 免安装版 v1.2.5](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.5/VRC-Asset-Library-1.2.5-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [使用说明](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
 
-1. 下载 `VRC-Asset-Library-1.2.4-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
+1. 下载 `VRC-Asset-Library-1.2.5-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
 3. 选择素材目录并扫描；默认目录为 `E:\VRChat`。
 4. 开启在线补全。程序先自动匹配商品，有歧义的条目进入「匹配确认」。
@@ -29,6 +29,8 @@
 当前发布包未进行代码签名。请从本仓库 Releases 下载，并用随包 SHA-256 清单核对文件。
 
 ## 本次更新与更新记录
+
+**1.2.5 新增右键菜单设置与批量整理。** 在“设置与备份 → 右键菜单”勾选显示项目、上移下移排序或恢复默认。图库与匹配确认可批量隐藏或删除，隐藏名单也可直接删除。删除前显示实际路径，仅移入 Windows 回收站；Unity 工程、共享扫描根和资料库受保护。文件还原到原路径后刷新，可沿用已有封面和标注。隐藏仍然只影响应用显示。
 
 **1.2.4 新增隐藏名单和强制重新匹配。** 右键或详情点击“从资料库隐藏”，只隐藏应用条目；在设置查看已隐藏名单、按名称或路径搜索，单项或批量恢复。强制重新匹配可把已确认和手动归类素材送回确认页，保留旧资料直到你确认新商品。开启可选闲鱼辅助搜索后，可在商品详情点击“应用此商品”；优先读取当前页面的公开资料，不足时填写已核对的商品名，来源可撤回。原文件保持原样。
 
@@ -66,7 +68,7 @@
 
 ## 数据与文件
 
-应用引用原文件，不提供删除、移动、重命名原素材的操作。压缩包只读查看目录，不自动解压；Unity 工程仅在用户主动导入后写入所选内容，文件浏览与扫描不会改动工程。目录链接、Unity 缓存和软件安装目录不参与素材索引。
+应用引用原文件。隐藏与移除扫描路径只影响应用记录；明确确认“删除（移入回收站）”会移动所选原素材及选中文件夹内的文件，不永久删除。可从 Windows 回收站还原到原路径后刷新，人工信息保留。Unity 工程和资料库受保护，不提供任意重命名操作。压缩包只读查看目录，不自动解压；Unity 工程仅在用户主动导入后写入所选内容，文件浏览与扫描不会改动工程。目录链接、Unity 缓存和软件安装目录不参与素材索引。
 
 BOOTH 补全发送商品名称、编号等检索线索。人工资料优先，商品下架或联网失败时已有资料仍可浏览。BOOTH 请求共享至少三秒的启动间隔，网站限制与验证仍由网站决定。
 

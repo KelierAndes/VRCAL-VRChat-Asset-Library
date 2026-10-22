@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.2.5',date:'2026-10-23',channel:'stable',title:'右键菜单与批量整理',sections:[
+    {kind:'added',items:['设置可勾选右键菜单项目、调整顺序和恢复默认；图库和匹配确认保留固定设置入口。','图库和匹配确认新增明确的批量隐藏、批量删除；隐藏名单支持单项与批量删除。','删除将原素材移入 Windows 回收站，确认前列出实际路径；合并成员去重，逐项显示成功、失败和未处理结果。']},
+    {kind:'improved',items:['保护资料库、扫描根目录、Unity 工程及目录链接；不永久删除，原有标注保留，文件还原到原路径后刷新可重新显示。']},
+    {kind:'notes',items:['隐藏只影响应用显示；删除会移动原素材，请核对确认窗口中的全部路径。']}
+  ]},
   {version:'1.2.4',date:'2026-10-22',channel:'stable',title:'隐藏名单与重新匹配',sections:[
     {kind:'added',items:['素材右键及详情新增“从资料库隐藏”，设置可查看名单、搜索路径并单项或批量恢复。']},
     {kind:'improved',items:['强制重新匹配可把已确认、未找到或手动归类素材送回确认页；重新检索保留旧资料，确认后才替换。','闲鱼详情页新增明确的“应用此商品”；优先读取当前网页公开资料，无法读取时可填写核对后的商品名，来源支持撤回。']},

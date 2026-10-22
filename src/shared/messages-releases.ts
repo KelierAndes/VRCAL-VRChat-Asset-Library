@@ -1,4 +1,11 @@
 export const RELEASE_MESSAGES: Record<string, readonly [string,string]> = {
+  "右键菜单与批量整理":["Context menu and batch organization", "右クリックメニューと一括整理"],
+  "设置可勾选右键菜单项目、调整顺序和恢复默认；图库和匹配确认保留固定设置入口。":["Choose, reorder or reset context menu items in Settings. Gallery and match confirmation keep a fixed Settings shortcut.", "設定で右クリック項目の表示・順序を変更し、初期設定に戻せます。ギャラリーと照合確認に設定への固定入口を残します。"],
+  "图库和匹配确认新增明确的批量隐藏、批量删除；隐藏名单支持单项与批量删除。":["Gallery and match confirmation now have explicit batch hide and delete actions. Hidden items support single and batch deletion.", "ギャラリーと照合確認に一括非表示・一括削除を追加しました。非表示一覧からも個別・一括削除できます。"],
+  "删除将原素材移入 Windows 回收站，确认前列出实际路径；合并成员去重，逐项显示成功、失败和未处理结果。":["Delete moves original assets to the Windows Recycle Bin after showing the actual paths. Merged members are deduplicated, with per-path success, failure and skipped results.", "削除は実際のパスを表示して確認した後、元素材を Windows のゴミ箱に移動します。統合項目の重複を除き、パスごとに成功・失敗・未処理を表示します。"],
+  "保护资料库、扫描根目录、Unity 工程及目录链接；不永久删除，原有标注保留，文件还原到原路径后刷新可重新显示。":["The library, shared scan roots, Unity projects and directory links are protected. There is no permanent deletion. Annotations remain; restore files to their original paths and refresh to show them again.", "ライブラリ・共有スキャンルート・Unity プロジェクト・フォルダーリンクを保護します。完全削除は行いません。注釈は保持され、元の場所に復元して更新すると再表示できます。"],
+  "隐藏只影响应用显示；删除会移动原素材，请核对确认窗口中的全部路径。":["Hiding only changes app visibility. Deleting moves original assets. Review every path in the confirmation window.", "非表示はアプリ内の表示だけを変更します。削除は元素材を移動します。確認画面のすべてのパスをご確認ください。"],
+
  '手动添加与拖拽入库':['Manual additions & drag-and-drop','手動追加とドラッグ＆ドロップ'],
  '工具栏新增手动添加素材，可直接拖入文件夹或素材包，立即识别所选内容。':['Add asset folders from the toolbar or drop folders and packages to recognize just the selected content.','ツールバーで素材フォルダーを追加するか、フォルダーやパッケージをドロップして選択内容を認識できます。'],
  '手动添加不触发全库扫描，仅对本次识别的素材继续在线补全；重复添加保留原确认、封面和人工标注。':['Manual additions do not rescan the library. Only these entries continue to enrichment; repeated additions retain confirmations, covers and annotations.','手動追加では全体を再スキャンせず、今回の項目のみを補完します。再追加しても出典確認・画像・注釈を保持します。'],
