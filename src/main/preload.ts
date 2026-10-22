@@ -7,9 +7,9 @@ const requestedLanguage=process.argv.find(value=>value.startsWith('--vrc-languag
 const initialLanguage:AppLanguage=['zh-CN','ja','en'].includes(requestedLanguage??'')?requestedLanguage as AppLanguage:'zh-CN';
 const invoke=(method:string,...args:unknown[])=>ipcRenderer.invoke(`library:${method}`,...args);
 const api:LibraryAPI={
+ startupStarInvite:()=>invoke('startupStarInvite'),dismissStarInvite:count=>invoke('dismissStarInvite',count),openStarProject:count=>invoke('openStarProject',count),
  baiduState:()=>invoke('baiduState'),openBaidu:path=>invoke('openBaidu',path),captureBaiduDirectory:()=>invoke('captureBaiduDirectory'),scanBaiduDirectory:action=>invoke('scanBaiduDirectory',action),cloudCatalog:query=>invoke('cloudCatalog',query),linkCloudEntry:(key,id)=>invoke('linkCloudEntry',key,id),forgetCloudDirectory:(account,path)=>invoke('forgetCloudDirectory',account,path),clearBaiduSession:()=>invoke('clearBaiduSession'),
  openCommunityLink:id=>invoke('openCommunityLink',id),copyCommunityGroup:()=>invoke('copyCommunityGroup'),
- sponsorsState:()=>invoke('sponsorsState'),refreshSponsors:force=>invoke('refreshSponsors',force),openSponsorLink:(id,index)=>invoke('openSponsorLink',id,index),
  initialTheme,initialLanguage,
  attemptXianyu:(id:string)=>invoke('attemptXianyu',id),openImageSearch:(id:string)=>invoke('openImageSearch',id),setXianyuEnabled:(enabled:boolean)=>invoke('setXianyuEnabled',enabled),
  updateState:()=>invoke('updateState'),checkForUpdates:()=>invoke('checkForUpdates'),downloadUpdate:()=>invoke('downloadUpdate'),installUpdate:()=>invoke('installUpdate'),cancelUpdate:()=>invoke('cancelUpdate'),openUpdatePage:()=>invoke('openUpdatePage'),removeRoot:root=>invoke('removeRoot',root),

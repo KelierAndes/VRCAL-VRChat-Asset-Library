@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.2.8',date:'2026-10-23',channel:'stable',title:'Star 邀请与社区精简',sections:[
+    {kind:'added',items:['第 5、10、20、50 次启动时在左下角显示 Star 邀请；点击“确认，打开 GitHub”后才打开项目页面。']},
+    {kind:'improved',items:['移除赞助者名单、联网同步、刷新与缓存展示，保留贡献者、源码、反馈和社区入口。']},
+    {kind:'notes',items:['提示框显示可选中复制的完整项目网址；“下次再说”或关闭均不打开浏览器，每个里程碑只提醒一次。','打开项目页失败时保留重试；50 次后的启动不再增加提醒。']}
+  ]},
   {version:'1.2.7',date:'2026-10-23',channel:'stable',title:'匹配确认顶部锁定',sections:[
     {kind:'added',items:['匹配确认右上角新增小锁，默认解锁；标题、搜索、筛选和下载状态随确认内容滚动。']},
     {kind:'improved',items:['锁定后顶部固定，内容过多时可独立滚动，最多占匹配工作区高度的 45%，为候选保留空间。','小锁在滚动后仍可操作；切换保留当前素材位置与确认顺序。','“跳过自动匹配”改为醒目的整行按钮，跳过后移至“手动归类”，可稍后继续整理。','时间、本地文件和匹配依据默认折叠，手动填写商品来源也可展开输入；BOOTH 搜索保持可见。','匹配确认不再显示适配标签，原有适配资料和人工标注继续保留。']},
@@ -37,7 +42,7 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {version:'1.2.3',date:'2026-10-22',channel:'stable',title:'联网赞助者名单',sections:[
     {kind:'added',items:['贡献者下方新增赞助者名单，从项目公开 JSON 同步昵称、头像和社交链接，无需重新发布程序。']},
     {kind:'improved',items:['名单进入页面时及每五分钟检查，支持立即刷新、本地缓存和匿名展示；联网关闭或读取失败时保留上次内容。']},
-    {kind:'notes',items:['赞助者名单由维护者手动维护，不读取支付记录，不自动确认赞助到账。']}
+    {kind:'notes',items:['赞助者名单由维护者手动维护，不读取支付记录，不自动确认赞助到账。','赞助者名单功能已在 1.2.8 移除；此条仅保留历史发布记录。']}
   ]},
   {version:'1.2.2',date:'2026-10-22',channel:'stable',title:'手动添加与拖拽入库',sections:[
     {kind:'added',items:['工具栏新增手动添加素材，可直接拖入文件夹或素材包，立即识别所选内容。']},

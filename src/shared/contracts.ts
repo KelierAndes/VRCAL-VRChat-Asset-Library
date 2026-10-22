@@ -1,7 +1,6 @@
 import type {ProjectProductPage,ProjectProductRegistration} from './project-product-contracts';
 import type {ContextMenuPreferences} from './context-menu';
 import type {AssetRecycleResult} from './recycle-contracts';
-import type {SponsorsState} from './sponsors';
 import type {StorageLocation,BaiduState,CloudPage,CloudQuery} from './cloud-contracts';
 import type {ProjectFilePage,ImportSourceChoice,ProjectImportPreview,ProjectImportJob,ProjectImportOptions} from './project-contracts';
 export const CATEGORIES = ['未分类','模型','服装','头发','饰品','贴图','动作','特效','工具','工程'] as const;
@@ -67,8 +66,10 @@ export interface UpdateState {status:'idle'|'checking'|'available'|'up-to-date'|
 export interface Snapshot { stats:Stats; scan:ScanProgress; queue:QueueProgress; settings:AppSettings;proxy?:ProxyStatus;undoAvailable?:boolean;sourceUndo?:SourceUndoInfo;warnings?:string[] }
 export interface FileEntry { name:string; size:number; directory:boolean }
 export interface FileListing { entries:FileEntry[]; truncated:boolean; message?:string }
-export type LibraryEvent = {type:'change'}|{type:'sponsors'}|{type:'scan';progress:ScanProgress}|{type:'queue';progress:QueueProgress};
+export type LibraryEvent = {type:'change'}|{type:'scan';progress:ScanProgress}|{type:'queue';progress:QueueProgress};
 export interface LibraryAPI {
+  startupStarInvite():Promise<import('./star-invite').StarInvite|null>;
+  dismissStarInvite(count:number):Promise<void>;openStarProject(count:number):Promise<void>;
   baiduState():Promise<BaiduState>;
   openBaidu(directoryPath?:string):Promise<void>;
   captureBaiduDirectory():Promise<CloudPage>;
@@ -78,7 +79,6 @@ export interface LibraryAPI {
   forgetCloudDirectory(accountKey:string,directoryPath:string):Promise<void>;
   clearBaiduSession():Promise<void>;
   openCommunityLink(id:string):Promise<void>;copyCommunityGroup():Promise<void>;
-  sponsorsState():Promise<SponsorsState>;refreshSponsors(force?:boolean):Promise<SponsorsState>;openSponsorLink(id:string,index:number):Promise<void>;
   readonly initialTheme?:AppTheme;
   readonly initialLanguage?:AppLanguage;
   attemptXianyu(id:string):Promise<void>;openImageSearch(id:string):Promise<void>;setXianyuEnabled(enabled:boolean):Promise<boolean>;

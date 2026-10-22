@@ -1,5 +1,6 @@
 /** Trusted local window chrome only; remote pages, product names and user text are never dictionary keys. */
 export const NATIVE_MESSAGES:Record<string,readonly [string,string]>={
+ '启动提示已处理，请重新打开应用后再查看。':['This startup prompt has already been handled. Reopen the app to view it again.','起動時の案内はすでに処理されています。もう一度確認するには、アプリを開き直してください。'],
  '商品预览':['Product preview','商品プレビュー'],
  '正在准备预览…':['Preparing preview…','プレビューを準備中…'],
  '上一页':['Previous page','前のページ'],
