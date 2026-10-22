@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.2.6',date:'2026-10-23',channel:'stable',title:'独立隐藏素材页',sections:[
+    {kind:'added',items:['左侧“手动归类”下新增“已隐藏素材”入口与数量，集中查看隐藏条目。','独立页面支持按名称或路径搜索、定位原文件夹，以及单项或批量恢复显示、移入回收站。']},
+    {kind:'improved',items:['设置中的隐藏长列表改为简短跳转入口，统一在独立页面管理。']},
+    {kind:'notes',items:['恢复显示保留原有封面与人工标注；取消删除不会移动文件或改变隐藏状态。']}
+  ]},
   {version:'1.2.5',date:'2026-10-23',channel:'stable',title:'右键菜单与批量整理',sections:[
     {kind:'added',items:['设置可勾选右键菜单项目、调整顺序和恢复默认；图库和匹配确认保留固定设置入口。','图库和匹配确认新增明确的批量隐藏、批量删除；隐藏名单支持单项与批量删除。','删除将原素材移入 Windows 回收站，确认前列出实际路径；合并成员去重，逐项显示成功、失败和未处理结果。']},
     {kind:'improved',items:['保护资料库、扫描根目录、Unity 工程及目录链接；不永久删除，原有标注保留，文件还原到原路径后刷新可重新显示。']},

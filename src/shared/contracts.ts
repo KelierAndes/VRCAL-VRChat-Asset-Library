@@ -50,7 +50,7 @@ export interface AssetPage { items:AssetRecord[]; total:number }
 export interface ProjectMaterialEvidence {path:string;name:string;alias:string;kind:'directory'|'prefab'|'model'}
 export interface ProjectMaterialMatch {assetId:string;asset:AssetRecord;relation:'manual'|'detected'|'both'|'uncertain';evidence:ProjectMaterialEvidence[]}
 export interface ProjectMaterialPage {projectId:string;items:ProjectMaterialMatch[];inspectedEntries:number;scannedAt:string;truncated:boolean;warnings:string[]}
-export interface Stats { total:number; materials:number; projects:number; favorites:number; matched:number; review:number; missing:number; groups:string[]; avatars:string[]; categories:Record<string,number>;manual?:number }
+export interface Stats { total:number; materials:number; projects:number; favorites:number; matched:number; review:number; missing:number; groups:string[]; avatars:string[]; categories:Record<string,number>;manual?:number;hidden?:number }
 export interface ManualAddResult {added:number;updated:number;ids:string[];errors:string[];cancelled:boolean}
 export interface ScanProgress {mode?:'scan'|'manual'; running:boolean; found:number; current:string; errors:string[]; finishedAt?:string }
 export interface TransferProgress {id?:string;taskId?:string;url:string;phase:'connecting'|'downloading'|'cache'|'complete'|'waiting'|'error';kind:'search'|'page'|'cover';label:string;receivedBytes:number;totalBytes?:number;downloadBps:number;uploadBps:number;uploadBytes:number;elapsedMs:number}

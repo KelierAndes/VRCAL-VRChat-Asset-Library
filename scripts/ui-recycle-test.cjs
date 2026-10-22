@@ -66,7 +66,8 @@ const bundleChild = add('Recycle Bundle/inside.unitypackage', 'unitypackage');
 const merged = store.get(bundle.id);
 assert(merged?.members?.some(member => member.id === bundleArchive.id), 'Folder and archive fixture must form a real merged card');
 const hiddenSingle = add('Hidden Single.zip'), hiddenBulk = [add('Hidden Batch A.zip'), add('Hidden Batch B.zip')];
-store.setHidden([hiddenSingle.id, ...hiddenBulk.map(asset => asset.id)], true);
+const hiddenScroll = Array.from({ length: 12 }, (_, index) => add('Hidden Scroll ' + String(index).padStart(2, '0') + '.zip'));
+store.setHidden([hiddenSingle.id, ...hiddenBulk.map(asset => asset.id), ...hiddenScroll.map(asset => asset.id)], true);
 const review = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta'].map(name => add('QAReview ' + name + '.zip', 'archive', 'review'));
 const reviewMemberFolder = add('QAReview Member Bundle', 'folder', 'review');
 const reviewMemberArchive = add('QAReview Member Bundle_Shinra.zip', 'archive', 'review');
@@ -164,6 +165,10 @@ async function settings() {
   await menuSettings().waitFor();
 }
 async function closeSettings() { await page.locator('.modal:not(.recycle-result) .modal-header button').click(); await menuSettings().waitFor({ state: 'detached' }); }
+async function hiddenPage() {
+  await page.locator('button.hidden-nav').click(); await page.locator('section.hidden-page.hidden-materials').waitFor();
+  assert.equal(await page.locator('[role="dialog"]').count(), 0, 'The hidden list must open as an independent page');
+}
 async function prefs() { return (await page.evaluate(() => window.library.snapshot())).settings.contextMenu; }
 async function saved(predicate, message) {
   await wait(async () => await menuSettings().getAttribute('aria-busy') === 'false' && predicate(await prefs()), message);
@@ -225,31 +230,48 @@ function report(ok, error) { return { ok, phase, checks, renderErrors, error, pa
   for (const asset of [bundle, bundleArchive, bundleChild]) assert.equal(await page.evaluate(id => window.library.get(id), asset.id), null);
   await closeResult(); pass('merged-folder-and-archive-recycle-two-paths-without-recycling-the-covered-child-twice');
 
-  phase = 'hidden list single and batch deletion';
-  await settings(); await page.locator('.hidden-search').fill('Hidden');
-  const hiddenSingleRow = page.locator(`[data-hidden-id="${hiddenSingle.id}"]`);
-  await hiddenSingleRow.waitFor(); await hiddenSingleRow.locator('input').check();
-  const hiddenDelete = hiddenSingleRow.locator('.recycle-danger'); await hiddenDelete.scrollIntoViewIfNeeded();
-  const hiddenBefore = hashTree(source), hiddenScrollBefore = await page.locator('.modal .modal-body').evaluate(element => element.scrollTop);
+  phase = 'hidden independent page single and batch deletion';
+  await hiddenPage(); await page.locator('.hidden-search').fill('Hidden');
+  await wait(async () => await page.locator('.hidden-page .hidden-entry').count() === hiddenScroll.length + hiddenBulk.length + 1, 'Hidden page fixtures did not load');
+  const hiddenTotal = hiddenScroll.length + hiddenBulk.length + 1;
+  await wait(async () => Number(await page.locator('button.hidden-nav small').innerText()) === hiddenTotal, 'The sidebar hidden count did not refresh');
+  const hiddenCancelId = await page.locator('.hidden-page .hidden-entry').last().getAttribute('data-hidden-id');
+  const hiddenCancelRow = page.locator(`.hidden-page [data-hidden-id="${hiddenCancelId}"]`);
+  await hiddenCancelRow.locator('input').check();
+  const hiddenDelete = hiddenCancelRow.locator('.recycle-danger'); await hiddenDelete.scrollIntoViewIfNeeded();
+  const hiddenBefore = hashTree(source), hiddenScrollBefore = await page.locator('section.hidden-page').evaluate(element => element.scrollTop);
+  assert(hiddenScrollBefore > 0, 'Cancellation must be tested with the independent page genuinely scrolled');
   await answer(0); await hiddenDelete.click();
   await wait(async () => (await app.evaluate(() => globalThis.__recycleQA.dialogs.length)) === 1, 'Hidden delete confirmation did not open');
   await page.evaluate(async () => { await window.library.snapshot(); await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
-  assert.equal(await menuSettings().count(), 1, 'Cancelling hidden deletion must keep Settings open');
+  assert.equal(await page.locator('section.hidden-page').count(), 1, 'Cancelling hidden deletion must keep the independent page open');
+  assert.equal(await page.locator('[role="dialog"]').count(), 0, 'Cancelling hidden deletion must not open Settings or a result modal');
   assert.equal(await page.locator('.hidden-search').inputValue(), 'Hidden', 'Cancelling hidden deletion lost the search');
-  assert.equal(await hiddenSingleRow.locator('input').isChecked(), true, 'Cancelling hidden deletion lost the selection');
-  assert(Math.abs(await page.locator('.modal .modal-body').evaluate(element => element.scrollTop) - hiddenScrollBefore) < 3,
-    'Cancelling hidden deletion changed the Settings scroll position');
+  assert.equal(await hiddenCancelRow.locator('input').isChecked(), true, 'Cancelling hidden deletion lost the selection');
+  assert(Math.abs(await page.locator('section.hidden-page').evaluate(element => element.scrollTop) - hiddenScrollBefore) < 3,
+    'Cancelling hidden deletion changed the independent page scroll position');
   assert.equal(await hiddenDelete.evaluate(element => document.activeElement === element), true, 'Cancel should return focus to the hidden delete button');
   assert.deepEqual(hashTree(source), hiddenBefore); batch = await nativeState(); assert.deepEqual(batch.calls, []);
-  await capture('hidden-cancel-keeps-settings-search-selection-scroll');
-  pass('hidden-delete-cancel-retains-settings-search-checkbox-scroll-and-focus-without-moving-files');
-  await answer(1); await hiddenDelete.click(); await resultCounts(1); await closeResult();
-  await settings();
+  await capture('hidden-cancel-keeps-independent-page-search-selection-scroll');
+  pass('hidden-delete-cancel-retains-independent-page-search-nonzero-scroll-selection-and-focus-without-moving-files');
+  await hiddenCancelRow.locator('input').uncheck();
+  const hiddenSingleRow = page.locator(`.hidden-page [data-hidden-id="${hiddenSingle.id}"]`);
+  await answer(1); await hiddenSingleRow.locator('.recycle-danger').click(); await resultCounts(1); await closeResult();
+  assert.equal(await page.locator('section.hidden-page').count(), 1);
+  await page.locator('.hidden-search').fill('Hidden Batch');
+  await wait(async () => await page.locator('.hidden-page .hidden-entry').count() === hiddenBulk.length, 'Hidden batch search did not settle');
+  assert.equal(Number(await page.locator('button.hidden-nav small').innerText()), hiddenTotal - 1, 'The full sidebar total must not shrink to the page search result');
   for (const asset of hiddenBulk) await page.locator(`[data-hidden-id="${asset.id}"] input`).check();
   await answer(1); await page.locator('.hidden-bulk .recycle-danger').click(); await resultCounts(2); await closeResult();
+  await nativeState();
+  await page.locator('.hidden-search').fill('Hidden Scroll');
+  await wait(async () => await page.locator('.hidden-page .hidden-entry').count() === hiddenScroll.length, 'Hidden scroll-fixture search did not settle');
+  await page.locator('.hidden-bulk input').check();
+  await page.locator('.hidden-bulk button:not(.recycle-danger)').click();
+  await wait(async () => (await page.evaluate(() => window.library.hiddenAssets())).total === 0, 'Bulk restore did not clear the remaining hidden fixtures');
   assert.equal((await page.evaluate(() => window.library.hiddenAssets())).total, 0);
-  await nativeState(); pass('hidden-settings-list-supports-single-and-selected-batch-recycling');
-  if (await menuSettings().count()) await closeSettings();
+  await wait(async () => Number(await page.locator('button.hidden-nav small').innerText()) === 0, 'The sidebar total did not clear after bulk restore');
+  await nativeState(); pass('independent-hidden-page-supports-single-and-batch-recycling-bulk-restore-and-full-sidebar-counts');
 
   phase = 'review selection hide and delete preserve order';
   await enterReview(); const originalRows = await rowIds(); assert.equal(originalRows.length, review.length + 2);
@@ -387,6 +409,7 @@ function report(ok, error) { return { ok, phase, checks, renderErrors, error, pa
         reviewRows: [...document.querySelectorAll('.review-row')].map(element => element.dataset.assetId),
         hiddenSearch: document.querySelector('.hidden-search')?.value,
         selectedHidden: [...document.querySelectorAll('.hidden-entry')].filter(element => element.querySelector('input')?.checked).map(element => element.dataset.hiddenId),
+        hiddenPageScroll: document.querySelector('section.hidden-page')?.scrollTop,
         modalScroll: [...document.querySelectorAll('.modal-body')].map(element => element.scrollTop)
       }));
       fs.writeFileSync(path.join(runDir, 'failure-diagnostics.json'), JSON.stringify(diagnostic, null, 2));
