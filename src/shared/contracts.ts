@@ -2,6 +2,7 @@ import type {ProjectProductPage,ProjectProductRegistration} from './project-prod
 import type {ContextMenuPreferences} from './context-menu';
 import type {AssetRecycleResult} from './recycle-contracts';
 import type {StorageLocation,BaiduState,CloudPage,CloudQuery} from './cloud-contracts';
+import type {BaiduDownloadState} from './baidu-download';
 import type {ProjectFilePage,ImportSourceChoice,ProjectImportPreview,ProjectImportJob,ProjectImportOptions} from './project-contracts';
 export const CATEGORIES = ['未分类','模型','服装','头发','饰品','贴图','动作','特效','工具','工程'] as const;
 export type Category = typeof CATEGORIES[number];
@@ -71,6 +72,14 @@ export interface LibraryAPI {
   startupStarInvite():Promise<import('./star-invite').StarInvite|null>;
   dismissStarInvite(count:number):Promise<void>;openStarProject(count:number):Promise<void>;
   baiduState():Promise<BaiduState>;
+  baiduDownloadsState():Promise<BaiduDownloadState>;
+  readBaiduShare(text:string,code?:string):Promise<void>;
+  openBaiduShareFolder(id:string):Promise<void>;
+  backBaiduShare():Promise<void>;
+  chooseBaiduDownloadDir():Promise<boolean>;
+  downloadBaiduFile(id:string):Promise<void>;
+  controlBaiduDownload(id:string,action:'pause'|'resume'|'cancel'):Promise<void>;
+  revealBaiduDownload(id:string):Promise<void>;
   openBaidu(directoryPath?:string):Promise<void>;
   captureBaiduDirectory():Promise<CloudPage>;
   scanBaiduDirectory(action:'start'|'pause'|'resume'|'stop'|'retry'):Promise<void>;

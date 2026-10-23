@@ -1,4 +1,5 @@
 import {HIDDEN_REMATCH_MESSAGES} from './messages-hidden-rematch';
+import {BAIDU_DOWNLOAD_MESSAGES} from './messages-baidu-download';
 import {REVIEW_LOCAL_IMAGE_MESSAGES} from './messages-review-local-image';
 import {CONTEXT_MENU_MESSAGES} from './messages-context-menu';
 import {RECYCLE_MESSAGES} from './messages-recycle';
@@ -14,6 +15,7 @@ import {PROJECT_MESSAGES} from './messages-project';
 // Offline UI copy. Keys are Chinese source text, values are [English, Japanese].
 // Domain enums, file names and user content keep their original values.
 export const UI_MESSAGES: Record<string, readonly [string, string]> = {
+  ...BAIDU_DOWNLOAD_MESSAGES,
   ...CONTEXT_MENU_MESSAGES,
   ...RECYCLE_MESSAGES,
   ...HIDDEN_REMATCH_MESSAGES,

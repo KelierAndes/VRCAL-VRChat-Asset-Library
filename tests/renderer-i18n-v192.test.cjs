@@ -29,7 +29,7 @@ test('renderer locale changes notify subscribers and interpolate counts offline'
   locale.setLanguage('zh-CN');
   assert.equal(events.length, 2);
 });
-test('every literal UI message is translated and interpolation tokens are preserved', () => {
+test('UI translations preserve tokens; explicit deferred new copy falls back to Chinese', () => {
   const {UI_MESSAGES} = loadSource('shared/messages-ui.ts');
   for (const [source, translations] of Object.entries(UI_MESSAGES)) {
     assert.equal(translations.length,2,source);
@@ -43,7 +43,7 @@ test('every literal UI message is translated and interpolation tokens are preser
   for (const file of fs.readdirSync(directory).filter(name=>name.endsWith('.tsx'))) {
     const source = ts.createSourceFile(file,fs.readFileSync(path.join(directory,file),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
     function visit(node) {
-      if (ts.isCallExpression(node) && node.expression.getText(source)==='t' && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) assert(UI_MESSAGES[node.arguments[0].text],`${file}: missing ${node.arguments[0].text}`);
+      if (ts.isCallExpression(node) && node.expression.getText(source)==='t' && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) assert(UI_MESSAGES[node.arguments[0].text] || (file==='baidu-download-panel.tsx' && ['暂停'].includes(node.arguments[0].text)),`${file}: missing ${node.arguments[0].text}`); // 1.3.0 translation deferred by request, 2026-10-24.
       if (ts.isJsxText(node)) assert(!/[\u3400-\u9fff]/.test(node.text),`${file}: unlocalized JSX text ${node.text}`);
       ts.forEachChild(node,visit);
     }

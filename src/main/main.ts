@@ -5,6 +5,7 @@ import {normalizeContextMenuPreferences} from '../shared/context-menu';
 import {XianyuAccess,XIANYU_USAGE_NOTICE} from './xianyu-access';
 import {inspectProjectProducts,clearProjectProductCache,projectProductInput} from './project-products';
 import type {ProjectImportOptions} from '../shared/project-contracts';
+import {BaiduDownloads} from './baidu-downloads';
 import {BaiduWorkspace,prepareBaiduSessionMigration} from './baidu-workspace';
 import {CloudCatalog} from './cloud-catalog';
 import type {CloudCapture,CloudQuery} from '../shared/cloud-contracts';
@@ -75,7 +76,7 @@ let booth:BoothWorkspace;let sourceChanges:Promise<void>=Promise.resolve();
 let updater:Updater;
 const launchInvites=new LaunchInvites({dataDir:()=>dataDir,roots:protectedRoots,openExternal:url=>shell.openExternal(url)});
 let xianyu:XianyuWorkspace;let xianyuAccess:XianyuAccess;
-let projectImports:ProjectImports;let baidu:BaiduWorkspace;let cloud:CloudCatalog;
+let projectImports:ProjectImports;let baidu:BaiduWorkspace;let baiduDownloads:BaiduDownloads;let cloud:CloudCatalog;
 let store:Store;let scanner:Scanner;let queue:EnrichmentQueue;let debounce:ReturnType<typeof setTimeout>|undefined;
 function emit(event:LibraryEvent){if(!closing && window && !window.isDestroyed())window.webContents.send('library:event',event)}
 function changed(){if(migrating||debounce)return;debounce=setTimeout(()=>{debounce=undefined;emit({type:'change'})},150)}
@@ -95,7 +96,8 @@ function rememberLocation(selected:string,backupDir?:string,roots=protectedRoots
 }
 function setupServices(){
  cloud=new CloudCatalog({read:()=>store.cloudData(),write:data=>store.saveCloudData(data),locals:()=>matchingCatalog(store).all()});
- baidu?.close();baidu=new BaiduWorkspace({parent:()=>window,dataDir,roots:protectedRoots,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,getTheme:()=>store.settings().theme||'nasa',getLanguage:()=>store.settings().language,onChanged:changed,onCapture:capture=>{if(closing||migrating)throw new Error('资料库正在关闭或迁移。');cloud.capture(capture as CloudCapture);changed()}});
+ baiduDownloads?.stop();baidu?.close();baidu=new BaiduWorkspace({onDownload:(event,item,contents)=>baiduDownloads?.accept(event,item,contents)??false,allowDownloadNavigation:(id,url)=>baiduDownloads?.allowNavigation(id,url)??false,onSessionInvalidated:()=>baiduDownloads?.stop(),onShutdown:()=>baiduDownloads?.shutdown(),parent:()=>window,dataDir,roots:protectedRoots,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,getTheme:()=>store.settings().theme||'nasa',getLanguage:()=>store.settings().language,onChanged:changed,onCapture:capture=>{if(closing||migrating)throw new Error('资料库正在关闭或迁移。');cloud.capture(capture as CloudCapture);changed()}});
+ baiduDownloads=new BaiduDownloads({dataDir,roots:protectedRoots,session:()=>baidu.downloadSession(),canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,changed});
   projectImports=new ProjectImports({dataDir,roots:()=>store.settings().roots,getAsset:id=>store.get(id),readRoots:boothReadRoots,selectedEditor:()=>store.settings().unityEditorPath,
     ...(testProfile&&process.env.VRC_LIBRARY_NO_EDITOR_LAUNCH?{findEditor:async()=>undefined}:{}),onChange:changed,onComplete:job=>{
       const project=store.get(job.projectId);if(project&&project.path===job.projectPath){store.updateManual([project.id],{relatedIds:[...new Set([...(project.manual.relatedIds??[]),job.assetId])]});clearProjectMaterialCache(project.path);changed()}
@@ -225,6 +227,13 @@ function registerHandlers(){
  handle('copyCommunityGroup',()=>clipboard.writeText(QQ_GROUP_NUMBER));
  handle('snapshot',()=>({stats:store.stats(),scan:scanner.progress(),queue:queue.progress,settings:store.settings(),proxy:proxy.status,undoAvailable:store.hasUndo(),sourceUndo:store.sourceUndoInfo(),warnings:store.recoveryWarnings.slice(0,100)}));
  handle('list',(query:AssetQuery={})=>{const page=store.list(query);return {...page,items:cloud.decorate(page.items)}});handle('get',(id:string)=>{const item=store.get(id);return item?cloud.decorate([item])[0]:null});
+ handle('baiduDownloadsState',()=>baiduDownloads.refreshState());
+ handle('readBaiduShare',(text:unknown,code:unknown)=>baiduDownloads.read(text,code));
+ handle('openBaiduShareFolder',(id:string)=>baiduDownloads.folder(id));handle('backBaiduShare',()=>baiduDownloads.parent());
+ handle('downloadBaiduFile',(id:string)=>baiduDownloads.download(id));
+ handle('controlBaiduDownload',(id:string,action:'pause'|'resume'|'cancel')=>baiduDownloads.control(id,action));
+ handle('revealBaiduDownload',(id:string)=>shell.showItemInFolder(baiduDownloads.reveal(id)));
+ handle('chooseBaiduDownloadDir',async()=>{const result=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'选择百度网盘下载保存文件夹',defaultPath:baiduDownloads.state().downloadDir||path.dirname(dataDir),properties:['openDirectory','createDirectory']},uiLanguage()));if(result.canceled)return false;const target=assertUserStorage(await fsp.realpath(result.filePaths[0]),protectedRoots(),testProfile);baiduDownloads.setDirectory(target);return true});
  handle('baiduState',()=>baidu.state());handle('openBaidu',(directoryPath?:string)=>baidu.open(directoryPath));
  handle('scanBaiduDirectory',async(action:unknown)=>{if(typeof action!=='string'||!['start','pause','resume','stop','retry'].includes(action))throw new Error('云端目录操作无效。');await baidu.scan(action as 'start'|'pause'|'resume'|'stop'|'retry');changed()});
  handle('captureBaiduDirectory',async()=>{const capture=await baidu.capture();if(closing||migrating)throw new Error('资料库正在关闭或迁移。');cloud.capture(capture as CloudCapture);changed();return cloud.list({})});

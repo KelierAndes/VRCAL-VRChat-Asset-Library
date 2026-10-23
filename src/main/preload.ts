@@ -9,6 +9,7 @@ const invoke=(method:string,...args:unknown[])=>ipcRenderer.invoke(`library:${me
 const api:LibraryAPI={
  startupStarInvite:()=>invoke('startupStarInvite'),dismissStarInvite:count=>invoke('dismissStarInvite',count),openStarProject:count=>invoke('openStarProject',count),
  baiduState:()=>invoke('baiduState'),openBaidu:path=>invoke('openBaidu',path),captureBaiduDirectory:()=>invoke('captureBaiduDirectory'),scanBaiduDirectory:action=>invoke('scanBaiduDirectory',action),cloudCatalog:query=>invoke('cloudCatalog',query),linkCloudEntry:(key,id)=>invoke('linkCloudEntry',key,id),forgetCloudDirectory:(account,path)=>invoke('forgetCloudDirectory',account,path),clearBaiduSession:()=>invoke('clearBaiduSession'),
+ baiduDownloadsState:()=>invoke('baiduDownloadsState'),readBaiduShare:(text,code)=>invoke('readBaiduShare',text,code),openBaiduShareFolder:id=>invoke('openBaiduShareFolder',id),backBaiduShare:()=>invoke('backBaiduShare'),chooseBaiduDownloadDir:()=>invoke('chooseBaiduDownloadDir'),downloadBaiduFile:id=>invoke('downloadBaiduFile',id),controlBaiduDownload:(id,action)=>invoke('controlBaiduDownload',id,action),revealBaiduDownload:id=>invoke('revealBaiduDownload',id),
  openCommunityLink:id=>invoke('openCommunityLink',id),copyCommunityGroup:()=>invoke('copyCommunityGroup'),
  initialTheme,initialLanguage,
  attemptXianyu:(id:string)=>invoke('attemptXianyu',id),openImageSearch:(id:string)=>invoke('openImageSearch',id),setXianyuEnabled:(enabled:boolean)=>invoke('setXianyuEnabled',enabled),

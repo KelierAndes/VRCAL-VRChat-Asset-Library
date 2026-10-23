@@ -1,4 +1,5 @@
 import {CloudScanProgress} from './cloud-scan';
+import {BaiduDownloadPanel} from './baidu-download-panel';
 import React,{useEffect,useState} from 'react';
 import type {AssetRecord,LibraryAPI} from '../shared/contracts';
 import {displayTitle} from '../shared/contracts';
@@ -23,6 +24,7 @@ export function CloudPage({api,revision,enabled,onOpen}:{api:LibraryAPI;revision
  const act=async(action:()=>Promise<unknown>)=>{if(busy)return;setBusy(true);setError('');try{await action();setRefresh(v=>v+1)}catch(e){setError(e instanceof Error?e.message:String(e))}finally{setBusy(false)}};
  const openLocal=async(id:string)=>{const a=await api.get(id);if(a)onOpen(a)};
  return <div className="cloud-page" aria-label={t('百度网盘与云端素材')}><div className="cloud-heading"><div><h2>{t('百度网盘与云端素材')}</h2><p>{t('网页登录读取目录，将云端线索与本地素材关联。')}</p></div><span className="tiny-pill">{t('网页接入试验')}</span></div>
+ <BaiduDownloadPanel api={api} enabled={enabled}/>
  <section className="cloud-connect"><h3>{t('读取所选文件夹')}</h3><p>{t('在百度网页打开母文件夹，再选择“读取此文件夹及所有子文件夹”。无需申请 AppKey。')}</p><p className="cloud-scope">{t('逐层读取所选母目录内的网页文件列表。压缩包按名称记录，不下载、不解压、不移动或删除。')}</p><p className="help-text">{t('网站改版或登录验证可能阻止读取；无法识别时会停止，不会猜测目录内容。')}</p><div className="cloud-actions"><button className="button primary" disabled={busy||!enabled} onClick={()=>act(()=>api.openBaidu())}>{t('打开百度网页登录')}</button><button className="button" disabled={busy||!enabled||!state?.open||state.loading||state.scan?.phase==='running'} onClick={()=>act(()=>api.captureBaiduDirectory())}>{busy?t('正在处理…'):t('读取当前文件夹')}</button><button className="button primary" disabled={busy||!enabled||!state?.open||state.loading||state.scan?.phase==='running'} onClick={()=>act(()=>api.scanBaiduDirectory('start'))}>{t('读取此文件夹及所有子文件夹')}</button><button className="text-button" onClick={()=>setClear(!clear)}>{t('退出百度账号')}</button></div>{!enabled&&<p className="help-text">{t('请先在设置中开启联网；已保存的云端索引仍可离线浏览。')}</p>}<p className="cloud-status" role="status">{state?.status?t(state.status):t('正在读取…')}</p>{clear&&<div className="cloud-confirm"><p>{t('清除本应用的百度登录会话，保留已读取的目录索引。普通资料库备份不包含登录凭证。')}</p><button className="button small" disabled={busy} onClick={()=>act(async()=>{await api.clearBaiduSession();setClear(false)})}>{t('清除登录会话')}</button><button className="button small" onClick={()=>setClear(false)}>{t('取消')}</button></div>}</section>
  <CloudScanProgress task={state?.scan} disabled={busy||!enabled} onAction={action=>void act(async()=>{if((action==='resume'||action==='retry')&&!state?.open)await api.openBaidu(state?.scan?.currentPath||state?.scan?.rootPath);await api.scanBaiduDirectory(action)})}/>
  {error&&<p className="file-notice error-text" role="alert">{t(error)}</p>}

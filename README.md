@@ -12,13 +12,13 @@
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.2.9](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.9/VRC-Asset-Library-1.2.9-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [功能与开发参考](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+**[下载 Windows x64 免安装版 v1.3.0](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.3.0/VRC-Asset-Library-1.3.0-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [功能与开发参考](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
 
 **第一次使用？先看[1.2.7 版零基础图文手册](docs/BEGINNER_GUIDE.zh-CN.md)。** 按任务逐步点击，配有实机截图，覆盖首次启动、素材整理、匹配确认、工程导入、备份与排障。
 
 v1.2.7 手册附件：[PDF 手册](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.7/VRCAL-1.2.7-Beginner-Guide-zh-CN.pdf) · [离线图文包 ZIP](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.7/VRCAL-1.2.7-Guide-Offline.zip)
 
-1. 下载 `VRC-Asset-Library-1.2.9-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
+1. 下载 `VRC-Asset-Library-1.3.0-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
 3. 选择素材目录并扫描；默认目录为 `E:\VRChat`。
 4. 开启在线补全。程序先自动匹配商品，有歧义的条目进入「匹配确认」。
@@ -33,6 +33,8 @@ v1.2.7 手册附件：[PDF 手册](https://github.com/NecoAya/VRCAL-VRChat-Asset
 当前发布包未进行代码签名。请从本仓库 Releases 下载，并用随包 SHA-256 清单核对文件。
 
 ## 本次更新与更新记录
+
+**1.3.0 新增百度网盘应用内下载。** 先登录百度账号，然后在应用页面粘贴分享文字、读取子文件夹、选择文件下载。文件列表、速度、进度和完成记录都在应用中，不弹出下载网页，不调用 IDM 或外部客户端。仅登录和安全验证使用官方窗口；百度要求客户端下载的文件暂不支持。详见[百度下载操作说明](docs/BAIDU_DOWNLOAD.zh-CN.md)。
 
 **1.2.9 新增匹配确认本地图片对照。** 在“设置与备份 → 匹配确认”开启默认关闭的“匹配确认中显示本地图片”，即可在 BOOTH 候选前看到标为“本地”的对照图片。优先使用手动设置的封面，其次使用扫描到的本地预览图；没有本地图片时不显示，不用联网封面冒充本地。点击仅打开本地大图，不确认或修改商品来源；BOOTH 候选仍需单独核对后采用。1.2.7 图文手册和截图保留原版。
 

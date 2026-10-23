@@ -14,6 +14,10 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.3.0',date:'2026-10-24',channel:'stable',title:'百度网盘应用内下载',sections:[
+    {kind:'added',items:['登录后，在应用页面粘贴百度分享链接、读取文件夹并下载单个文件，无需弹出下载网页。','下载进度、速度、暂停、继续、取消和完成记录集中展示，支持定位已下载文件。']},
+    {kind:'notes',items:['仅登录和安全验证使用官方窗口；下载遵循百度网页权限，要求客户端的文件暂不支持。','下载保存位置由用户选择，独立子文件夹避免覆盖；重启后中断任务需重新读取分享。']}
+  ]},
   {version:'1.2.9',date:'2026-10-23',channel:'stable',title:'匹配确认本地图片对照',sections:[
     {kind:'added',items:['设置新增默认关闭的“匹配确认中显示本地图片”，开启后在 BOOTH 候选前显示标记为“本地”的图片，仅供对照。']},
     {kind:'improved',items:['本地图片优先使用手动设置的封面，其次使用扫描到的本地预览图；不使用联网商品封面充当本地图片。']},

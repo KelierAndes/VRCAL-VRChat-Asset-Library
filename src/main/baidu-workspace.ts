@@ -17,6 +17,10 @@ export interface BaiduWorkspaceDependencies {
  parent:()=>BrowserWindow|null;dataDir:string;roots:()=>string[];canNetwork:()=>boolean;getTheme?:()=>AppTheme;getLanguage?:()=>AppLanguage;onChanged:()=>void;
  /** Commits toolbar captures and incremental traversal batches. Direct capture() returns data for its caller to commit. */
  onCapture?:(capture:BaiduDirectoryCapture)=>void|Promise<void>;
+ onDownload?:(event:Electron.Event,item:Electron.DownloadItem,contents?:Electron.WebContents)=>boolean;
+ allowDownloadNavigation?:(contentsId:number,url:string)=>boolean;
+ onSessionInvalidated?:()=>void;
+ onShutdown?:()=>Promise<void>;
 }
 const officialCookieDomain=(domain:string)=>/^\.?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*baidu\.com$/i.test(domain)&&domain.length<=254&&domain.replace(/^\./,'').split('.').every(label=>label.length<=63);
 function officialBaiduCookie(cookie:any,now=Date.now()/1000):cookie is Electron.Cookie&{domain:string} {
@@ -64,8 +68,8 @@ function publicHttps(raw:string):URL {
 export class BaiduWorkspace {
  private remoteSession?:Electron.Session;private entry?:Entry;private initializing?:Promise<void>;private stopping=false;private clearing=false;private busy=false;private revision=0;private sessionHooksInstalled=false;private restoringCookies=false;private cookieRestoreFailed=false;
  private proofKey?:string;private recentCapture?:BaiduDirectoryCapture;private dns=new Map<string,{at:number;promise:Promise<void>}>();
- private readonly cookieListener=(_event:Electron.Event,cookie:Electron.Cookie)=>{if(!this.restoringCookies&&['BDUSS','BDUSS_BFESS'].includes(cookie.name)&&officialCookieDomain(cookie.domain||'')){try{this.removeCookieMirror();this.cookieRestoreFailed=false}catch{this.cookieRestoreFailed=true}this.invalidate();this.setStatus(this.cookieRestoreFailed?'sessionRestoreFailed':'changed');this.notify()}};
- private readonly downloadListener=(event:Electron.Event)=>{event.preventDefault();this.setStatus('download')};
+ private readonly cookieListener=(_event:Electron.Event,cookie:Electron.Cookie)=>{if(!this.restoringCookies&&['BDUSS','BDUSS_BFESS'].includes(cookie.name)&&officialCookieDomain(cookie.domain||'')){try{this.deps.onSessionInvalidated?.();this.removeCookieMirror();this.cookieRestoreFailed=false}catch{this.cookieRestoreFailed=true}this.invalidate();this.setStatus(this.cookieRestoreFailed?'sessionRestoreFailed':'changed');this.notify()}};
+ private readonly downloadListener=(event:Electron.Event,item:Electron.DownloadItem,contents?:Electron.WebContents)=>{if(this.deps.onDownload?.(event,item,contents))return;event.preventDefault();this.setStatus('download')};
  private readonly crawler:BaiduCrawler;
  constructor(private readonly deps:BaiduWorkspaceDependencies){
   const file=()=>assertSafeWrite(path.join(deps.dataDir,'baidu-directory-task.json'),deps.dataDir,deps.roots());
@@ -166,15 +170,16 @@ export class BaiduWorkspace {
    this.proofKey=accountKey;this.recentCapture=structuredClone(capture);this.setStatus('captured');this.notify();return capture;
   }catch(error){this.proofKey=undefined;this.recentCapture=undefined;const code=error instanceof Error?error.message:'';const status:Message=code==='baidu-account-or-page-changed'?'changed':code.includes('login')?'login':'unsupported';this.setStatus(status);throw new Error(this.t(status))}finally{this.busy=false;this.emit()}
  }
- networkChanged():void {if(!this.deps.canNetwork()){this.crawler.pause();this.invalidate();if(this.entry&&!this.entry.closed){this.entry.view.webContents.stop();this.entry.loading=false;this.entry.loaded=false;this.entry.status='offline'}}this.notify()}
+ networkChanged():void {if(!this.deps.canNetwork()){this.deps.onSessionInvalidated?.();this.crawler.pause();this.invalidate();if(this.entry&&!this.entry.closed){this.entry.view.webContents.stop();this.entry.loading=false;this.entry.loaded=false;this.entry.status='offline'}}this.notify()}
  refreshTheme():void {if(this.entry&&!this.entry.closed){this.entry.window.setBackgroundColor(THEME_BACKGROUNDS[this.theme()]);this.entry.window.setTitle(this.t('title'));this.emit()}}
  close():void {if(this.entry)this.dispose(this.entry);this.notify()}
- async shutdown():Promise<void> {this.crawler.pause();await this.crawler.waitIdle();this.stopping=true;this.close();this.removeSessionHooks();await this.remoteSession?.cookies.flushStore();this.remoteSession?.flushStorageData();await this.remoteSession?.closeAllConnections()}
+ async shutdown():Promise<void> {this.stopping=true;await this.deps.onShutdown?.();this.crawler.pause();await this.crawler.waitIdle();this.close();this.removeSessionHooks();await this.remoteSession?.cookies.flushStore();this.remoteSession?.flushStorageData();await this.remoteSession?.closeAllConnections()}
  async clearSession():Promise<void> {this.clearing=true;try{await this.initialize();await this.shutdown();if(this.remoteSession){await this.remoteSession.closeAllConnections();await this.remoteSession.clearStorageData();await this.remoteSession.clearCache();await this.remoteSession.cookies.flushStore()}this.removeCookieMirror();this.invalidate();this.notify()}finally{this.clearing=false}}
 
  private theme():AppTheme {return normalizeTheme(this.deps.getTheme?.())}
  private language():AppLanguage {return normalizeLanguage(this.deps.getLanguage?.())}
  private t(message:Message):string {return TEXT[message][this.language()==='en'?1:this.language()==='ja'?2:0]}
+ async downloadSession():Promise<Electron.Session> {if(!this.deps.canNetwork()||this.clearing||this.stopping)throw new Error(this.t('offline'));await this.initialize();if(this.stopping||this.clearing)throw new Error(this.t('offline'));this.installSessionHooks();return this.remoteSession!}
  private async identity():Promise<string|undefined> {try{return this.remoteSession?baiduAccountKey(await this.remoteSession.cookies.get({url:'https://pan.baidu.com/'})):undefined}catch{return undefined}}
  private invalidate():void {this.revision++;this.proofKey=undefined;this.recentCapture=undefined}
  private initialize():Promise<void> {if(!this.initializing)this.initializing=this.initializeSession().catch(error=>{this.initializing=undefined;throw error});return this.initializing}
@@ -195,7 +200,7 @@ export class BaiduWorkspace {
    const deny=()=>callback({cancel:true});if(this.stopping||this.clearing||!this.deps.canNetwork()){deny();return}
    if(details.resourceType!=='mainFrame'&&((/^data:/i.test(details.url)&&['image','font','media'].includes(details.resourceType))||details.url==='about:blank')){callback({cancel:false});return}
    try{
-    const raw=details.resourceType!=='mainFrame'&&details.url.startsWith('blob:https://')?details.url.slice(5):details.url,url=details.resourceType==='mainFrame'?baiduBrowserUrl(raw):publicHttps(raw);
+    const raw=details.resourceType!=='mainFrame'&&details.url.startsWith('blob:https://')?details.url.slice(5):details.url,url=details.resourceType==='mainFrame'&&!this.deps.allowDownloadNavigation?.(details.webContentsId??-1,raw)?baiduBrowserUrl(raw):publicHttps(raw);
     if(!['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'].includes(details.method)){deny();return}
     // Subresources may use official CDN assets on other public HTTPS hosts. Main frames remain strictly allowlisted.
     void this.publicHost(url.hostname).then(()=>callback({cancel:this.stopping||this.clearing||!this.deps.canNetwork()})).catch(deny);
