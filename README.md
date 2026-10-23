@@ -4,7 +4,7 @@
 
 一个支持中文、英语和日语的 Windows 桌面应用，把散落的 VRChat 素材整理成可搜索的封面图库。接入 BOOTH 自动查找商品；匹配不明确时，在内置浏览器里搜索、核对并点击「应用此商品」。
 
-**这是一个采用 GPL-3.0 的社区开源项目，欢迎所有人共同维护。** 不会写代码也可以参与：提供匹配样例、反馈问题、翻译、测试和改善文档都能帮助项目变好。
+**这是一个采用自定义「VRCAL 社区协作许可 1.0」的源码可见项目，欢迎向本仓库提交改进，由本项目统一维护与发布。** 不会写代码也可以参与：提供匹配样例、反馈问题、翻译、测试和改善文档都能帮助项目变好。
 
 [![Windows CI](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/actions/workflows/ci.yml/badge.svg)](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/actions/workflows/ci.yml) · [贡献指南](CONTRIBUTING.md) · [社区讨论](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/discussions) · [路线图](docs/ROADMAP.md)
 
@@ -12,13 +12,17 @@
 
 ## 下载与开始使用
 
-**[下载 Windows x64 免安装版 v1.3.0](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.3.0/VRC-Asset-Library-1.3.0-x64.exe)** · [所有版本](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [功能与开发参考](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
+**旧版官方附件已停止提供，暂不提供新的正式版下载和内置更新。** 版本记录、Git 历史及其原许可保留；GitHub 根据标签提供的历史 Source code 快照仍可访问。撤下下载不等于撤销旧版授权，详见 [许可变更说明](docs/LICENSING.md)。
+
+[历史版本记录](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases) · [功能与开发参考](docs/USER_GUIDE.md) · [English guide](docs/QUICK_START.en.md) · [日本語ガイド](docs/QUICK_START.ja.md)
 
 **第一次使用？先看[1.2.7 版零基础图文手册](docs/BEGINNER_GUIDE.zh-CN.md)。** 按任务逐步点击，配有实机截图，覆盖首次启动、素材整理、匹配确认、工程导入、备份与排障。
 
-v1.2.7 手册附件：[PDF 手册](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.7/VRCAL-1.2.7-Beginner-Guide-zh-CN.pdf) · [离线图文包 ZIP](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.7/VRCAL-1.2.7-Guide-Offline.zip)
+旧版手册附件随旧下载撤下，仓库中的图文手册继续可读。
 
-1. 下载 `VRC-Asset-Library-1.3.0-x64.exe`，直接运行，无需安装 Node.js 或 Unity。
+以下为已经持有程序的使用者保留的操作说明：
+
+1. 运行已有的免安装程序，无需安装 Node.js 或 Unity；暂不提供旧版附件下载。
 2. 选择 C 盘以外的资料库保存位置。备份位置可以独立选择。
 3. 选择素材目录并扫描；默认目录为 `E:\VRChat`。
 4. 开启在线补全。程序先自动匹配商品，有歧义的条目进入「匹配确认」。
@@ -55,7 +59,7 @@ v1.2.7 手册附件：[PDF 手册](https://github.com/NecoAya/VRCAL-VRChat-Asset
 
 同时保留资料库重新定位、默认关闭的闲鱼辅助搜索，以及 1.2.0 的工程内商品读取、可选 MA 装配、导入位置回传、百度网盘目录索引（试验）和离线更新记录。工程读取与云端目录读取保持只读；主动导入或确认 MA 装配时才写入所选工程。详细步骤见 [工程与云端功能说明](docs/LOCAL-CLOUD-MA.md)。
 
-- [GitHub Releases](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases)：每个正式版的功能说明、免安装程序、完整源码和校验清单；内置更新从这里读取最新正式版。
+- [GitHub Releases](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases)：保留历史功能说明；旧版附件已撤下，暂不提供新的内置更新。GitHub 标签源码快照仍保留原有授权。
 - [CHANGELOG.md](CHANGELOG.md)：随源码保存的逐版本更新日志。
 - 程序左侧「更新记录」：随程序保存，断网也能查看。
 - [发布维护说明](docs/RELEASING.md)：维护者发布时同步这些位置。
@@ -121,8 +125,17 @@ npm run package
 
 初始维护者：[NecoAya／八云绫](https://github.com/NecoAya)。任何人都可以提出修改，维护者负责评审、合并和发布；持续参与的贡献者可申请承担维护职责。详见 [社区治理](GOVERNANCE.md) 与 [行为准则](CODE_OF_CONDUCT.md)。
 
+社区参与记录：[MoLucien](https://github.com/MoLucien) 创建了[项目 Fork](https://github.com/MoLucien/VRCAL-VRChat-Asset-Library)。此项记录为社区参与，未计作已合并的代码功能贡献；后续合并的改进会按实际提交补充署名与说明。
+
 ## 许可
 
-项目自有代码采用 **[GNU GPL v3.0 only](LICENSE)**（`GPL-3.0-only`）。分发修改版时，应依 GPL 提供对应源码并保留许可与版权声明；仅供自己使用的私下修改无需公开发布。具体义务以许可证原文为准。
+当前许可为 **[VRCAL 社区协作许可 1.0](LICENSE)**，属于自定义的源码可见许可，**不是 GPL，也不是标准开源许可**。
 
-贡献者保留各自版权。第三方依赖与字体遵循各自许可证，见 [第三方说明](THIRD_PARTY_NOTICES.md)。BOOTH、VRChat 及商品名称属于各自权利人，商品封面与素材内容不属于本项目的开源授权范围；本项目与这些平台或商品作者没有官方隶属关系。
+- 允许查看源码、正常使用、在个人或组织内部修改和测试，并向本仓库提交完整源码的 PR。
+- 新许可覆盖的代码及其衍生版本，不得闭源再发布，也不得擅自改名、打包、售卖或作为独立版本对外发布；官方版本由本仓库统一发布。
+- GitHub 平台条款允许的查看和 Fork 保持有效；Fork 不等于获得独立发行新版的许可。
+- **不追溯撤销旧版授权。** `v1.3.0` 及此前已按 GPL 发布的内容，原授权继续有效；相同的既有代码也不会因本次修改而失去原 GPL 权利。新许可主要约束此后受其覆盖的新改动。详见 [许可变更说明](docs/LICENSING.md)。
+
+以上为摘要，适用范围、例外和贡献授权以 LICENSE 全文为准。
+
+贡献者保留各自版权。第三方依赖与字体遵循各自许可证，见 [第三方说明](THIRD_PARTY_NOTICES.md)。BOOTH、VRChat 及商品名称属于各自权利人，商品封面与素材内容不属于本项目的代码许可范围；本项目与这些平台或商品作者没有官方隶属关系。

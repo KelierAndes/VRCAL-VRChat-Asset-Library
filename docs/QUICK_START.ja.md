@@ -17,7 +17,9 @@ Ctrl + マウスホイールで表示サイズを変更できます。右クリ�
 
 プロジェクト・ソースコード・不具合報告: https://github.com/NecoAya/VRCAL-VRChat-Asset-Library
 
-ライセンスは GPL-3.0-only です。ソースアーカイブ内の LICENSE、NOTICE、THIRD_PARTY_NOTICES.md を参照してください。
+ライセンスについては LICENSE、NOTICE、THIRD_PARTY_NOTICES.md と docs/LICENSING.md を参照してください。
+
+当前源码许可已变更为 VRCAL 社区协作许可 1.0；此前 GPL 授权继续有效。正式译文待统一更新，以 LICENSE 中文正文为准。
 
 ## プロジェクト内ファイルとインポート
 

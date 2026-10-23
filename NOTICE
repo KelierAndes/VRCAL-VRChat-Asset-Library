@@ -1,11 +1,13 @@
-VRCAL / VRC 素材库
-Copyright (C) 2026 NecoAya (八云绫) and contributors.
+VRCAL / VRChat 本地素材管理器
+Copyright (c) 2026 NecoAya（八云绫）及各贡献者。
 
-Project-owned code is licensed under the GNU General Public License,
-version 3 only (SPDX-License-Identifier: GPL-3.0-only). See LICENSE.
-This program is distributed without any warranty, to the extent permitted
-by applicable law.
+当前原创内容按 VRCAL 社区协作许可 1.0 提供，详见 LICENSE。
+这是自定义的源码可见许可，不是 GPL，也不是标准开源许可。
+本次变更不撤销此前已经按 GPL-3.0-only 发布内容的有效授权。
+旧版及相同既有代码的授权边界见 docs/LICENSING.md。
 
-Contributors retain copyright in their contributions. Third-party software,
-fonts, product names, covers and user-provided assets retain their original
-copyrights and licenses. See THIRD_PARTY_NOTICES.md and bundled notices.
+第三方组件、字体及素材保持各自版权和许可，见 THIRD_PARTY_NOTICES.md。
+assets/unity/ 中仍标注 GPL-3.0-only 的助手和兼容副本保持原许可，
+全文见 licenses/GPL-3.0-only.txt；本次不修改这些兼容文件。
+贡献者保留各自版权，贡献授权与统一发行安排见 LICENSE 第 5 条。
+软件按现状提供，法律允许范围内不附带保证。

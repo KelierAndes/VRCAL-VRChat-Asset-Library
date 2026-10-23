@@ -17,7 +17,9 @@ Confirm the product source and license on its original BOOTH page before using a
 
 Project, source code and issue tracker: https://github.com/NecoAya/VRCAL-VRChat-Asset-Library
 
-Licensed under GPL-3.0-only. See LICENSE, NOTICE and THIRD_PARTY_NOTICES.md in the source archive.
+License notice: see LICENSE, NOTICE, THIRD_PARTY_NOTICES.md and docs/LICENSING.md.
+
+当前源码许可已变更为 VRCAL 社区协作许可 1.0；此前 GPL 授权继续有效。正式译文待统一更新，以 LICENSE 中文正文为准。
 
 ## Project files and importing
 
