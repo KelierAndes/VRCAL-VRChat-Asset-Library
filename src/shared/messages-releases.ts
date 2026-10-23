@@ -1,4 +1,8 @@
 export const RELEASE_MESSAGES: Record<string, readonly [string,string]> = {
+ '匹配确认本地图片对照':['Local image comparison in match review','照合確認でローカル画像を比較'],
+ '设置新增默认关闭的“匹配确认中显示本地图片”，开启后在 BOOTH 候选前显示标记为“本地”的图片，仅供对照。':['Settings adds Show local images in match review, off by default. Enable it to show an image marked Local before the BOOTH candidates, for comparison only.','設定に初期状態で無効の「照合確認にローカル画像を表示」を追加しました。有効にすると、BOOTH 候補の前に「ローカル」と表示した比較専用の画像を表示します。'],
+ '本地图片优先使用手动设置的封面，其次使用扫描到的本地预览图；不使用联网商品封面充当本地图片。':['Local images use your manually chosen cover first, then a local preview found during scanning. Online product artwork is never substituted for a local image.','ローカル画像は手動で設定した表紙を優先し、次にスキャンで見つかったローカルのプレビュー画像を使用します。オンラインの商品画像をローカル画像の代わりには使いません。'],
+ '点击本地图片仅打开本地大图预览，不会确认、应用或修改商品来源。':['Clicking the local image only opens a larger local preview; it does not confirm, apply or change a product source.','ローカル画像をクリックすると拡大プレビューだけを開き、商品の出典の確定・適用・変更は行いません。'],
  'Star 邀请与社区精简':['Star invitation and a simpler community page','Star のご案内とコミュニティ画面の整理'],
  '第 5、10、20、50 次启动时在左下角显示 Star 邀请；点击“确认，打开 GitHub”后才打开项目页面。':['A Star invitation appears in the lower-left corner on the 5th, 10th, 20th and 50th launches. The project page opens only after you click “Confirm and open GitHub”.','5・10・20・50 回目の起動時に、左下に Star の案内を表示します。「確認して GitHub を開く」を押した場合のみ、プロジェクトページを開きます。'],
  '提示框显示可选中复制的完整项目网址；“下次再说”或关闭均不打开浏览器，每个里程碑只提醒一次。':['The prompt shows the full project URL for selection and copying. “Maybe later” and closing the prompt do not open a browser. Each milestone triggers at most one prompt.','案内には、選択してコピーできる完全なプロジェクト URL を表示します。「また今度」や閉じる操作ではブラウザーを開かず、各節目の案内は一度だけ表示します。'],

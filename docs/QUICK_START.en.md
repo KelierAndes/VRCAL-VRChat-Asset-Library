@@ -1,10 +1,10 @@
-# VRC Asset Library 1.2.8
+# VRC Asset Library 1.2.9
 
 **First stable release:** 1.0.0 starts the stable version series. Earlier 1.9.x and 1.10.x releases were test builds. Because their version numbers are higher, their built-in updater will not offer 1.0.0. Close the test build and manually download and run the stable EXE once. Keep your existing library; if asked for a location, select the parent of your existing `VRChatAssetLibrary` folder. Later stable updates can use the built-in updater. Old test executables have been withdrawn; source history remains available.
 
 A local Windows x64 library for VRChat assets. Browsing and scanning are read-only. An explicit import writes to the selected Unity project. Confirmed deletion moves selected original assets to the Windows Recycle Bin.
 
-1. Close the older version and run `VRC-Asset-Library-1.2.8-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
+1. Close the older version and run `VRC-Asset-Library-1.2.9-x64.exe`. Existing users can keep their chosen library location. New users choose a data folder outside the source folders and outside drive C.
 2. Choose **English** in the language selector. Select **X Light**, X Dark, NASA Punk or Swiss International in the theme selector. Choices are saved immediately. Asset names, authors, personal tags and notes remain in their original language.
 3. Open **Settings & backup** to add your main asset folder. Category subfolders are scanned recursively. Adding a parent replaces its registered children. Unity projects stay together.
 4. Use **Remove** beside a source path to exclude it from scanning and browsing. This does not delete files or annotations. Re-adding the path restores its library entries. Keep library data and backups outside the folder being scanned; move data first if necessary.
@@ -55,6 +55,12 @@ Use **Add assets manually** in the toolbar to select one or more asset folders, 
 
 Manual paths persist across restarts and backups. Repeated additions preserve existing confirmations and annotations. Remove a path in Settings without deleting originals or annotations. Libraries, backups, drive roots and directory links are not accepted as assets. For files inside a Unity project, use **Read products in a project**, or add the whole project folder. Sources are never copied, moved or extracted by this operation.
 
+
+## 1.2.9: local image comparison in match review
+
+In **Settings & backup → Match review**, enable **Show local images in match review**, which is off by default. An image marked **Local** appears before the BOOTH candidates for comparison only. It uses your manually chosen cover first, then a local preview found during scanning; online product artwork is never substituted for a local image.
+
+**View local image** opens only a larger **Local image preview**; use **Close local image preview** to return. It does not confirm, apply or change a product source. BOOTH candidates still need their own confirmation. If no local image is recorded, no local card is shown; a recorded image that cannot be read shows **Local image temporarily unavailable** without switching to online artwork. Choose **Change cover** in the material details if you want to supply a local image. The illustrated 1.2.7 handbook and its screenshots remain unchanged.
 
 ## 1.2.8: Star invitation and community cleanup
 

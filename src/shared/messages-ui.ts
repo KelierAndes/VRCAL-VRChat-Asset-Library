@@ -1,4 +1,5 @@
 import {HIDDEN_REMATCH_MESSAGES} from './messages-hidden-rematch';
+import {REVIEW_LOCAL_IMAGE_MESSAGES} from './messages-review-local-image';
 import {CONTEXT_MENU_MESSAGES} from './messages-context-menu';
 import {RECYCLE_MESSAGES} from './messages-recycle';
 import {MANUAL_ADD_MESSAGES} from './messages-manual-add';
@@ -16,6 +17,7 @@ export const UI_MESSAGES: Record<string, readonly [string, string]> = {
   ...CONTEXT_MENU_MESSAGES,
   ...RECYCLE_MESSAGES,
   ...HIDDEN_REMATCH_MESSAGES,
+  ...REVIEW_LOCAL_IMAGE_MESSAGES,
   ...STAR_INVITE_MESSAGES,
   ...MANUAL_ADD_MESSAGES,
   ...ASSISTED_SEARCH_MESSAGES,

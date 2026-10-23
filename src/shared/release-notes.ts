@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.2.9',date:'2026-10-23',channel:'stable',title:'匹配确认本地图片对照',sections:[
+    {kind:'added',items:['设置新增默认关闭的“匹配确认中显示本地图片”，开启后在 BOOTH 候选前显示标记为“本地”的图片，仅供对照。']},
+    {kind:'improved',items:['本地图片优先使用手动设置的封面，其次使用扫描到的本地预览图；不使用联网商品封面充当本地图片。']},
+    {kind:'notes',items:['点击本地图片仅打开本地大图预览，不会确认、应用或修改商品来源。']}
+  ]},
   {version:'1.2.8',date:'2026-10-23',channel:'stable',title:'Star 邀请与社区精简',sections:[
     {kind:'added',items:['第 5、10、20、50 次启动时在左下角显示 Star 邀请；点击“确认，打开 GitHub”后才打开项目页面。']},
     {kind:'improved',items:['移除赞助者名单、联网同步、刷新与缓存展示，保留贡献者、源码、反馈和社区入口。']},

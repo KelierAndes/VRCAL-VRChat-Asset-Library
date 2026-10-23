@@ -44,7 +44,7 @@ export const THEME_IDS=['nasa','swiss','x','x-light'] as const;
 export type AppTheme=typeof THEME_IDS[number];
 export const THEME_BACKGROUNDS:Readonly<Record<AppTheme,string>>={nasa:'#ece5d6',swiss:'#f5f1e8',x:'#000000','x-light':'#FFFFFF'};
 export function normalizeTheme(value:unknown):AppTheme {return THEME_IDS.includes(value as AppTheme)?value as AppTheme:'nasa'}
-export interface ViewPreferences {viewMode?:'grid'|'list';density?:'compact'|'standard'|'spacious';coverFit?:'contain'|'cover';reviewSort?:ReviewSort;reviewHeaderPinned?:boolean;theme?:AppTheme;language?:AppLanguage}
+export interface ViewPreferences {viewMode?:'grid'|'list';density?:'compact'|'standard'|'spacious';coverFit?:'contain'|'cover';reviewSort?:ReviewSort;reviewHeaderPinned?:boolean;reviewShowLocalImage?:boolean;theme?:AppTheme;language?:AppLanguage}
 export interface AssetPage { items:AssetRecord[]; total:number }
 export interface ProjectMaterialEvidence {path:string;name:string;alias:string;kind:'directory'|'prefab'|'model'}
 export interface ProjectMaterialMatch {assetId:string;asset:AssetRecord;relation:'manual'|'detected'|'both'|'uncertain';evidence:ProjectMaterialEvidence[]}
@@ -61,7 +61,7 @@ export interface SourceUndoInfo {token:string;assetId:string;title:string;source
 export type BoothTab='login'|'favorites'|'gifts'|'library';
 export interface BoothDownload {id:string;name:string;state:'downloading'|'completed'|'interrupted'|'cancelled'|'failed';receivedBytes:number;totalBytes:number;downloadBps:number;startedAt:string;finishedAt?:string;assetId?:string;sourceUrl?:string;error?:string}
 export interface BoothState {downloadDir?:string;sessionSaved:boolean;downloads:BoothDownload[];active:boolean}
-export interface AppSettings extends ViewPreferences { reviewHeaderPinned:boolean; contextMenu?:ContextMenuPreferences; language:AppLanguage;unityEditorPath?:string;detachedRoots?:string[]; directSources?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean;xianyuEnabled:boolean }
+export interface AppSettings extends ViewPreferences { reviewHeaderPinned:boolean; reviewShowLocalImage:boolean; contextMenu?:ContextMenuPreferences; language:AppLanguage;unityEditorPath?:string;detachedRoots?:string[]; directSources?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean;xianyuEnabled:boolean }
 export interface UpdateState {status:'idle'|'checking'|'available'|'up-to-date'|'downloading'|'ready'|'installing'|'error'|'unsupported';currentVersion:string;latestVersion?:string;releaseUrl?:string;releaseNotes?:string;receivedBytes:number;totalBytes?:number;downloadBps?:number;message?:string;canInstall:boolean;checkedAt?:string}
 export interface Snapshot { stats:Stats; scan:ScanProgress; queue:QueueProgress; settings:AppSettings;proxy?:ProxyStatus;undoAvailable?:boolean;sourceUndo?:SourceUndoInfo;warnings?:string[] }
 export interface FileEntry { name:string; size:number; directory:boolean }
