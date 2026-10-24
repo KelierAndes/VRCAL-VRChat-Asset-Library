@@ -15,5 +15,11 @@ export function parseWebDiscoveryReply(raw:unknown):DiscoveryPlan {
  let text=raw.trim();
  const fenced=text.match(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i);
  if(fenced)text=fenced[1].trim();
- try{const plan=parseDiscovery(JSON.parse(text));for(const query of plan.boothQueries)discoveryUrl('booth',query);discoveryUrl('xianyu',plan.xianyuQuery);return plan}catch{throw new Error('回答格式不正确：请复制完整的检索词 JSON。不能包含商品列表、网址或额外文字。');}
+ try{
+  let value=JSON.parse(text);
+  // Manual paste is an explicit import. Automatic collection additionally binds
+  // the envelope to the workspace's current unpredictable request ID.
+  if(value&&typeof value==='object'&&!Array.isArray(value)&&Object.keys(value).length===2&&Object.hasOwn(value,'plan')&&typeof value.requestId==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value.requestId))value=value.plan;
+  const plan=parseDiscovery(value);for(const query of plan.boothQueries)discoveryUrl('booth',query);discoveryUrl('xianyu',plan.xianyuQuery);return plan;
+ }catch{throw new Error('回答格式不正确：请复制完整的检索词 JSON。不能包含商品列表、网址或额外文字。');}
 }

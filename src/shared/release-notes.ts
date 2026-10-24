@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.12',date:'2026-10-24',channel:'preview',title:'应用内网页 AI 找素材',sections:[
+    {kind:'added',items:['千问、Kimi、DeepSeek 官方网页可在“AI 找素材”页面内打开，无需填写 API 密钥或切到外部浏览器。尝试自动填好本次需求，由用户在官网发送；有效回答衔接真实商品搜索。','每次需求绑定独立标记，严格核对当前回答并等待连续稳定；保留同页复制提示词、重新填入和粘贴回答回退。']},
+    {kind:'improved',items:['三家官网分别保存登录会话，随资料库迁移，普通备份不含凭证；远程页面无桌面接口，限制导航、权限与下载。','网页区域适配滚动、缩放、切页和本地弹窗；修改需求或关闭工作区使旧回答失效。保留原有本地规则和 API 搜索。']},
+    {kind:'notes',items:['自动衔接以隔离合成官网验证；真实账号登录、验证码和三家回答质量尚未完成验收。程序不自动发送聊天，不绕过网站验证，网站结构变化可改用同页回退。','本版仅改进找素材流程；新增文字暂为中文，公开预览不进入稳定更新通道。完整检查结果见本版验收记录。']}
+  ]},
   {version:'1.4.0-preview.11',date:'2026-10-24',channel:'preview',title:'同名本地封面与资料库写入保护',sections:[
     {kind:'fixed',items:['同一已授权目录中的 ZIP、RAR、7z、Unitypackage 可使用精确同名本地图片作封面，保留版本和适配名；新配对图片不再单独建卡，独立图片与贴图继续保留。','刷新素材后，旧的无人工信息配对图片退出商品列表和匹配队列，保留原记录编号与备份，不占用户隐藏列表；有人工标注、来源、排除、集合或关联引用的旧图保留卡片。']},
     {kind:'improved',items:['素材目录与应用资料库、备份位置双向禁止重叠；保存改用独占随机临时文件并拒绝多硬链，补强队列、位置记录和百度任务保存。','新增扫描与封面指南：手动添加单个文件不查父目录；明确选择包与图片可配对，完整刷新也可在已分别登记的同目录文件来源内配对。人工封面、商品封面、本地预览的优先级保持不变。']},

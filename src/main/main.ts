@@ -41,7 +41,7 @@ import {inspectProjectMaterials,clearProjectMaterialCache} from './project-mater
 import {ProjectImports,listProjectFiles} from './project-import';
 import {PublicPluginDownloads} from './public-plugins';
 import {ProductDiscovery} from './discovery';
-import {buildWebDiscoveryPrompt} from './discovery-web';
+import {DiscoveryAiWorkspace,prepareAiWebSessionMigration} from './discovery-ai-workspace';
 import {createPublicPageFetch,createPublicPluginFetch} from './public-plugin-request';
 import {ModelPreviewWindow} from './model-preview-window';
 import {AiService} from './ai-service';
@@ -96,7 +96,7 @@ let xianyu:XianyuWorkspace;let xianyuAccess:XianyuAccess;
 let inbox:LinkInboxStore;let inboxAccess:InboxAccess;let inboxMonitor:LinkInboxMonitor;let inboxDownloadId:string|undefined;let inboxReadGeneration=0;let inboxSuspensions=0;
 let publicPlugins:PublicPluginDownloads;let pluginCancelGeneration=0;let pluginInstall:Promise<import('../shared/project-contracts').ProjectImportJob>|undefined;
 let modelPreview:ModelPreviewWindow;
-let discovery:ProductDiscovery;
+let discovery:ProductDiscovery;let discoveryAi:DiscoveryAiWorkspace;
 let aiService:AiService;let aiQueue:AiClassificationQueue;let unityDiagnostics:UnityDiagnosticsMonitor;
 let projectImports:ProjectImports;let baidu:BaiduWorkspace;let baiduDownloads:BaiduDownloads;let cloud:CloudCatalog;
 let store:Store;let scanner:Scanner;let queue:EnrichmentQueue;let debounce:ReturnType<typeof setTimeout>|undefined;
@@ -108,7 +108,7 @@ function getAsset(id:unknown):AssetRecord{if(typeof id!=='string')throw new Erro
 function getRawAsset(id:unknown):AssetRecord{if(typeof id!=='string')throw new Error('请选择一个素材。');const item=store.getRaw(id);if(!item)throw new Error('素材不存在，请刷新列表。');return item}
 function matchingAsset(id:string):AssetRecord|null {return matchingCatalog(store).get(id)}
 function protectedRoots(){const settings=store?.settings();return [...new Set([DEFAULT_ROOT,...(settings?.roots??initialRoots),...(settings?.detachedRoots??[])])]}
-async function prepareCookieMigration(directory:string,roots:string[]):Promise<BrowserCookieSnapshot[]>{const booth=await prepareBoothSessionMigration(directory,roots),baidu=await prepareBaiduSessionMigration(directory,roots),market=await prepareXianyuSessionMigration(directory,roots);return [booth,baidu,market].filter((v):v is BrowserCookieSnapshot=>!!v)}
+async function prepareCookieMigration(directory:string,roots:string[]):Promise<BrowserCookieSnapshot[]>{const booth=await prepareBoothSessionMigration(directory,roots),baidu=await prepareBaiduSessionMigration(directory,roots),market=await prepareXianyuSessionMigration(directory,roots);const ai=await prepareAiWebSessionMigration(directory,roots);return [...[booth,baidu,market].filter((v):v is BrowserCookieSnapshot=>!!v),...ai]}
 function boothReadRoots(asset:AssetRecord):string[]{const roots=new Set<string>();for(const id of asset.members?.map(member=>member.id)||[asset.id]){const raw=store.getRaw(id);if(raw?.group==='BOOTH 下载')try{roots.add(path.dirname(safeBoothDownloadPath(raw.path,dataDir,protectedRoots())))}catch{/* Invalid references do not widen the read scope. */}}return [...roots]}
 async function refreshDownloadAvailability(){const current=store;let updated=false;for(const asset of current.all()){if(closing||migrating||recycleOperation||current!==store)break;if(asset.group!=='BOOTH 下载')continue;try{const file=safeBoothDownloadPath(asset.path,dataDir,protectedRoots()),stat=await fsp.lstat(file);if(!closing&&!migrating&&!recycleOperation&&current===store)updated=current.updateAvailability(asset.id,!stat.isFile()||stat.isSymbolicLink(),asset)||updated}catch(error:any){if(['ENOENT','ENOTDIR'].includes(error.code)&&!closing&&!migrating&&!recycleOperation&&current===store)updated=current.updateAvailability(asset.id,true,asset)||updated}}if(updated)changed()}
 function rememberLocation(selected:string,backupDir?:string,roots=protectedRoots()){
@@ -162,6 +162,7 @@ function setupServices(){
  }});
  xianyu?.close();xianyu=new XianyuWorkspace({parent:()=>window,dataDir,roots:protectedRoots,getTheme:()=>normalizeTheme(store.settings().theme),getLanguage:()=>store.settings().language,isEnabled:()=>store.settings().xianyuEnabled,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,validateAsset:id=>{const a=getAsset(id);if(a.kind==='unity-project')throw new Error('请选择素材后进行辅助搜图。');const cover=a.manual.coverFile||a.online.coverFile||a.previewFile;return {title:a.manual.title||a.online.title||a.name,coverPath:cover?safeCoverPath(dataDir,cover):undefined}},searchBooth:(id,query)=>booth.open({tab:'search',assetId:id,query,forceKeyword:true}),applyMarketplace:(id,url,capturedHtml)=>changeSource(id,url,false,capturedHtml)});
  const boundXianyu=xianyu,boundStore=store;
+ discoveryAi?.close();discoveryAi=new DiscoveryAiWorkspace({parent:()=>window??undefined,dataDir,roots:protectedRoots,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK});
  discovery=new ProductDiscovery({ai:()=>aiService,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,xianyuEnabled:()=>store.settings().xianyuEnabled===true,booth:(url,signal)=>queue.discoveryPage(url,signal),cover:(url,signal)=>queue.discoveryCover(url,signal),xianyu:(query,signal)=>xianyu.searchProducts(query,signal)});
  xianyuAccess=new XianyuAccess({enabled:()=>store.settings().xianyuEnabled,save:enabled=>{store.saveSettings({xianyuEnabled:enabled})},close:()=>{discovery?.cancel();inboxMonitor?.pause();boundXianyu.networkChanged()},changed,available:()=>!closing&&!migrating&&xianyu===boundXianyu&&store===boundStore,confirm:async()=>{const answer=await dialog.showMessageBox(window!,localizeDialogOptions({type:'warning',...XIANYU_USAGE_NOTICE,buttons:['取消','我已了解，开启'],defaultId:0,cancelId:0,noLink:true},uiLanguage()));return answer.response===1}});
  const boundBooth=booth;
@@ -273,7 +274,16 @@ function registerHandlers(){
  handle('aiState',()=>aiService.getState());
  handle('discoveryState',()=>discovery.snapshot());
  handle('startDiscovery',(request:unknown)=>discovery.start(request));
- handle('prepareWebDiscovery',async(provider:unknown,request:unknown)=>{if(closing||migrating||!store.settings().onlineEnabled||process.env.VRC_LIBRARY_NO_NETWORK)throw new Error('请先开启联网。');const prepared=buildWebDiscoveryPrompt(provider,request);clipboard.writeText(prepared.prompt);await shell.openExternal(prepared.url)});
+ handle('prepareWebDiscovery',async(provider:unknown,request:unknown)=>{await discoveryAi.open(provider,request)});
+ handle('openWebDiscovery',(provider:unknown,request:unknown)=>discoveryAi.open(provider,request));
+ handle('webDiscoveryState',()=>discoveryAi.snapshot());
+ handle('setWebDiscoveryBounds',(token:unknown,bounds:unknown)=>discoveryAi.bounds(token,bounds));
+ handle('fillWebDiscovery',(token:unknown)=>discoveryAi.fill(token));
+ handle('collectWebDiscovery',(token:unknown)=>discoveryAi.collect(token));
+ handle('copyWebDiscoveryPrompt',(token:unknown)=>{clipboard.writeText(discoveryAi.copyPrompt(token))});
+ handle('applyWebDiscoveryReply',(token:unknown)=>{if(discovery.snapshot().running)throw new Error('请等待当前搜索结束。');const captured=discoveryAi.takeReply(token,request=>{if(closing||migrating||!store.settings().onlineEnabled||process.env.VRC_LIBRARY_NO_NETWORK)throw new Error('请先开启联网。');if(request.platforms.includes('xianyu')&&!store.settings().xianyuEnabled)throw new Error('请先在设置中启用闲鱼辅助搜索。')});return discovery.startWithWebPlan(captured.request,captured.reply)});
+ handle('closeWebDiscovery',()=>discoveryAi.close());
+ handle('clearWebDiscoverySession',(provider:unknown)=>discoveryAi.clear(provider));
  handle('startWebDiscovery',(request:unknown,reply:unknown)=>discovery.startWithWebPlan(request,reply));
  handle('cancelDiscovery',()=>{discovery.cancel();return discovery.snapshot()});
  handle('openDiscoveryProduct',async(url:string)=>{if(!store.settings().onlineEnabled||process.env.VRC_LIBRARY_NO_NETWORK)throw new Error('请先开启联网。');const item=discovery.product(url);if(!item)throw new Error('请从当前搜索结果打开商品。');if(item.platform==='booth')await booth.openDiscovery(item.url);else await xianyu.openDiscovery(item.url)});
@@ -440,7 +450,7 @@ function registerHandlers(){
  handle('updateTags',(ids:unknown,add:unknown,remove:unknown)=>{store.updateTags(expandedIds(ids),add as any,remove as any);changed()});
  handle('setViewPreferences',(preferences:unknown)=>{if(!preferences||typeof preferences!=='object'||Array.isArray(preferences))throw new Error('显示设置无效。');const value=preferences as any;if(Object.keys(value).some(key=>!['viewMode','density','coverFit','reviewSort','reviewHeaderPinned','reviewShowLocalImage','theme','language'].includes(key))||value.viewMode!==undefined&&!['grid','list'].includes(value.viewMode)||value.density!==undefined&&!['compact','standard','spacious'].includes(value.density)||value.coverFit!==undefined&&!['contain','cover'].includes(value.coverFit)||value.reviewSort!==undefined&&!REVIEW_SORTS.includes(value.reviewSort)||Object.hasOwn(value,'theme')&&!THEME_IDS.includes(value.theme)||Object.hasOwn(value,'language')&&!LANGUAGE_IDS.includes(value.language)||Object.hasOwn(value,'reviewHeaderPinned')&&typeof value.reviewHeaderPinned!=='boolean'||Object.hasOwn(value,'reviewShowLocalImage')&&typeof value.reviewShowLocalImage!=='boolean')throw new Error('显示设置无效。');const settings=store.saveSettings(value);if(Object.hasOwn(value,'theme')||Object.hasOwn(value,'language'))refreshTheme();changed();return settings});
  handle('undoMetadata',()=>{const restored=store.undoMetadata();if(restored)changed();return restored});
- handle('setOnlineEnabled',async(enabled:boolean)=>{if(typeof enabled!=='boolean')throw new Error('设置无效。');inboxMonitor.pause();discovery?.cancel();store.saveSettings({onlineEnabled:enabled});if(enabled)void inboxMonitor.check('foreground');proxy.setEnabled(enabled);booth.networkChanged();baidu.networkChanged();xianyu.networkChanged();if(enabled){await proxy.inspect();await booth.restoreDownloadAssociations();await queue.resume();await queue.enqueue()}else{await aiQueue.stop();setupAI();publicPlugins.cancel();updater.cancel();preview.close();booth.close();queue.pause()}changed()});
+ handle('setOnlineEnabled',async(enabled:boolean)=>{if(typeof enabled!=='boolean')throw new Error('设置无效。');inboxMonitor.pause();discovery?.cancel();store.saveSettings({onlineEnabled:enabled});if(!enabled)discoveryAi?.close();if(enabled)void inboxMonitor.check('foreground');proxy.setEnabled(enabled);booth.networkChanged();baidu.networkChanged();xianyu.networkChanged();if(enabled){await proxy.inspect();await booth.restoreDownloadAssociations();await queue.resume();await queue.enqueue()}else{await aiQueue.stop();setupAI();publicPlugins.cancel();updater.cancel();preview.close();booth.close();queue.pause()}changed()});
  handle('setZoom',applyZoom);handle('checkProxy',()=>proxy.check());
  handle('setConcurrency',(value:number)=>{if(!Number.isInteger(value)||value<1||value>6)throw new Error('并发数量必须是 1 到 6 的整数。');store.saveSettings({downloadConcurrency:value});queue.setConcurrency(value);changed();return value});
  handle('openNetworkUrl',async(url:string)=>{if(typeof url!=='string'||url.length>4000)throw new Error('网址无效。');const visible=[queue.progress.transfer?.url,...(queue.progress.activeTransfers||[]).map(x=>x.url),...(queue.progress.recentTransfers||[]).map(x=>x.url)];if(!visible.includes(url))throw new Error('只能打开当前网络任务中的链接。');await shell.openExternal(publicHttpsUrl(url).href)});
@@ -449,7 +459,7 @@ function registerHandlers(){
   const target=await pickDataLocation(window!);if(!target||path.resolve(target).toLowerCase()===dataDir.toLowerCase())return false;
   updater.cancel();
   if(fs.existsSync(target)&&(await fsp.readdir(target)).length)throw new Error('目标资料库文件夹已有内容，请选择一个新位置。');
-  const old=dataDir,settings=store.settings();inboxMonitor.pause();invalidateInboxDownload();await sourceChanges;await booth.shutdown();await baidu.shutdown();await xianyu.shutdown();const snapshots=await prepareCookieMigration(old,[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])]);await aiQueue.stop();aiService.close();discovery?.cancel();migrating=true;modelPreview?.close();preview.close();if(debounce){clearTimeout(debounce);debounce=undefined}
+  const old=dataDir,settings=store.settings();inboxMonitor.pause();invalidateInboxDownload();await sourceChanges;await discoveryAi?.shutdown();await booth.shutdown();await baidu.shutdown();await xianyu.shutdown();const snapshots=await prepareCookieMigration(old,[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])]);await aiQueue.stop();aiService.close();discovery?.cancel();migrating=true;modelPreview?.close();preview.close();if(debounce){clearTimeout(debounce);debounce=undefined}
   proxy.setEnabled(false);queue.stop();scanner.cancel();await Promise.all([queue.waitIdle(),scanner.waitIdle(),recycleOperation]);store.close();
   try{
    await copyLibraryData(old,target,[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])],testProfile,snapshots);rememberLocation(target,settings.backupDir,[DEFAULT_ROOT,...settings.roots,...(settings.detachedRoots??[])]);
@@ -496,7 +506,7 @@ function registerHandlers(){
   if(contents.format!=='vrchat-asset-library'||![1,2].includes(contents.version)||!Array.isArray(contents.assets))throw new Error('不是有效的素材库备份。');
   const result2=await dialog.showMessageBox(window!,localizeDialogOptions({type:'question',title:'恢复资料库',message:'合并恢复备份中的分类、备注和封面？',detail:'会更新备份里对应的资料库记录，保留现有的其他记录。原素材保持原样；当前资料库会先自动备份。',buttons:['恢复','取消'],defaultId:1,cancelId:1},uiLanguage()));if(result2.response!==0)return false;
   const backup=await ensureBackupLocation();if(!backup)return false;
-  discovery?.cancel();inboxMonitor.pause();invalidateInboxDownload();await sourceChanges;await recycleOperation;await booth.shutdown();await baidu.shutdown();await xianyu.shutdown();preview.close();queue.pause();scanner.cancel();await Promise.all([queue.waitIdle(),scanner.waitIdle()]);store.exportData(assertUserStorage(path.join(backup,`before-restore-${Date.now()}.json`),protectedRoots(),testProfile));
+  discovery?.cancel();inboxMonitor.pause();invalidateInboxDownload();await sourceChanges;await recycleOperation;await discoveryAi?.shutdown();await booth.shutdown();await baidu.shutdown();await xianyu.shutdown();preview.close();queue.pause();scanner.cancel();await Promise.all([queue.waitIdle(),scanner.waitIdle()]);store.exportData(assertUserStorage(path.join(backup,`before-restore-${Date.now()}.json`),protectedRoots(),testProfile));
   store.importData(result.filePaths[0]);queue.exclude(store.all().map(asset=>asset.id));store.saveSettings({backupDir:backup});rememberLocation(dataDir,backup);window?.webContents.setZoomFactor(store.settings().uiZoom||1);refreshTheme();changed();return true;
  }));
 }
@@ -534,4 +544,4 @@ if(primary)app.whenReady().then(async()=>{
 }).catch(error=>{dialog.showErrorBox('素材库启动失败',error instanceof Error?error.message:String(error));app.quit()});
 app.on('window-all-closed',()=>app.quit());
 let exitReady=false;
-app.on('before-quit',event=>{if(exitReady)return;event.preventDefault();closing=true;discovery?.cancel();void aiQueue?.stop();aiService?.close();modelPreview?.close();publicPlugins?.cancel();inboxMonitor?.stop();invalidateInboxDownload();updater?.close();preview?.close();scanner?.cancel();if(!migrating){proxy?.setEnabled(false);queue?.stop()}void Promise.allSettled([pluginInstall,publicPlugins?.waitIdle(),recycleOperation,projectImports?.waitIdle(),sourceChanges,booth?.shutdown(),baidu?.shutdown(),xianyu?.shutdown(),queue?.waitIdle(),scanner?.waitIdle()]).then(()=>{exitReady=true;app.quit()})});
+app.on('before-quit',event=>{if(exitReady)return;event.preventDefault();closing=true;discovery?.cancel();void aiQueue?.stop();aiService?.close();modelPreview?.close();publicPlugins?.cancel();inboxMonitor?.stop();invalidateInboxDownload();updater?.close();preview?.close();scanner?.cancel();if(!migrating){proxy?.setEnabled(false);queue?.stop()}void Promise.allSettled([pluginInstall,publicPlugins?.waitIdle(),recycleOperation,projectImports?.waitIdle(),sourceChanges,discoveryAi?.shutdown(),booth?.shutdown(),baidu?.shutdown(),xianyu?.shutdown(),queue?.waitIdle(),scanner?.waitIdle()]).then(()=>{exitReady=true;app.quit()})});

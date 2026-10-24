@@ -25,3 +25,7 @@ ai-settings.json
 ai-cache.json
 ai-usage.json
 .superpowers/
+ai-web-qwen/
+ai-web-kimi/
+ai-web-deepseek/
+ai-web-*-cookies.bin

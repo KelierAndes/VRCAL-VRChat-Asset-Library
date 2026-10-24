@@ -16,6 +16,11 @@ test('web response accepts one plain or fenced JSON plan and rejects links, extr
  assert.deepEqual(parseWebDiscoveryReply(JSON.stringify(plan)),plan);assert.deepEqual(parseWebDiscoveryReply('```json\n'+JSON.stringify(plan)+'\n```'),plan);
  for(const raw of [JSON.stringify({...plan,boothQueries:['https://evil.example']}),JSON.stringify({...plan,products:[]}),JSON.stringify({...plan,boothQueries:[]}),JSON.stringify({...plan,boothQueries:['gothic\ndress']}),JSON.stringify({...plan,xianyuQuery:'VRChat\t礼裙'}),'<script>bad</script>','x'.repeat(16001),'Text before\n```json\n'+JSON.stringify(plan)+'\n```'])assert.throws(()=>parseWebDiscoveryReply(raw));
 });
+
+test('explicit manual fallback accepts the full in-app answer envelope but rejects extra fields and malformed request IDs',()=>{
+ const envelope={requestId:'11111111-1111-4111-8111-111111111111',plan};assert.deepEqual(parseWebDiscoveryReply(JSON.stringify(envelope)),plan);assert.deepEqual(parseWebDiscoveryReply('```json\n'+JSON.stringify(envelope)+'\n```'),plan);
+ for(const value of [{...envelope,products:[]},{...envelope,requestId:'wrong'},{requestId:envelope.requestId,plan:{...plan,products:[]}}])assert.throws(()=>parseWebDiscoveryReply(JSON.stringify(value)));
+});
 test('web plan searches actual cards without API calls, does not invent products and keeps old results on invalid input',async()=>{
  let aiCalls=0;const queries=[];const service=new ProductDiscovery({ai:()=>({planSearch:async()=>{aiCalls++;throw Error('must not call API')},cancel:()=>true}),canNetwork:()=>true,xianyuEnabled:()=>false,booth:async(url)=>{queries.push(url);return {html,url}},xianyu:async()=>[],cover:async()=>''});
  service.startWithWebPlan(request,JSON.stringify(plan));const result=await wait(service);assert.equal(aiCalls,0);assert.equal(result.method,'web-ai');assert.equal(result.products.length,1);assert(result.notice.includes('你提供'));assert(queries[0].includes(encodeURIComponent('ゴシック ドレス しなの')));

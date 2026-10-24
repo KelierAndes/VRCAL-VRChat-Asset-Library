@@ -1,0 +1,71 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>用一句话找素材</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.12 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">第一次使用</a><a href="#section-3">可不配置 AI，先试用</a><a href="#section-4">不填 API 密钥，在应用内使用网页 AI</a><a href="#section-9">配置千问、Kimi 或 DeepSeek</a><a href="#section-10">闲鱼登录与验证</a><a href="#section-11">如何看懂结果</a></nav><main><h1 id="section-1">用一句话找素材</h1>
+<p>这个页面用于<strong>寻找你还没有下载的商品</strong>。给本地素材补封面和来源，仍在“匹配确认”中进行。</p>
+<h2 id="section-2">第一次使用</h2>
+<ol>
+<li>打开应用，在左侧点击 <strong>AI 找素材</strong>。</li>
+<li>在“你想找什么？”里输入，例如：<strong>我想要一件黑白配色的哥特蕾丝礼裙</strong>。原来的三条示例按钮已经移除，直接输入自己的需求。</li>
+<li>如果想限定角色，在“适配角色”里填写作者常用的名字，例如 <code>Shinano</code> 或 <code>しなの</code>。不知道可留空。</li>
+<li>默认选中 BOOTH。希望同时搜索闲鱼时，先在“设置与备份”启用闲鱼辅助搜索并阅读提醒，再勾选此页的闲鱼。</li>
+<li>点击 <strong>帮我找素材</strong>。商品会逐步显示，封面随后加载；搜索过程中可点击“停止搜索”。</li>
+<li>查看卡片上的平台、标题、作者（网页有提供时）、命中词和适配提示。点击“检索依据”可以看到这件商品使用了什么搜索词、原始网址和完整标题。</li>
+<li>点击 <strong>在内置浏览器查看商品</strong>，核对商品的适配版本、内容、价格和作者授权。</li>
+</ol>
+<p><strong>搜索到商品不代表已经购买、下载或导入。</strong> 应用不会因为搜索结果而修改本地素材、绑定来源或给角色安装东西。需要购买的商品按原作者与平台流程处理；BOOTH 账号与下载、待下载链接仍沿用原有页面。</p>
+<h2 id="section-3">可不配置 AI，先试用</h2>
+<p>没有密钥也能使用。应用会把常见的“哥特、礼裙、洛丽塔、和服、赛博”等词转换为日文和英文关键词，并标为 <strong>本地关键词检索</strong>。它只是有限的词语规则，不会理解所有描述或保证颜色、价格等条件。</p>
+<p>应用已内置 VRChat 检索提示词，会要求 AI 分清品类、风格、颜色和细节，整理简短的 BOOTH 日文／英文词及闲鱼中文词。页面可展开“查看内置检索提示词”。API 和网页方式使用同一套提示词。</p>
+<p>开启 AI 后，由 AI 整理复杂描述和检索词。商品本身仍来自网站真实搜索结果，AI 不提供商品网址，不凭空生成封面或商品。</p>
+<h2 id="section-4">不填 API 密钥，在应用内使用网页 AI</h2>
+<p>这条方式使用自己的千问、Kimi 或 DeepSeek 官方网页账号，不调用应用配置的 API，也不计入应用的 API 调用次数。官网的登录、验证和额度规则照常适用。</p>
+<ol>
+<li>开启应用联网，在左侧进入 <strong>AI 找素材</strong>。</li>
+<li>在 <strong>你想找什么？</strong> 输入需求，例如“黑白配色的哥特蕾丝礼裙”。适配角色可以留空；勾选 BOOTH，或在已启用闲鱼辅助搜索时一并勾选闲鱼。</li>
+<li>在 <strong>官方 AI 工作区 · 免 API 密钥</strong> 选择服务商，点击 <strong>在应用内打开官方 AI</strong>。官网出现在本页的网页区域，不会跳到系统浏览器。</li>
+<li>若官网要求登录，请在这块官网区域正常操作。密码和验证码只在官网输入，无需发给维护者。</li>
+<li>应用尝试填入本次检索需求。<strong>不会自动点击发送，也不会覆盖已有草稿。</strong> 请检查输入框内容，再在官网点击发送。如果没有填好，先确认已登录、输入框可用且没有草稿，再点 <strong>重试填入需求</strong>。也可以点 <strong>复制本次提示词</strong>，在同一官网的输入框按 Ctrl＋V。</li>
+<li>等待官网回答。应用只尝试读取最后一个受支持的回答区；本次独立标记、完整结构和检索词都校验通过，并在连续读取中稳定后，自动搜索一次真实商品。</li>
+<li>往下看商品卡片，点击 <strong>在内置浏览器查看商品</strong> 核对真实来源和适配。AI 整理的词不构成适配或授权证明。</li>
+</ol>
+<p>官网首次加载可能较慢，请等待页面准备好。若官网提示使用环境异常或要求验证，请按官网正常流程处理，或切换服务商；应用不绕过这些限制。首次登录后，官网可能重新载入页面；请检查提示词仍在正确的输入框中。应用不自动发送账号消息，不扫描完整历史对话，不通过网站未公开接口调用 AI。切页或关闭工作区会取消本次网页任务；修改需求、角色、平台或服务商后，需要重新打开本次需求。打开应用设置、外观菜单或手动回答区时，官网会暂时隐藏，避免遮挡操作。</p>
+<h3 id="section-5">实机画面</h3>
+<p>以下为隔离资料库的实际界面，未登录真实账号、未发送消息。分别截取应用页面和内嵌官网区域，便于看清按钮。</p>
+<figure><img src="screenshots/web-ai/application-controls.png" alt="AI 找素材页面：需求框与官方 AI 工作区" loading="lazy"><figcaption>AI 找素材页面：需求框与官方 AI 工作区</figcaption></figure>
+<figure><img src="screenshots/web-ai/kimi-public-surface.png" alt="应用内的 Kimi 公开首页：已自动填入检索提示词，尚未点击发送" loading="lazy"><figcaption>应用内的 Kimi 公开首页：已自动填入检索提示词，尚未点击发送</figcaption></figure>
+<figure><img src="screenshots/web-ai/qwen-public-surface.png" alt="应用内的千问公开首页：已自动填入本次检索提示词，尚未点击发送" loading="lazy"><figcaption>应用内的千问公开首页：已自动填入本次检索提示词，尚未点击发送</figcaption></figure>
+<h3 id="section-6">没有自动得到结果怎么办</h3>
+<ul>
+<li>官网还在输出：先等回答完成，再点 <strong>重新读取本次回答</strong>。</li>
+<li>提示词没有出现：检查登录和草稿，使用 <strong>重试填入需求</strong>；已有草稿请自己处理，程序不会替你删除。</li>
+<li>官网结构变化或 AI 附加了大量解释：展开 <strong>手动粘贴完整 JSON（备用）</strong>，复制官网本次完整 JSON（可含一对 json 代码围栏）粘贴后，点击 <strong>使用粘贴回答搜索商品</strong>。可以直接粘贴本次包含 requestId 和 plan 的完整回答，也兼容旧版只有检索词的 JSON。手工粘贴是你主动选择使用该回答，请核对需求是否对应。</li>
+<li>官网不可用但应用仍联网时：查看本页具体提示，原有商品结果保留；可用上方 <strong>帮我找素材</strong> 按本地关键词规则搜索网站（开启 API 用途时使用所配 API）。应用关闭联网时，需要先恢复联网才能查询商品。</li>
+</ul>
+<h3 id="section-7">登录保存在哪里</h3>
+<p>三家官网各用独立会话，保存在所选资料库的 <code>ai-web-qwen</code>、<code>ai-web-kimi</code>、<code>ai-web-deepseek</code>，必要的加密 Cookie 快照使用同名 <code>-cookies.bin</code> 文件。通过应用更改资料库位置会一并迁移；普通资料库备份不含这些凭证。点击 <strong>退出该官网并清除会话</strong> 可清除本机该官网的登录、网页存储和快照；不会删除其他平台登录或官网服务器上的对话。旧资料库副本和系统备份不会随此操作擦除。</p>
+<p>本次提示词、独立标记和用于解析的回答只在当前任务内存中使用，不写入 API 派生缓存。官网自身仍可能保留对话及浏览器缓存；详情见<a href="PRIVACY.zh-CN.html">隐私说明</a>。应用自动填入的是内置提示词、脱敏需求、角色线索和本次随机标记；官网正常登录和访问还按其政策处理 Cookie 等信息。应用不会把本地模型、图片、工程或聊天收件箱交给 AI。</p>
+<h3 id="section-8">本版验证边界</h3>
+<p>隔离实机验收使用拦截的合成官网验证填写、回答识别和搜索衔接；不等于已经验收三家真实账号、验证码、地区限制或回答质量。官网变化时自动识别可能失效，同页手工入口继续可用。本功能只用于找素材，不同时覆盖免密钥分类和报错解释。</p>
+<h2 id="section-9">配置千问、Kimi 或 DeepSeek</h2>
+<ol>
+<li>点击页面右上方 <strong>AI 设置</strong>。</li>
+<li>选择服务商。点击密钥申请页，在服务商自己的平台申请 API 密钥。聊天会员不一定含 API 额度。</li>
+<li>将密钥填入“API 密钥”；保留默认模型，或填写服务商当前允许使用的模型名称。</li>
+<li>勾选“启用 AI 辅助”和 <strong>用描述找素材</strong>，阅读发送范围和可能产生的费用，再勾选同意并保存。</li>
+<li>回到需求框重新搜索。正常使用 AI 时显示 <strong>AI 辅助检索</strong>；密钥、额度或网络有问题时显示具体提示，并改用本地规则。</li>
+</ol>
+<p>每天默认最多 20 次，找素材、分类、报错解释共用额度。相同需求的有效 AI 结果使用缓存；限额是调用次数，不是费用上限。</p>
+<h2 id="section-10">闲鱼登录与验证</h2>
+<p>应用使用自己保存的闲鱼会话，在后台打开正常的官方搜索网页读取商品卡片。不会读取聊天，不会调用私有搜索接口，也不会自动下单。</p>
+<p>第一次尚未登录或网站要求验证码时，点击结果区域的 <strong>打开站内搜索</strong>，在官方页面正常完成登录／验证，回到应用再搜索。不会要求提供账号密码给 AI。网页改版或没有返回可识别卡片时，会提示未能读取，保留 BOOTH 的结果。</p>
+<h2 id="section-11">如何看懂结果</h2>
+<ul>
+<li><strong>BOOTH / 闲鱼</strong>：这件商品来自哪个平台。闲鱼卖家声明不是 BOOTH 原作者确认。</li>
+<li><strong>标题命中</strong>：标题里实际出现的词，不是 AI 评分或购买建议。</li>
+<li><strong>标题提及某角色</strong>：只说明标题包含角色名；仍需核对具体文件和版本。</li>
+<li><strong>未确认支持某角色</strong>：当前证据不足，不表示一定不支持，也不表示支持。</li>
+<li><strong>封面暂不可用</strong>：保留商品和原网址，可在内置浏览器核对。</li>
+<li>每个平台最多展示 12 件，BOOTH 最多两组关键词；可以调整描述继续找。</li>
+</ul>
+<p>手动搜索与自动补全的暂停分开，但仍共享网站请求间隔、限流和缓存。关闭联网会停止本次搜索。切换应用页面后当前结果仍在；退出应用后结果列表不作为购买清单保存，公共页面／封面缓存及已生成的 AI 检索方案可能保留在资料库。</p>
+<p>新增界面暂用中文。既往版本验收涵盖真实 BOOTH、已登录闲鱼商品搜索、封面和预览；这不代表当前账号聊天已连通。本轮网页 AI 辅助使用应用内合成官网验证流程，没有调用付费 AI 或发送真实网页 AI 对话；真实账号聊天、网页验证及 AI 返回质量仍需实际核对。</p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

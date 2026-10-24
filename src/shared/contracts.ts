@@ -73,6 +73,15 @@ export interface LibraryAPI {
   discoveryState():Promise<import('./discovery').DiscoveryState>;
   startDiscovery(request:import('./discovery').DiscoveryRequest):Promise<import('./discovery').DiscoveryState>;
   prepareWebDiscovery(provider:import('./discovery-prompt').DiscoveryWebProvider,request:import('./discovery').DiscoveryRequest):Promise<void>;
+  openWebDiscovery(provider:import('./discovery-prompt').DiscoveryWebProvider,request:import('./discovery').DiscoveryRequest):Promise<import('./discovery').WebAiWorkspaceState>;
+  webDiscoveryState():Promise<import('./discovery').WebAiWorkspaceState>;
+  setWebDiscoveryBounds(token:string,bounds:import('./discovery').WebAiWorkspaceBounds|null):Promise<void>;
+  fillWebDiscovery(token:string):Promise<import('./discovery').WebAiWorkspaceState>;
+  collectWebDiscovery(token:string):Promise<import('./discovery').WebAiWorkspaceState>;
+  copyWebDiscoveryPrompt(token:string):Promise<void>;
+  applyWebDiscoveryReply(token:string):Promise<import('./discovery').DiscoveryState>;
+  closeWebDiscovery():Promise<void>;
+  clearWebDiscoverySession(provider:import('./discovery-prompt').DiscoveryWebProvider):Promise<void>;
   startWebDiscovery(request:import('./discovery').DiscoveryRequest,reply:string):Promise<import('./discovery').DiscoveryState>;
   cancelDiscovery():Promise<import('./discovery').DiscoveryState>;
   openDiscoveryProduct(url:string):Promise<void>;
