@@ -3,9 +3,17 @@ const test=require('node:test'),assert=require('node:assert/strict'),path=requir
 // A fresh process prevents another test's parsing from hiding eager imports.
 function parseInFreshProcess(moduleName,operation){
  const source=String.raw`
-  const fs=require('node:fs'),path=require('node:path');
+  const fs=require('node:fs'),path=require('node:path'),Module=require('node:module');
   const dependencies=()=>[...new Set(Object.keys(require.cache).map(file=>file.match(/[\\/]node_modules[\\/](cheerio|undici)[\\/]/)?.[1]).filter(Boolean))].sort();
-  let api=require(process.argv[1]);
+  let nativeImports=0;
+  // A Node unit probe needs no native runtime; the npm entrypoint can auto-install it.
+  const ordinaryLoad=Module._load;
+  Module._load=function(request,parent,isMain){
+   if(request==='electron'){nativeImports++;return {};}
+   return ordinaryLoad.call(this,request,parent,isMain);
+  };
+  let api;
+  try{api=require(process.argv[1]);}finally{Module._load=ordinaryLoad;}
   const fixtures=process.argv[2],operation=process.argv[3];
   if(operation==='baidu-workspace'){
    if(typeof api.BaiduWorkspace!=='function')throw new Error('BaiduWorkspace must remain importable without opening a browser');
@@ -27,7 +35,8 @@ function parseInFreshProcess(moduleName,operation){
    const html=fixture('rho-search-live'),url='https://booth.pm/ja/search/BCP-17%20Rho';
    result=operation==='search'?api.parseSearch(html,url):api.parseBoothDiscovery(html,url);
   }
-  console.log(JSON.stringify({before,after:dependencies(),result}));
+  const electronModules=Object.keys(require.cache).filter(file=>/[\\/]node_modules[\\/]electron[\\/]/.test(file));
+  console.log(JSON.stringify({before,after:dependencies(),result,nativeImports,electronModules}));
  `;
  const child=spawnSync(process.execPath,['-e',source,path.resolve(__dirname,'../dist/main/main',moduleName+'.js'),path.join(__dirname,'fixtures'),operation],{encoding:'utf8',windowsHide:true,timeout:15000});
  assert.ifError(child.error);assert.equal(child.status,0,child.stderr||child.stdout);
@@ -43,7 +52,9 @@ for(const [moduleName,operation,expected] of [
  ['baidu-page','baidu-page',baiduResult],
  ['baidu-workspace','baidu-workspace',baiduResult],
 ])test(`${operation} defers HTML dependencies until parsing and preserves fixture output`,()=>{
- const {before,after,result}=parseInFreshProcess(moduleName,operation);
+ const {before,after,result,nativeImports,electronModules}=parseInFreshProcess(moduleName,operation);
+ assert.deepEqual(electronModules,[],'unit probes must not load the Electron npm entrypoint or binary installer');
+ if(operation==='baidu-workspace')assert(nativeImports>0,'the workspace probe must exercise the stubbed native Electron boundary');
  assert.deepEqual(before,[],'business imports and non-HTML operations must not load Cheerio or Undici');
  assert.deepEqual(after,['cheerio','undici'],'the first parse must use the existing complete Cheerio parser');
  assert.deepEqual(result,expected);
