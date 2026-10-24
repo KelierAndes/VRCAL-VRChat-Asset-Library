@@ -1,0 +1,45 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VRChat本地素材管理器 v1.4.0-preview.5</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.5 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">更新了什么</a><a href="#section-3">怎么更新</a><a href="#section-4">预览版已知边界</a><a href="#section-5">说明书与反馈</a></nav><main><h1 id="section-1">VRChat本地素材管理器 v1.4.0-preview.5</h1>
+<p>这次把此前本地预览中积累的功能一起公开，重点是让“找到素材 → 选定工程 → 导入 → 装配 → 检查效果”更连贯。也新增了轻量 3D 预览、AI 辅助和待下载链接页面。</p>
+<p>这是<strong>公开预览版</strong>，请手动下载试用；不会作为稳定版内置更新推送。新增界面文字先提供中文，已有英语、日语与四套主题继续保留。</p>
+<h2 id="section-2">更新了什么</h2>
+<div class="table-scroll"><table><thead><tr><th>功能</th><th>这次的变化</th><th>从哪里开始</th></tr></thead><tbody>
+<tr><td>改模工作台</td><td>记住目标工程，集中工程商品、依赖线索、导入记录、插件和报错处理；文件导入、角色装配、菜单与效果检查分别显示</td><td>侧栏“改模与工程”</td></tr>
+<tr><td>导入与 MA 装配</td><td>同工程、同内容的 Unitypackage 重复导入前提醒；装配保留作者已有的 MA 菜单，没有时可创建显隐开关；装配和菜单共用一次 Unity 撤销</td><td>素材导入到指定工程后，在 Unity 中选择角色和预制件</td></tr>
+<tr><td>轻量 3D 预览</td><td>无需启动 Unity，可预览 FBX、GLB、glTF、OBJ 及部分 ZIP／Unitypackage；支持旋转、平移、缩放、线框及 25%–100% 渲染比例</td><td>素材详情中的 3D 预览</td></tr>
+<tr><td>公开插件</td><td>收录 30 项公开工具，提供作者发布页、用途和安装方式；其中 6 项支持下载素材包后交给指定工程导入</td><td>侧栏“公开插件”</td></tr>
+<tr><td>AI 分类建议</td><td>可选千问、Kimi、DeepSeek，细分衣服类型与风格，核对后接受为标签；保留人工和 BOOTH 主分类</td><td>AI 设置与素材分类建议</td></tr>
+<tr><td>Unity 报错解释</td><td>读取核对过归属的工程输出，合并重复错误，提供本地提示和可选 AI 排查建议</td><td>选择工程后进入“Unity 报错”</td></tr>
+<tr><td>AI 找素材</td><td>用一句话描述需求，整理检索词后从 BOOTH 或已开启的闲鱼显示真实商品、封面与来源；未配置 AI 时也有本地关键词规则</td><td>侧栏“AI 找素材”</td></tr>
+<tr><td>待下载链接</td><td>对应用内已加载的账号页面做近期范围识别、去重与待核对；有可靠时间证据的新记录可提示，并衔接百度下载</td><td>侧栏“待下载链接”，单独开启读取</td></tr>
+<tr><td>页面整理</td><td>按“素材整理、改模与工程、查找与下载”分组；分类靠近搜索，主题与语言收进外观；空闲下载摘要更紧凑</td><td>左侧导航与顶部外观按钮</td></tr>
+</tbody></table></div>
+<p>已有的 BOOTH 自动匹配、内置搜索与应用商品、来源撤回、隐藏素材、批量整理、手动拖拽入库、百度应用内下载、资料库备份继续保留。返回列表会保留筛选与浏览位置，小窗口使用导航抽屉访问全部入口。</p>
+<h2 id="section-3">怎么更新</h2>
+<ol>
+<li>在旧程序的“设置与备份”备份资料库，并记住保存位置，然后正常退出旧程序。</li>
+<li>下载本发布的 <code>VRC-Asset-Library-1.4.0-preview.5-x64.exe</code>，直接运行，无需安装 Node.js。</li>
+<li>继续使用原资料库。如果提示选择位置，请选择已有资料库所在位置，勿新建空库来代替。</li>
+<li>从“改模工作台”选择工程，或从素材详情尝试 3D 预览。AI、账号页面读取等功能需要分别开启和配置。</li>
+<li>首次尝试装配请使用工程副本。导入与菜单完成后仍需在 Unity 检查外观、动作和菜单，并自行保存场景。</li>
+</ol>
+<p>下载附件包含 Windows x64 免安装程序、与标签对应的完整源码、中文图文说明、验收记录和 SHA-256 校验清单。程序暂未签名。源码 ZIP 用于开发，直接使用请选择 EXE。</p>
+<h2 id="section-4">预览版已知边界</h2>
+<ul>
+<li><strong>账号新链接仍在验证。</strong> BOOTH 真实资料库条目已读取验证，但没有购买时间的条目只进入待核对，不冒充近期通知；闲鱼真实新交付和完整通知到下载流程尚未验收。当前检查应用内已加载页面，不会在平台窗口全关后独立发现未打开会话。</li>
+<li><strong>AI 需要自己的服务商密钥。</strong> 默认关闭，分别同意发送用途后使用，可能产生服务商费用。已验证模拟服务、隐私处理和界面，尚未验证真实付费 AI 效果。不会自动购买商品，也不会直接执行报错修复建议。</li>
+<li><strong>3D 是轻量预览。</strong> 不还原 Unity 材质、MA、物理或完整工程；不提供自动试穿、跨角色体型适配或穿模修复。</li>
+<li><strong>装配需要真实工程复核。</strong> 原生 Unity 检查使用合成工程与 MA API 测试替身；实际商业角色、真实 MA／SDK、构建和游戏同步仍需验证。依赖文件存在不代表编译通过，效果勾选也不代表 SDK 已验证。</li>
+<li>Unity 输出的自动检查只在诊断页打开时针对所选工程运行。公开插件是否兼容当前工程，以作者说明和实际 Unity 检查为准。</li>
+<li>扫描与整理保持只读；主动导入会写入选定工程，确认装配会修改当前场景，确认删除会移入系统回收站。不会把这些写入操作伪装成只读浏览。</li>
+</ul>
+<h2 id="section-5">说明书与反馈</h2>
+<ul>
+<li><a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/v1.4.0-preview.5/docs/WORKSPACE_NAVIGATION.zh-CN.html">新版页面流程图文说明</a></li>
+<li><a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/v1.4.0-preview.5/docs/AVATAR_WORKBENCH.zh-CN.html">改模工作台图文说明</a></li>
+<li><a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/v1.4.0-preview.5/docs/AVATAR_WORKFLOW_REPORT.zh-CN.html">改模体验报告与后续方向</a></li>
+<li><a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/v1.4.0-preview.5/docs/USER_AGREEMENT.zh-CN.md">用户协议</a> · <a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/v1.4.0-preview.5/docs/PRIVACY.zh-CN.md">隐私说明</a></li>
+<li><a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/issues">反馈问题</a>：请附版本、所用功能、复现步骤与已遮挡隐私的截图，勿上传密钥、Cookie、购买记录或未获授权素材。</li>
+</ul>
+<p>项目沿用现有 VRCAL 社区协作许可，旧历史及原有许可说明保留；旧版本官方下载附件继续撤下。本次不恢复旧附件，也不变更此前版本的授权。</p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

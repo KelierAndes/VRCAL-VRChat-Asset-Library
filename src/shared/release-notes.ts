@@ -1,7 +1,7 @@
 import type {AppLanguage} from './contracts';
 import {translate} from './i18n';
 
-export type ReleaseChannel = 'stable' | 'local';
+export type ReleaseChannel = 'stable' | 'preview' | 'local';
 export interface ReleaseNote {
   version: string;
   date: string;
@@ -14,6 +14,30 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.5',date:'2026-10-24',channel:'preview',title:'改模工作台、AI 辅助与轻量预览',sections:[
+    {kind:'added',items:['改模工作台集中目标工程、依赖线索、工程商品、导入历史和错误处理；同内容素材包重复导入前提醒，保留已有 MA 菜单或创建显隐开关，装配与菜单支持一笔撤销。','无需 Unity 的轻量 3D 预览，支持 FBX、GLB、glTF、OBJ 及部分 ZIP／Unitypackage；可旋转、平移、缩放，调整渲染比例和线框。','公开插件目录扩充到 30 项，提供作者来源与安装方式，其中 6 项支持下载素材包并交给指定工程导入。','可选千问、Kimi、DeepSeek：衣服类型与风格建议、Unity 报错解释、自然语言找素材；AI 搜索词交给 BOOTH 或已开启的闲鱼读取真实商品。','待下载链接页按近期范围去重、显示待核对记录并衔接百度下载；仅检查应用内已加载的官方账号页面，不扫描其他浏览器。']},
+    {kind:'improved',items:['侧栏分为素材整理、改模与工程、查找与下载；更新记录和社区放入应用区，隐藏素材仍有独立页面。','素材分类放到搜索筛选栏，工具页不再展示无关的分类；集合保留在整理区。','顶部显示当前页面用途，主题和语言收进外观；工程页突出添加工程和进入改模工作台。','空闲下载摘要更紧凑，完整速度与历史仍可查看；小窗口通过导航抽屉访问全部入口。']},
+    {kind:'notes',items:['这是 GitHub 公开预览版，汇总此前本地预览的功能；手动下载试用，不作为稳定版内置更新推送。新增文字暂为中文。','AI 默认关闭，需自行配置密钥并同意发送范围；真实付费 AI 效果尚未验收。','BOOTH 资料库无购买时间的记录进入待核对；闲鱼真实新交付及关闭平台窗口后的独立后台发现尚未验收。','轻量预览不还原 Unity 着色器、场景与物理，不提供自动试穿、体型适配或穿模修复。MA 测试使用 API 替身，仍需实际角色、插件和 SDK 验证。','扫描与整理保持只读；主动导入、确认装配和移入回收站会按操作写入。更新前建议备份资料库。']}
+  ]},
+  {version:'1.4.0-preview.4',date:'2026-10-24',channel:'local',title:'改模工作台与装配菜单（本地测试）',sections:[
+    {kind:'added',items:['新增改模工作台，集中工程选择、公开依赖线索、导入历史、工程商品、插件与报错入口，记住目标工程。','导入前检查区分未知适配、依赖声明和包文件；同工程同内容 Unitypackage 提醒重复，明确确认后才能再次导入。','装配可同时接入游戏内菜单：保留作者已有 MA 菜单，没有时创建显隐开关；一笔装配和菜单共用 Unity Undo。','文件导入、角色装配、菜单和用户效果检查分步显示；外观、动作、菜单检查记录重启保留。']},
+    {kind:'fixed',items:['旧预览在执行时再次核对重复；更新已知版本的助手时保留自定义文件与 Unity 元数据。','从工作台进入报错页保持目标工程，避免异步加载改成另一个工程。']},
+    {kind:'notes',items:['提供改模痛点报告与实机图文说明；新增文字暂为中文，未发布 GitHub。','测试使用合成工程；包文件存在不代表 Unity 编译通过，人工勾选不代表 SDK 构建或游戏同步通过。','本版不自动修改旧衣服或身体形态；角色衣柜、跨重启卸载、跨角色适配及穿模修复仍为后续项目。']}
+  ]},
+  {version:'1.4.0-preview.3',date:'2026-10-24',channel:'local',title:'用一句话找素材（本地测试）',sections:[
+    {kind:'added',items:['新增 AI 找素材页面，可用自然语言描述品类、风格和适配角色，从 BOOTH 与已开启的闲鱼搜索真实商品，展示封面、来源及标题命中依据。','千问、Kimi、DeepSeek 可整理日英检索词；找素材单独开启并同意，复用加密密钥、调用额度和缓存。没有配置 AI 时使用明确标注的本地关键词规则。']},
+    {kind:'improved',items:['闲鱼使用已有登录会话后台读取正常搜索页，登录或验证失败时可打开站内搜索，其他平台结果仍保留。','手动搜索不受自动补全暂停影响，仍共享 BOOTH 请求间隔、限流与封面缓存；结果可在内置浏览器打开。']},
+    {kind:'notes',items:['最多展示每个平台 12 件商品；标题命中不代表适配或作者授权保证，不自动购买、下载或安装。','新增文字暂用中文；真实两站搜索已验证，真实付费 AI 效果尚未验证；此版本未提交 GitHub。']}
+  ]},
+  {version:'1.4.0-preview.2',date:'2026-10-24',channel:'local',title:'公开插件扩充至 30 项（本地测试）',sections:[
+    {kind:'added',items:['公开插件从 9 项扩充至 30 项，新增表情与动作、工程与迁移分类，涵盖 FaceEmo、TexTransTool、VRCQuestTools、Pumkin’s Avatar Tools、GoGo Loco 等工具。','安装方式筛选可查看可下载并导入、VCC／ALCOM 与作者官网安装的条目。','新增 FACS Utilities、Animation Viewer、Blendshape Viewer 的官方稳定素材包下载与指定工程导入，共 6 项支持直接导入。']},
+    {kind:'fixed',items:['修复官方插件附件跳转时下载中断的问题，逐跳核对官方文件服务器，保留取消、大小与摘要校验。']},
+    {kind:'notes',items:['只使用公开作者文档、发布页和包清单核对来源，不读取本机非公开插件。目录可离线浏览，安装依赖与兼容性以作者说明为准。','GoGo Loco 提供作者官网入口；Pumkin 的最新发布含 beta 标记，不自动直装该测试包。','本地预览，尚未发布 GitHub；此前未完成的真实账号后台识别、角色试穿及适配工作继续保留在开发计划中。']}
+  ]},
+  {version:'1.4.0-preview.1',date:'2026-10-24',channel:'local',title:'轻量预览、公开插件与 AI 辅助（本地测试）',sections:[
+    {kind:'added',items:['素材详情新增轻量 3D 预览，支持常见 FBX、GLB、glTF、OBJ 及部分 ZIP／Unitypackage 内容，无需启动 Unity；支持渲染比例、旋转、平移、素模及线框。','公开插件目录收录 9 项作者官方来源，部分 Unity 素材包可下载并交给指定工程的 Unity 导入确认。','新增千问、Kimi、DeepSeek 可选接入；衣服类型和风格独立保存为建议，可接受为标签。','AI 与工程报错页读取已核对归属的 Unity 输出，合并重复错误并提供本地提示和可选 AI 排查建议。','待下载链接页支持近期范围、去重、待核对和百度下载衔接；BOOTH 已登录资料库的条目读取已进行局部实测。']},
+    {kind:'notes',items:['本地测试版，尚未发布 GitHub。新增文字暂用中文，原有日英翻译保留。','BOOTH 资料库缺少购买时间，不据此发送近期蓝点；闲鱼消息行及完整后台新交付发现尚未验收完成。','AI 需要用户配置服务商密钥并同意发送范围；调用可能收费，测试使用模拟响应，没有真实付费 API 验收。','3D 预览不还原 Unity 着色器、MA、场景及物理效果；角色试穿、自动体型适配和穿模修复属于后续阶段。']}
+  ]},
   {version:'1.3.0',date:'2026-10-24',channel:'stable',title:'百度网盘应用内下载',sections:[
     {kind:'added',items:['登录后，在应用页面粘贴百度分享链接、读取文件夹并下载单个文件，无需弹出下载网页。','下载进度、速度、暂停、继续、取消和完成记录集中展示，支持定位已下载文件。']},
     {kind:'notes',items:['仅登录和安全验证使用官方窗口；下载遵循百度网页权限，要求客户端的文件暂不支持。','下载保存位置由用户选择，独立子文件夹避免覆盖；重启后中断任务需重新读取分享。']}

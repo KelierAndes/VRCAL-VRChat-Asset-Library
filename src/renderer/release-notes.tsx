@@ -4,7 +4,7 @@ import {filterReleaseNotes, type ReleaseChannel} from '../shared/release-notes';
 import {localeName, t, useLanguage} from './i18n';
 
 const sectionLabels = {added:'新增功能',improved:'功能改进',fixed:'问题修复',notes:'使用提示'} as const;
-const channelLabels = {all:'全部版本',stable:'正式版',local:'本地试验版'} as const;
+const channelLabels = {all:'全部版本',stable:'正式版',preview:'公开预览版',local:'本地试验版'} as const;
 function displayDate(value:string) {
   // Noon in local time avoids shifting a date-only release to the previous day.
   return new Intl.DateTimeFormat(localeName(),{year:'numeric',month:'long',day:'numeric'}).format(new Date(value+'T12:00:00'));
@@ -38,7 +38,7 @@ export function ReleaseNotesContent({currentVersion}:{currentVersion?:string}) {
       <div className="release-controls">
         <input className="release-search" type="search" aria-label={t('搜索更新记录')} placeholder={t('搜索版本号或功能关键词…')} value={search} onChange={event=>setSearch(event.target.value)}/>
         <div className="release-channels" role="group" aria-label={t('发布类型')}>
-          {(['all','stable','local'] as const).map(value=><button key={value} data-release-channel={value} aria-pressed={channel===value} onClick={()=>setChannel(value)}>{t(channelLabels[value])}</button>)}
+          {(['all','stable','preview','local'] as const).map(value=><button key={value} data-release-channel={value} aria-pressed={channel===value} onClick={()=>setChannel(value)}>{t(channelLabels[value])}</button>)}
         </div>
       </div>
       <p className="release-count" role="status">{t('共 {count} 个版本',{count:entries.length})}</p>

@@ -18,3 +18,10 @@ __pycache__/
 baidu-session/
 xianyu-session/
 *-session-cookies.bin
+link-inbox.bin
+link-inbox.bin.*.tmp
+ai-credentials.json
+ai-settings.json
+ai-cache.json
+ai-usage.json
+.superpowers/
