@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.9',date:'2026-10-24',channel:'preview',title:'角色与衣服组合预览',sections:[
+    {kind:'added',items:['素材右键新增 3D 预览；右侧详情中的预览按钮更醒目，可从设置调整右键选项。','预览窗口新增添加角色看上身参考，选择本地角色素材与模型，可隐藏原有衣服部件、单独显示角色或衣服、调整衣服尺寸和位置、切换五个视角。']},
+    {kind:'improved',items:['保持原始坐标与文件单位，双模型分别管理贴图与资源，避免同名文件串用；组合模式停止内置动画。','取消或失败保留上次成功画面，多模型等待选择；共享资源和三角面上限，继续支持 25%–100% 渲染比例及按需绘制。']},
+    {kind:'notes',items:['无需 Unity，仅用于看款式及静态上身参考，不代表实际适配或安装；不还原 Unity 材质、预制件、MA、身体遮罩和物理，不自动合骨骼或修复穿模。','使用隔离合成模型验证，未读取私有角色。原文件不修改；公开预览手动下载，新增文字暂为中文。']}
+  ]},
   {version:'1.4.0-preview.8',date:'2026-10-24',channel:'preview',title:'闲鱼连接修复与免 API 密钥找素材',sections:[
     {kind:'fixed',items:['修复关闭闲鱼消息窗口或弹出窗口后出现 Object has been destroyed 主进程错误。','按官网公开脚本精确允许聊天加密 WebSocket；错误页、断网和迟到事件不会恢复采用权限。连接失败可按 Ctrl＋R 重载。']},
     {kind:'added',items:['找素材可复制内置提示词并打开千问、Kimi 或 DeepSeek 官方网页，不填 API 密钥；正常对话后粘贴 JSON，使用检索词搜索真实商品。','API 与网页方式共用 VRChat 品类、风格及日英检索提示词，可在页面展开查看。']},

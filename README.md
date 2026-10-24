@@ -12,11 +12,11 @@
 
 [用户协议与功能使用说明](docs/USER_AGREEMENT.zh-CN.md) · [隐私说明](docs/PRIVACY.zh-CN.md)（账号页面读取的验证范围见本次发布说明）
 
-**当前公开预览：1.4.0-preview.8。** 修复闲鱼连接规则与关闭崩溃，新增[免 API 密钥的网页 AI 找素材](docs/AI_DISCOVERY.zh-CN.md)，沿用 [改模工作台](docs/AVATAR_WORKBENCH.zh-CN.md) 与[新版页面图文说明](docs/WORKSPACE_NAVIGATION.zh-CN.md)。
+**当前公开预览：1.4.0-preview.9。** 素材右键新增 **3D 预览**，支持衣服单独查看和角色＋衣服静态组合参考；可隐藏角色原有衣服、调整尺寸与位置。[逐步操作说明](docs/MODEL_PREVIEW.zh-CN.md)。沿用免密钥网页 AI、BOOTH 下载关联与改模工作台。
 
 ## 下载与开始使用
 
-**[下载 1.4.0-preview.8 公开预览版](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.8)**：选择 Windows x64 EXE 直接运行，源码 ZIP 用于开发。此版需手动下载，不作为稳定版内置更新推送。
+**[下载 1.4.0-preview.9 公开预览版](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.9)**：选择 Windows x64 EXE 直接运行，源码 ZIP 用于开发。此版需手动下载，不作为稳定版内置更新推送。
 
 旧版官方附件继续停止提供。 版本记录、Git 历史及其原许可保留；GitHub 根据标签提供的历史 Source code 快照仍可访问。撤下下载不等于撤销旧版授权，详见 [许可变更说明](docs/LICENSING.md)。
 
@@ -43,6 +43,8 @@
 当前发布包未进行代码签名。请从本仓库 Releases 下载，并用随包 SHA-256 清单核对文件。
 
 ## 本次更新与更新记录
+
+**1.4.0-preview.9 增加角色＋衣服组合预览。** 点击素材右侧详情中的「3D 预览」，或右键选择同名入口；在预览窗口点击「添加角色看上身参考」，选择本地角色素材和模型。保持原始坐标，可隐藏部件、手动调整衣服并切换视角。无需 Unity；这是静态外观参考，不保证骨骼、材质、体型或实际穿着适配。[更新说明](docs/RELEASE_1.4.0-preview.9.zh-CN.md)。
 
 **1.4.0-preview.7 修复内置 BOOTH 下载后仍需手动匹配。** 明确的商品页／已购资料库下载直接关联商品，即使本地包名不同也自动补作者、分类和封面，标为“BOOTH 下载关联”。有明确来源的旧下载记录自动补回，人工修改、跳过和排除优先；来源不明或有冲突时保留待确认。[更新说明](docs/RELEASE_1.4.0-preview.7.zh-CN.md)。
 

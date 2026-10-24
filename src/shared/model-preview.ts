@@ -6,7 +6,10 @@ export const MODEL_TEXTURE_DIMENSION=4096,MODEL_TEXTURE_DECODED_BYTES=128*1024*1
 export interface ModelChoice {token:string;label:string;name:string;format:ModelFormat;size:number}
 export interface ModelPreviewState {title:string;theme:AppTheme;choices:ModelChoice[];warnings:string[]}
 export interface ModelBundle {name:string;files:{name:string;bytes:Uint8Array}[];warnings:string[]}
-export interface ModelPreviewAPI {state():Promise<ModelPreviewState>;load(token:string):Promise<ModelBundle>;cancel():Promise<void>}
+export interface ModelReferenceSource {id:string;title:string}
+export interface ModelReferenceState {title?:string;choices:ModelChoice[];warnings:string[]}
+export interface ModelSceneBundle {primary:ModelBundle;reference?:ModelBundle}
+export interface ModelPreviewAPI {state():Promise<ModelPreviewState>;load(token:string):Promise<ModelBundle>;cancel():Promise<void>;sources(query?:string):Promise<ModelReferenceSource[]>;selectReference(id:string|null):Promise<ModelReferenceState>;loadScene(primaryToken:string,referenceToken?:string):Promise<ModelSceneBundle>}
 export function modelFormat(name:string):ModelFormat|undefined {const ext=name.split('.').pop()?.toLowerCase();return MODEL_FORMATS.includes(ext as ModelFormat)?ext as ModelFormat:undefined}
 export function safeModelPath(value:unknown):string|undefined {
  if(typeof value!=='string'||!value||value.length>4096||/[\x00-\x1f:]/.test(value)||/^[\\/]/.test(value))return;

@@ -4,19 +4,19 @@ import path from 'node:path';
 import {createGunzip,inflateSync} from 'node:zlib';
 import * as yauzl from 'yauzl';
 import {noLinks} from './project-access';
-import {modelFormat,safeModelPath,resolveModelResource,ModelTextureBudget,MODEL_MAX_BYTES,MODEL_BUNDLE_BYTES,MODEL_TEXTURE_BYTES,type ModelBundle,type ModelFormat} from '../shared/model-preview';
+import {modelFormat,safeModelPath,resolveModelResource,ModelTextureBudget,MODEL_MAX_BYTES,MODEL_BUNDLE_BYTES,MODEL_TEXTURE_BYTES,type ModelBundle,type ModelFormat,type ModelSceneBundle} from '../shared/model-preview';
 
 const MAX_ENTRIES=12000,MAX_UNPACKED=512*1024*1024;
 const renderFile=(name:string)=>!!modelFormat(name)||/\.(png|jpe?g|webp|bmp|tga|dds|bin|mtl)$/i.test(name);
 const imageFile=(name:string)=>/\.(png|jpe?g|webp|bmp|tga|dds)$/i.test(name);
 interface Entry {name:string;key:string;size:number}
 export interface ModelSource extends Entry {source:string;stamp:string;format:ModelFormat;label:string;scope?:'file'|'container'}
-export interface ModelIndex {models:ModelSource[];warnings:string[]}
+export interface ModelIndex {models:ModelSource[];warnings:string[];sourceCount?:number}
 const stamp=(s:fs.Stats)=>`${s.dev}:${s.ino}:${s.size}:${s.mtimeMs}`;
-async function checkedFile(file:string,limit=MODEL_MAX_BYTES):Promise<Buffer>{
- await noLinks(file);const handle=await fsp.open(file,'r');try{const before=await handle.stat();if(!before.isFile()||before.size>limit)throw new Error('预览资源超过大小上限。');const bytes=Buffer.alloc(before.size);let offset=0;while(offset<bytes.length){const read=await handle.read(bytes,offset,bytes.length-offset,offset);if(!read.bytesRead)throw new Error('资源已变化，请重新打开预览。');offset+=read.bytesRead}if(stamp(before)!==stamp(await handle.stat()))throw new Error('资源已变化，请重新打开预览。');return bytes}finally{await handle.close()}
+async function checkedFile(file:string,limit=MODEL_MAX_BYTES,expectedSize?:number):Promise<Buffer>{
+ await noLinks(file);const handle=await fsp.open(file,'r');try{const before=await handle.stat();if(!before.isFile()||before.size>limit)throw new Error('预览资源超过大小上限。');if(expectedSize!==undefined&&before.size!==expectedSize)throw new Error('资源已变化，请重新打开预览。');const bytes=Buffer.alloc(before.size);let offset=0;while(offset<bytes.length){const read=await handle.read(bytes,offset,bytes.length-offset,offset);if(!read.bytesRead)throw new Error('资源已变化，请重新打开预览。');offset+=read.bytesRead}if(stamp(before)!==stamp(await handle.stat()))throw new Error('资源已变化，请重新打开预览。');return bytes}finally{await handle.close()}
 }
-async function tarRead(source:string,wanted?:Set<string>):Promise<{entries:Entry[];bytes:Map<string,Buffer>}>{
+async function tarRead(source:string,wanted?:Set<string>,expectedSizes?:Map<string,number>):Promise<{entries:Entry[];bytes:Map<string,Buffer>}>{
  const input=fs.createReadStream(source),zip=createGunzip(),bytes=new Map<string,Buffer>(),paths=new Map<string,string>(),sizes=new Map<string,number>(),seen=new Set<string>();
  let buffer=Buffer.alloc(0),remaining=0,padding=0,name='',parts:Buffer[]=[],capture=false,unpacked=0,totalSaved=0,headers=0,ended=false;
  input.on('error',e=>zip.destroy(e));input.pipe(zip);const timer=setTimeout(()=>zip.destroy(new Error('读取素材包超时，请选择较小的素材包或已解压目录。')),20000);
@@ -33,13 +33,14 @@ async function tarRead(source:string,wanted?:Set<string>):Promise<{entries:Entry
    const sizeText=header.subarray(124,136).toString('ascii').replace(/\0/g,'').trim();if(!/^[0-7]+$/.test(sizeText))throw new Error('素材包大小记录无效。');remaining=parseInt(sizeText,8);if(remaining>MAX_UNPACKED)throw new Error('素材包资源超过预览上限。');padding=(512-remaining%512)%512;
    if(seen.has(name))throw new Error('包内存在重复文件。');seen.add(name);capture=name.endsWith('/pathname')||!!wanted?.has(name);parts=[];
    if(name.endsWith('/pathname')&&remaining>8192)throw new Error('包内路径过长。');if(name.endsWith('/asset'))sizes.set(name.split('/')[0],remaining);
+   if(wanted?.has(name)&&expectedSizes&&remaining!==expectedSizes.get(name))throw new Error('素材读取期间发生变化，请重新打开预览。');
    if(capture){totalSaved+=remaining;if(totalSaved>MODEL_BUNDLE_BYTES||wanted?.has(name)&&remaining>MODEL_MAX_BYTES)throw new Error('预览资源超过大小上限。')}
    if(!remaining)finish();
   }if(ended)break;
  }if(!ended)throw new Error('素材包不完整，无法预览。');}finally{clearTimeout(timer);input.destroy();zip.destroy()}
  const entries:Entry[]=[],names=new Set<string>();for(const [id,value] of paths){const key=value.toLowerCase();if(names.has(key))throw new Error('包内存在重复路径。');names.add(key);if(sizes.has(id)&&renderFile(value))entries.push({name:value,key:id+'/asset',size:sizes.get(id)!})}return {entries,bytes};
 }
-async function zipRead(source:string,wanted?:Set<string>):Promise<{entries:Entry[];bytes:Map<string,Buffer>}>{
+async function zipRead(source:string,wanted?:Set<string>,expected?:Map<string,number>):Promise<{entries:Entry[];bytes:Map<string,Buffer>}>{
  return new Promise((resolve,reject)=>yauzl.open(source,{lazyEntries:true,decodeStrings:true},(error,zip)=>{
   if(error||!zip){reject(error||new Error('压缩包无法读取。'));return}const entries:Entry[]=[],bytes=new Map<string,Buffer>(),seen=new Set<string>();let count=0,total=0,done=false;
   const timer=setTimeout(()=>fail(new Error('读取压缩包超时。')),20000);const fail=(error:Error)=>{if(done)return;done=true;clearTimeout(timer);zip.close();reject(error)};
@@ -51,6 +52,7 @@ async function zipRead(source:string,wanted?:Set<string>):Promise<{entries:Entry
    if(entry.generalPurposeBitFlag&1)throw new Error('加密压缩包不能直接预览，请使用已有解压目录。');
    if(renderFile(name))entries.push({name,key:entry.fileName,size:entry.uncompressedSize});
    if(wanted?.has(entry.fileName)){
+    if(expected&&entry.uncompressedSize!==expected.get(entry.fileName))throw new Error('素材读取期间发生变化，请重新打开预览。');
     total+=entry.uncompressedSize;if(entry.uncompressedSize>MODEL_MAX_BYTES||total>MODEL_BUNDLE_BYTES)throw new Error('预览资源超过大小上限。');
     const data=await new Promise<Buffer>((yes,no)=>zip.openReadStream(entry,(error,stream)=>{if(error||!stream){no(error||new Error('资源读取失败'));return}const parts:Buffer[]=[];let length=0;stream.on('data',chunk=>{length+=chunk.length;if(length>entry.uncompressedSize){stream.destroy(new Error('压缩包大小不一致。'));return}parts.push(chunk)});stream.on('error',no);stream.on('end',()=>yes(Buffer.concat(parts)))}));bytes.set(entry.fileName,data);
    }zip.readEntry();
@@ -67,24 +69,35 @@ async function directoryEntries(root:string):Promise<{entries:Entry[];archives:s
  };await walk(root,0);return {entries,archives,warnings};
 }
 async function entriesAt(source:string):Promise<Entry[]>{const stat=await fsp.lstat(source);if(stat.isDirectory())return (await directoryEntries(source)).entries;if(/\.unitypackage$/i.test(source))return (await tarRead(source)).entries;if(/\.zip$/i.test(source))return (await zipRead(source)).entries;throw new Error('暂不支持此素材包，请使用 FBX／GLB／glTF／OBJ 或已解压目录。')}
-export async function indexModels(input:string):Promise<ModelIndex>{
+export async function indexModels(input:string,sourceLimit=16):Promise<ModelIndex>{
  await noLinks(input);const stat=await fsp.lstat(input),warnings:string[]=[];let sources:string[]=[];const models:ModelSource[]=[];
- const directFormat=modelFormat(input);if(stat.isFile()&&directFormat){if(stat.size>MODEL_MAX_BYTES)throw new Error('模型超过 64 MiB 预览上限。');const name=path.basename(input);return {models:[{name,key:name,size:stat.size,source:input,stamp:stamp(stat),format:directFormat,label:name,scope:'file'}],warnings:['单文件预览只读取该文件；如需外部贴图或依赖，请选择已登记的素材文件夹。']};}
+ const directFormat=modelFormat(input);if(stat.isFile()&&directFormat){if(stat.size>MODEL_MAX_BYTES)throw new Error('模型超过 64 MiB 预览上限。');const name=path.basename(input);return {models:[{name,key:name,size:stat.size,source:input,stamp:stamp(stat),format:directFormat,label:name,scope:'file'}],sourceCount:1,warnings:['单文件预览只读取该文件；如需外部贴图或依赖，请选择已登记的素材文件夹。']};}
  if(stat.isDirectory()){const listing=await directoryEntries(input);warnings.push(...listing.warnings);sources=[input,...listing.archives];}else if(stat.isFile())sources=[modelFormat(input)?path.dirname(input):input];else throw new Error('请选择普通模型文件或素材文件夹。');
- for(const source of sources){await noLinks(source);try{const entries=await entriesAt(source),sourceStat=await fsp.lstat(source);for(const entry of entries){const format=modelFormat(entry.name);if(!format||!stat.isDirectory()&&modelFormat(input)&&path.basename(input)!==entry.name)continue;if(models.length>=200){warnings.push('最多展示 200 个模型，请选择更小的素材目录。');break}if(entry.size>MODEL_MAX_BYTES){warnings.push(`${entry.name} 超过 64 MB 模型上限，已跳过。`);continue}
+ const limit=Math.max(1,Math.min(16,Number.isSafeInteger(sourceLimit)?sourceLimit:16));if(sources.length>limit){sources=sources.slice(0,limit);warnings.push('每个素材最多读取 16 个来源，部分包内来源已跳过。')}let sourceCount=0;
+ for(const source of sources){sourceCount++;await noLinks(source);try{const entries=await entriesAt(source),sourceStat=await fsp.lstat(source);for(const entry of entries){const format=modelFormat(entry.name);if(!format||!stat.isDirectory()&&modelFormat(input)&&path.basename(input)!==entry.name)continue;if(models.length>=200){warnings.push('最多展示 200 个模型，请选择更小的素材目录。');break}if(entry.size>MODEL_MAX_BYTES){warnings.push(`${entry.name} 超过 64 MB 模型上限，已跳过。`);continue}
    const s=sourceStat.isDirectory()?await fsp.lstat(path.join(source,entry.key)):sourceStat;models.push({...entry,source,stamp:stamp(s),format,label:source===input||modelFormat(input)?entry.name:`${path.relative(input,source).replaceAll('\\','/')} / ${entry.name}`});
   }}catch(error){if(sources.length===1)throw error;warnings.push(`${path.basename(source)}：${error instanceof Error?error.message:String(error)}`)}
- }return {models:models.sort((a,b)=>a.label.localeCompare(b.label,'zh-CN')),warnings:[...new Set(warnings)].slice(0,30)};
+ }return {models:models.sort((a,b)=>a.label.localeCompare(b.label,'zh-CN')),sourceCount,warnings:[...new Set(warnings)].slice(0,30)};
 }
-export async function prepareModel(model:ModelSource):Promise<ModelBundle>{
+interface SceneReadBudget {bytes:number;files:number;arrayBytes:number;textures:ModelTextureBudget}
+const sceneBudget=():SceneReadBudget=>({bytes:0,files:0,arrayBytes:0,textures:new ModelTextureBudget()});
+export async function prepareModelScene(primary:ModelSource,reference?:ModelSource):Promise<ModelSceneBundle>{
+ const budget=sceneBudget(),first=await prepareWithBudget(primary,budget,'primary');
+ return {primary:first,...(reference?{reference:await prepareWithBudget(reference,budget,'reference')}:{})};
+}
+export async function prepareModel(model:ModelSource):Promise<ModelBundle>{return prepareWithBudget(model,sceneBudget(),'primary')}
+async function prepareWithBudget(model:ModelSource,scene:SceneReadBudget,slot:string):Promise<ModelBundle>{
  await noLinks(model.source);const single=model.scope==='file',directory=(await fsp.lstat(model.source)).isDirectory(),modelPath=directory?path.join(model.source,model.key):model.source;await noLinks(modelPath);if(stamp(await fsp.lstat(modelPath))!==model.stamp)throw new Error('模型文件已变化，请关闭并重新打开预览。');
  const entries=single?[{name:model.name,key:model.key,size:model.size}]:await entriesAt(model.source),current=entries.find(e=>e.name===model.name&&e.key===model.key);if(!current||current.size!==model.size)throw new Error('模型文件已变化，请重新打开预览。');
- const read=async(selected:Entry[])=>{if(single)return new Map([[model.key,await checkedFile(model.source)]]);if(directory){const result=new Map<string,Buffer>();for(const e of selected)result.set(e.key,await checkedFile(path.join(model.source,e.key),imageFile(e.name)?MODEL_TEXTURE_BYTES:MODEL_MAX_BYTES));return result}const wanted=new Set(selected.map(e=>e.key));return /\.unitypackage$/i.test(model.source)?(await tarRead(model.source,wanted)).bytes:(await zipRead(model.source,wanted)).bytes};
- const raw=(await read([current])).get(current.key);if(!raw)throw new Error('素材包缺少模型数据。');const selected:Entry[]=[current],warnings:string[]=[];const names=entries.map(e=>e.name);let total=current.size;
- const add=(entry:Entry,required=false)=>{if(selected.some(e=>e.key===entry.key))return;if(entry.size>(imageFile(entry.name)?MODEL_TEXTURE_BYTES:MODEL_MAX_BYTES)||total+entry.size>MODEL_BUNDLE_BYTES||selected.length>=96){if(required)throw new Error('模型依赖超过预览大小上限。');warnings.push('部分贴图过多或过大，已跳过；可使用素模查看形状。');return}selected.push(entry);total+=entry.size};
+ const cache=new Map<string,Buffer>();
+ const read=async(selected:Entry[])=>{const missing=selected.filter(e=>!cache.has(e.key));if(missing.length){let found:Map<string,Buffer>;if(single)found=new Map([[model.key,await checkedFile(model.source,MODEL_MAX_BYTES,current.size)]]);else if(directory){found=new Map();for(const e of missing)found.set(e.key,await checkedFile(path.join(model.source,e.key),imageFile(e.name)?MODEL_TEXTURE_BYTES:MODEL_MAX_BYTES,e.size));}else{const wanted=new Set(missing.map(e=>e.key)),expected=new Map(missing.map(e=>[e.key,e.size]));found=/\.unitypackage$/i.test(model.source)?(await tarRead(model.source,wanted,expected)).bytes:(await zipRead(model.source,wanted,expected)).bytes}for(const [key,bytes] of found)cache.set(key,bytes)}return cache};
+ const selected:Entry[]=[],warnings:string[]=[];const names=entries.map(e=>e.name);
+ const add=(entry:Entry,required=false)=>{if(selected.some(e=>e.key===entry.key))return;if(!Number.isSafeInteger(entry.size)||entry.size<0||entry.size>(imageFile(entry.name)?MODEL_TEXTURE_BYTES:MODEL_MAX_BYTES)||scene.bytes+entry.size>MODEL_BUNDLE_BYTES||scene.files>=96){if(required)throw new Error('组合模型依赖超过预览总大小或文件数量预算。');warnings.push('部分贴图过多或过大，已跳过；可使用素模查看形状。');return}selected.push(entry);scene.bytes+=entry.size;scene.files++};
+ add(current,true);const raw=(await read([current])).get(current.key);if(!raw)throw new Error('素材包缺少模型数据。');
  const textureNames=new Set<string>();
  const dependency=(uri:string,base=model.name,required=false,texture=false)=>{if(uri.startsWith('data:'))return;const name=resolveModelResource(uri,base,names),entry=entries.find(e=>e.name===name);if(!entry){if(required)throw new Error('模型缺少本地依赖，或引用了外部网络资源。');warnings.push(`未找到本地贴图：${uri.slice(0,160)}`);return}if(texture)textureNames.add(entry.name);add(entry,required)};
- let gltf:any,glbBinary:Buffer|undefined;const budget=new ModelTextureBudget();
+ const embedded=new Set<string>(),reserveEmbedded=(key:string)=>{if(embedded.has(key))return;if(scene.files>=96)throw new Error('嵌入图片超过组合预览文件数量预算。');scene.files++;embedded.add(key)};
+ let gltf:any,glbBinary:Buffer|undefined;const budget:Pick<ModelTextureBudget,'add'>={add:(key,bytes,name)=>scene.textures.add(slot+':'+key,bytes,name)};
  if(model.format==='gltf'||model.format==='glb'){
   let data:unknown;if(model.format==='gltf')data=JSON.parse(raw.toString('utf8'));else{if(raw.length<20||raw.toString('ascii',0,4)!=='glTF'||raw.readUInt32LE(4)!==2||raw.readUInt32LE(8)!==raw.length||raw.readUInt32LE(16)!==0x4e4f534a||raw.readUInt32LE(12)>raw.length-20)throw new Error('GLB 文件头无效。');data=JSON.parse(raw.subarray(20,20+raw.readUInt32LE(12)).toString('utf8'))}
   gltf=data;if(!gltf||typeof gltf!=='object'||!Array.isArray(gltf.images??[])||!Array.isArray(gltf.buffers??[])||(gltf.images?.length||0)>96)throw new Error('glTF 图片或依赖定义超出预览限制。');
@@ -94,12 +107,12 @@ export async function prepareModel(model:ModelSource):Promise<ModelBundle>{
  }else if(model.format==='obj'){
   for(const match of raw.toString('utf8').matchAll(/^mtllib\s+(.+)$/gm))dependency(match[1].trim());
   const mtls=selected.filter(e=>/\.mtl$/i.test(e.name));if(mtls.length)for(const e of mtls){const bytes=(await read([e])).get(e.key);for(const match of bytes?.toString('utf8').matchAll(/^(?:map_\w+|bump|disp|decal|norm)\s+(.+)$/gmi)||[]){const reference=match[1].trim();if(!reference.startsWith('-'))dependency(reference,e.name,false,true);else warnings.push('部分 OBJ 贴图参数暂不支持。')}}
- }else{for(const reference of inspectFbx(raw,budget))dependency(reference,model.name,false,true);warnings.push('FBX 只使用模型自身引用的贴图；Unity .mat、lilToon 和预制件配置暂不还原。')}
+ }else{for(const reference of inspectFbx(raw,budget,scene,reserveEmbedded))dependency(reference,model.name,false,true);warnings.push('FBX 只使用模型自身引用的贴图；Unity .mat、lilToon 和预制件配置暂不还原。')}
  const content=selected.length===1?new Map([[current.key,raw]]):await read(selected);if(stamp(await fsp.lstat(modelPath))!==model.stamp)throw new Error('素材读取期间发生变化，请重新打开预览。');
  for(const entry of selected)if(imageFile(entry.name)||textureNames.has(entry.name)){const bytes=content.get(entry.key);if(bytes)budget.add(entry.name,bytes,entry.name)}
  if(gltf)for(let index=0;index<(gltf.images||[]).length;index++){
-  const image=gltf.images[index];if(image.uri?.startsWith('data:'))budget.add(`embedded:${index}`,decodeData(image.uri,MODEL_TEXTURE_BYTES),image.mimeType||image.uri.slice(0,32));
-  else if(image.bufferView!==undefined){const view=gltf.bufferViews?.[image.bufferView];if(!view||!Number.isSafeInteger(view.byteLength)||view.byteLength<0||view.byteLength>MODEL_TEXTURE_BYTES)throw new Error('嵌入贴图数据范围无效。');const buffer=gltf.buffers?.[view.buffer];let bytes:Buffer|undefined;if(buffer?.uri?.startsWith('data:'))bytes=decodeData(buffer.uri,MODEL_MAX_BYTES);else if(buffer?.uri){const name=resolveModelResource(buffer.uri,model.name,names),entry=selected.find(e=>e.name===name);bytes=entry&&content.get(entry.key)}else if(view.buffer===0)bytes=glbBinary;
+  const image=gltf.images[index];if(image.uri?.startsWith('data:')){reserveEmbedded(`embedded:${index}`);budget.add(`embedded:${index}`,decodeData(image.uri,MODEL_TEXTURE_BYTES),image.mimeType||image.uri.slice(0,32));}
+  else if(image.bufferView!==undefined){const view=gltf.bufferViews?.[image.bufferView];if(!view||!Number.isSafeInteger(view.byteLength)||view.byteLength<0||view.byteLength>MODEL_TEXTURE_BYTES)throw new Error('嵌入贴图数据范围无效。');reserveEmbedded(`view:${image.bufferView}`);const buffer=gltf.buffers?.[view.buffer];let bytes:Buffer|undefined;if(buffer?.uri?.startsWith('data:'))bytes=decodeData(buffer.uri,MODEL_MAX_BYTES);else if(buffer?.uri){const name=resolveModelResource(buffer.uri,model.name,names),entry=selected.find(e=>e.name===name);bytes=entry&&content.get(entry.key)}else if(view.buffer===0)bytes=glbBinary;
    const offset=view.byteOffset??0;if(!bytes||!Number.isSafeInteger(offset)||offset<0||offset+view.byteLength>bytes.length)throw new Error('嵌入贴图数据范围无效。');budget.add(`view:${image.bufferView}`,bytes.subarray(offset,offset+view.byteLength),image.mimeType||'embedded');}
  }
  return {name:model.name,files:selected.map(e=>{const bytes=content.get(e.key);if(!bytes)throw new Error('素材包依赖不完整。');return {name:e.name,bytes:new Uint8Array(bytes)}}),warnings:[...new Set(warnings)]};
@@ -109,21 +122,22 @@ function decodeData(value:string,limit:number):Buffer {
  const match=value.match(/^data:[^,]*;base64,([A-Za-z0-9+/=\r\n]*)$/);if(!match||match[1].length>Math.ceil(limit/3)*4+4)throw new Error('嵌入资源编码或大小超出轻量预览限制。');const bytes=Buffer.from(match[1],'base64');if(bytes.length>limit)throw new Error('嵌入资源超出大小限制。');return bytes;
 }
 /** Inspect FBX metadata without constructing meshes or allowing the browser to decode unchecked images. */
-function inspectFbx(raw:Buffer,budget:ModelTextureBudget):string[]{
+function inspectFbx(raw:Buffer,budget:Pick<ModelTextureBudget,'add'>,scene:SceneReadBudget,reserveEmbedded:(key:string)=>void):string[]{
  const refs=new Set<string>();let imageIndex=0;
+ const filename=(value:string)=>{if(/^data:/i.test(value.trimStart()))throw new Error('FBX 贴图文件名不支持 data: 地址，请使用标准 Content 嵌入图片。');if(imageFile(value))refs.add(value)};
  if(raw.toString('ascii',0,23)!=='Kaydara FBX Binary  \0\x1a\0'){
   const text=raw.toString('utf8');if(!/^;\s*FBX\s/i.test(text))throw new Error('FBX 文件头不支持，请使用标准二进制或 ASCII FBX。');
-  for(const match of text.matchAll(/(?:RelativeFilename|FileName|Filename):\s*"([^"\r\n]*)"/g))if(imageFile(match[1]))refs.add(match[1]);
+  for(const match of text.matchAll(/(?:RelativeFilename|FileName|Filename):\s*"([^"\r\n]*)"/g))filename(match[1]);
   const contents=[...text.matchAll(/\bContent:\s*,?\s*"([A-Za-z0-9+/=\s]*)"/g)];
   if((text.match(/\bContent:/g)||[]).length!==contents.length)throw new Error('嵌入 FBX 贴图编码暂不支持。');
-  for(const match of contents){const encoded=match[1].replace(/\s/g,'');if(!encoded)continue;const data=decodeData('data:application/octet-stream;base64,'+encoded,MODEL_TEXTURE_BYTES);budget.add(`fbx:${imageIndex++}`,data,[...refs].find(r=>/\.tga$/i.test(r))||'embedded');}
+  for(const match of contents){const encoded=match[1].replace(/\s/g,'');if(!encoded)continue;const key=`fbx:${imageIndex++}`;reserveEmbedded(key);const data=decodeData('data:application/octet-stream;base64,'+encoded,MODEL_TEXTURE_BYTES);budget.add(key,data,[...refs].find(r=>/\.tga$/i.test(r))||'embedded');}
   return [...refs];
  }
  if(raw.length<27)throw new Error('FBX 文件头不完整。');const wide=raw.readUInt32LE(23)>=7500,header=wide?25:13;let nodes=0,arrayBytes=0;
  const number=(at:number)=>{const value=wide?Number(raw.readBigUInt64LE(at)):raw.readUInt32LE(at);if(!Number.isSafeInteger(value))throw new Error('FBX 范围过大。');return value};
  const walk=(start:number,limit:number,depth:number)=>{if(depth>64)throw new Error('FBX 层级超过预览上限。');let at=start;while(at+header<=limit){const end=number(at);if(!end)break;if(++nodes>100000||end>limit||end<=at+header)throw new Error('FBX 节点范围无效。');const count=number(at+(wide?8:4)),length=number(at+(wide?16:8)),nameLength=raw[at+header-1],name=raw.toString('utf8',at+header,at+header+nameLength);let p=at+header+nameLength;const propertiesEnd=p+length;if(propertiesEnd>end||count>100000)throw new Error('FBX 属性范围无效。');
-   for(let index=0;index<count;index++){if(p>=propertiesEnd)throw new Error('FBX 属性不完整。');const kind=String.fromCharCode(raw[p++]);if('SR'.includes(kind)){if(p+4>propertiesEnd)throw new Error('FBX 数据不完整。');const n=raw.readUInt32LE(p);p+=4;if(p+n>propertiesEnd)throw new Error('FBX 数据范围无效。');const data=raw.subarray(p,p+n);if(['RelativeFilename','FileName','Filename'].includes(name)&&kind==='S'){const ref=data.toString('utf8');if(imageFile(ref))refs.add(ref)}if(name==='Content'&&n){const image=kind==='R'?data:decodeData('data:application/octet-stream;base64,'+data.toString('ascii'),MODEL_TEXTURE_BYTES);budget.add(`fbx:${imageIndex++}`,image,[...refs].find(r=>/\.tga$/i.test(r))||'embedded')}p+=n;}
-    else if('fdlibc'.includes(kind)){if(p+12>propertiesEnd)throw new Error('FBX 数组不完整。');const count=raw.readUInt32LE(p),encoding=raw.readUInt32LE(p+4),size=raw.readUInt32LE(p+8),element=kind==='d'||kind==='l'?8:kind==='f'||kind==='i'?4:1,decoded=count*element;p+=12;arrayBytes+=decoded;if(arrayBytes>MODEL_BUNDLE_BYTES||p+size>propertiesEnd||![0,1].includes(encoding))throw new Error('FBX 数组超过解码内存预算。');if(encoding===0&&size!==decoded||encoding===1&&inflateSync(raw.subarray(p,p+size),{maxOutputLength:Math.max(1,decoded)}).length!==decoded)throw new Error('FBX 数组长度不一致。');p+=size;}
+   for(let index=0;index<count;index++){if(p>=propertiesEnd)throw new Error('FBX 属性不完整。');const kind=String.fromCharCode(raw[p++]);if('SR'.includes(kind)){if(p+4>propertiesEnd)throw new Error('FBX 数据不完整。');const n=raw.readUInt32LE(p);p+=4;if(p+n>propertiesEnd)throw new Error('FBX 数据范围无效。');const data=raw.subarray(p,p+n);if(['RelativeFilename','FileName','Filename'].includes(name)&&kind==='S')filename(data.toString('utf8'));if(name==='Content'&&n){const key=`fbx:${imageIndex++}`;reserveEmbedded(key);const image=kind==='R'?data:decodeData('data:application/octet-stream;base64,'+data.toString('ascii'),MODEL_TEXTURE_BYTES);budget.add(key,image,[...refs].find(r=>/\.tga$/i.test(r))||'embedded')}p+=n;}
+    else if('fdlibc'.includes(kind)){if(p+12>propertiesEnd)throw new Error('FBX 数组不完整。');const count=raw.readUInt32LE(p),encoding=raw.readUInt32LE(p+4),size=raw.readUInt32LE(p+8),element=kind==='d'||kind==='l'?8:kind==='f'||kind==='i'?4:1,decoded=count*element;p+=12;arrayBytes+=decoded;scene.arrayBytes+=decoded;if(arrayBytes>MODEL_BUNDLE_BYTES||scene.arrayBytes>MODEL_BUNDLE_BYTES||p+size>propertiesEnd||![0,1].includes(encoding))throw new Error('FBX 数组超过解码内存预算。');if(encoding===0&&size!==decoded||encoding===1&&inflateSync(raw.subarray(p,p+size),{maxOutputLength:Math.max(1,decoded)}).length!==decoded)throw new Error('FBX 数组长度不一致。');p+=size;}
     else{const size=({Y:2,C:1,I:4,F:4,D:8,L:8} as Record<string,number>)[kind];if(!size||p+size>propertiesEnd)throw new Error('FBX 属性类型无效。');p+=size;}
    }if(p!==propertiesEnd)throw new Error('FBX 属性长度不一致。');if(propertiesEnd<end)walk(propertiesEnd,end,depth+1);at=end;
   }};walk(27,raw.length,0);return [...refs];

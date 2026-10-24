@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {fork} from 'node:child_process';
 import type {ModelSource,ModelIndex} from './model-preview-files';
-import type {ModelBundle} from '../shared/model-preview';
+import type {ModelBundle,ModelSceneBundle} from '../shared/model-preview';
 interface Child {on:(e:string,cb:(...args:any[])=>void)=>unknown;once:(e:string,cb:(...args:any[])=>void)=>unknown;kill:()=>unknown;send?:(v:unknown)=>unknown;postMessage?:(v:unknown)=>unknown}
 function task<T>(request:unknown,signal?:AbortSignal):Promise<T>{return new Promise((resolve,reject)=>{
  if(signal?.aborted){reject(new Error('预览读取已取消。'));return}let child:Child|undefined,done=false,timer:ReturnType<typeof setTimeout>|undefined;
@@ -14,5 +14,6 @@ function task<T>(request:unknown,signal?:AbortSignal):Promise<T>{return new Prom
   child.once('spawn',()=>{if(!done){if(child?.postMessage)child.postMessage(request);else child?.send?.(request)}});timer=setTimeout(()=>finish(new Error('模型预览读取超时，请选择更小的素材目录。')),45000);signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort();
  }catch(e){finish(e instanceof Error?e:new Error('模型预览读取失败。'))}
 })}
-export const readModelIndex=(source:string,signal?:AbortSignal)=>task<ModelIndex>({action:'index',source},signal);
+export const readModelIndex=(source:string,signal?:AbortSignal,sourceLimit=16)=>task<ModelIndex>({action:'index',source,sourceLimit},signal);
 export const readModelBundle=(model:ModelSource,signal?:AbortSignal)=>task<ModelBundle>({action:'load',model},signal);
+export const readModelScene=(primary:ModelSource,reference:ModelSource|undefined,signal?:AbortSignal)=>task<ModelSceneBundle>({action:'scene',primary,reference},signal);

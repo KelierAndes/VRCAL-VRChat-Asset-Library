@@ -128,7 +128,7 @@ function setupServices(){
  setupAI();
  unityDiagnostics=new UnityDiagnosticsMonitor(testProfile&&process.env.VRC_LIBRARY_TEST_UNITY_LOG?{logPath:process.env.VRC_LIBRARY_TEST_UNITY_LOG}:{});
  modelPreview?.close();
- modelPreview=new ModelPreviewWindow({parent:()=>window,theme:()=>normalizeTheme(store.settings().theme),available:()=>!closing&&!migrating&&!recycleOperation,validate:id=>{const asset=getAsset(id);return {asset,roots:[...store.settings().roots,...(store.settings().directSources||[]),...boothReadRoots(asset)]}}});
+ modelPreview=new ModelPreviewWindow({candidates:()=>store.all(),parent:()=>window,theme:()=>normalizeTheme(store.settings().theme),available:()=>!closing&&!migrating&&!recycleOperation,validate:id=>{const asset=getAsset(id);return {asset,roots:[...store.settings().roots,...(store.settings().directSources||[]),...boothReadRoots(asset)]}}});
  publicPlugins?.cancel();
  publicPlugins=new PublicPluginDownloads({dataDir,roots:protectedRoots,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,fetch:createPublicPluginFetch(net),changed});
  inboxMonitor?.stop();

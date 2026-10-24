@@ -18,6 +18,7 @@ import {PROJECT_MESSAGES} from './messages-project';
 // Offline UI copy. Keys are Chinese source text, values are [English, Japanese].
 // Domain enums, file names and user content keep their original values.
 export const UI_MESSAGES: Record<string, readonly [string, string]> = {
+  "看款式 · 可选角色组合查看": ["看款式 · 可选角色组合查看", "看款式 · 可选角色组合查看"],
   ...PUBLIC_PLUGIN_MESSAGES,
   ...PREVIEW_AI_MESSAGES,...LINK_INBOX_MESSAGES,
   ...BAIDU_DOWNLOAD_MESSAGES,

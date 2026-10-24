@@ -1,6 +1,7 @@
 // These ids are persisted in settings. Labels may change; ids must stay stable.
 const actions = [
   { id: 'details', label: '查看详情' },
+  { id: 'model-preview', label: '3D 预览' },
   { id: 'reveal', label: '打开所在文件夹' },
   { id: 'copy-path', label: '复制路径' },
   { id: 'open-source', label: '打开商品页面' },

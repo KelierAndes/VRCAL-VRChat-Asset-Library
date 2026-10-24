@@ -2,6 +2,8 @@
 
 **第一次使用，请先阅读[1.2.7 版零基础图文手册](BEGINNER_GUIDE.zh-CN.md)。** 本页作为功能与开发参考，保留详细行为、历史版本说明和源码运行方法。
 
+**新增 3D 功能说明：[轻量 3D 预览与角色＋衣服静态组合](MODEL_PREVIEW.zh-CN.md)。** 在素材详情或单项右键菜单点击“3D 预览”，先选择衣服模型，再用“添加角色看上身参考”从本地资料库选择角色及其模型文件。可分别显隐、调整衣服位置与缩放、查看前后侧面；不依赖 Unity，不自动合骨骼、适配体型或修复穿模，不作为 Unity 实际试穿和安装结果。
+
 v1.2.7 手册附件：[PDF 手册](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.7/VRCAL-1.2.7-Beginner-Guide-zh-CN.pdf) · [离线图文包 ZIP](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/download/v1.2.7/VRCAL-1.2.7-Guide-Offline.zip)
 
 ## 正式版与测试版升级

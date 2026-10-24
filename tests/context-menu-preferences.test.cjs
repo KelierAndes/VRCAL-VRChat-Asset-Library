@@ -22,7 +22,7 @@ const subject = (() => {
 })();
 
 const defaultOrder = [
-  'details', 'reveal', 'copy-path', 'open-source', 'project-products',
+  'details', 'model-preview', 'reveal', 'copy-path', 'open-source', 'project-products',
   'project-files', 'import-project', 'favorite', 'tags', 'category',
   'relations', 'project-in-progress', 'project-completed', 'matching-mode',
   'collection', 'remove-tags', 'cover', 'force-rematch', 'hide', 'delete'
@@ -99,7 +99,7 @@ test('normalization never mutates input or shares mutable output arrays', () => 
   first.hidden.push('delete');
   assert.deepEqual(input, { order: ['favorite'], hidden: ['hide'] });
   assert.deepEqual(second.hidden, ['hide']);
-  assert.equal(second.order.length, 20);
+  assert.equal(second.order.length, 21);
 });
 
 test('default reads return independent arrays and exported defaults cannot be changed', () => {
