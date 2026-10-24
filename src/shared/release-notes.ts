@@ -14,6 +14,12 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.8',date:'2026-10-24',channel:'preview',title:'闲鱼连接修复与免 API 密钥找素材',sections:[
+    {kind:'fixed',items:['修复关闭闲鱼消息窗口或弹出窗口后出现 Object has been destroyed 主进程错误。','按官网公开脚本精确允许聊天加密 WebSocket；错误页、断网和迟到事件不会恢复采用权限。连接失败可按 Ctrl＋R 重载。']},
+    {kind:'added',items:['找素材可复制内置提示词并打开千问、Kimi 或 DeepSeek 官方网页，不填 API 密钥；正常对话后粘贴 JSON，使用检索词搜索真实商品。','API 与网页方式共用 VRChat 品类、风格及日英检索提示词，可在页面展开查看。']},
+    {kind:'improved',items:['移除找素材页的三条示例按钮，直接输入需求；无密钥关键词规则继续可用。','无效回答保留已有商品结果；网页回答只作为检索词，不作为商品、适配或购买证明。']},
+    {kind:'notes',items:['网页 AI 需用户正常登录、发送问题并复制回答；不是无需 API 的后台静默调用，额度和验证由官网决定。','本轮使用隔离窗口及模拟响应验收，真实闲鱼账号聊天仍需实测。公开预览需手动下载，新增说明暂用中文。']}
+  ]},
   {version:'1.4.0-preview.7',date:'2026-10-24',channel:'preview',title:'BOOTH 下载后直接关联商品与封面',sections:[
     {kind:'fixed',items:['内置商品页和能核实来源的已购资料库下载，直接关联商品编号并自动补全标题、作者、分类与封面，不再因文件名不同要求确认。','旧下载记录已有明确商品来源时自动补回；成功处理后不重复读取大包，也不重新下载原素材。']},
     {kind:'improved',items:['匹配依据标为“BOOTH 下载关联”，区分人工提供和确认；重启与备份保留下载来源。','下载按钮、卡片、商品和当前页面必须对应；冲突、导航、过期或多次点击混淆时不自动绑定。']},

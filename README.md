@@ -12,11 +12,11 @@
 
 [用户协议与功能使用说明](docs/USER_AGREEMENT.zh-CN.md) · [隐私说明](docs/PRIVACY.zh-CN.md)（账号页面读取的验证范围见本次发布说明）
 
-**当前公开预览：1.4.0-preview.7。** 新增 [改模工作台](docs/AVATAR_WORKBENCH.zh-CN.md)、[新版页面图文说明](docs/WORKSPACE_NAVIGATION.zh-CN.md) 与 [改模体验改进报告](docs/AVATAR_WORKFLOW_REPORT.zh-CN.md)。
+**当前公开预览：1.4.0-preview.8。** 修复闲鱼连接规则与关闭崩溃，新增[免 API 密钥的网页 AI 找素材](docs/AI_DISCOVERY.zh-CN.md)，沿用 [改模工作台](docs/AVATAR_WORKBENCH.zh-CN.md) 与[新版页面图文说明](docs/WORKSPACE_NAVIGATION.zh-CN.md)。
 
 ## 下载与开始使用
 
-**[下载 1.4.0-preview.7 公开预览版](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.7)**：选择 Windows x64 EXE 直接运行，源码 ZIP 用于开发。此版需手动下载，不作为稳定版内置更新推送。
+**[下载 1.4.0-preview.8 公开预览版](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.8)**：选择 Windows x64 EXE 直接运行，源码 ZIP 用于开发。此版需手动下载，不作为稳定版内置更新推送。
 
 旧版官方附件继续停止提供。 版本记录、Git 历史及其原许可保留；GitHub 根据标签提供的历史 Source code 快照仍可访问。撤下下载不等于撤销旧版授权，详见 [许可变更说明](docs/LICENSING.md)。
 

@@ -40,6 +40,7 @@ import {inspectProjectMaterials,clearProjectMaterialCache} from './project-mater
 import {ProjectImports,listProjectFiles} from './project-import';
 import {PublicPluginDownloads} from './public-plugins';
 import {ProductDiscovery} from './discovery';
+import {buildWebDiscoveryPrompt} from './discovery-web';
 import {createPublicPageFetch,createPublicPluginFetch} from './public-plugin-request';
 import {ModelPreviewWindow} from './model-preview-window';
 import {AiService} from './ai-service';
@@ -271,6 +272,8 @@ function registerHandlers(){
  handle('aiState',()=>aiService.getState());
  handle('discoveryState',()=>discovery.snapshot());
  handle('startDiscovery',(request:unknown)=>discovery.start(request));
+ handle('prepareWebDiscovery',async(provider:unknown,request:unknown)=>{if(closing||migrating||!store.settings().onlineEnabled||process.env.VRC_LIBRARY_NO_NETWORK)throw new Error('请先开启联网。');const prepared=buildWebDiscoveryPrompt(provider,request);clipboard.writeText(prepared.prompt);await shell.openExternal(prepared.url)});
+ handle('startWebDiscovery',(request:unknown,reply:unknown)=>discovery.startWithWebPlan(request,reply));
  handle('cancelDiscovery',()=>{discovery.cancel();return discovery.snapshot()});
  handle('openDiscoveryProduct',async(url:string)=>{if(!store.settings().onlineEnabled||process.env.VRC_LIBRARY_NO_NETWORK)throw new Error('请先开启联网。');const item=discovery.product(url);if(!item)throw new Error('请从当前搜索结果打开商品。');if(item.platform==='booth')await booth.openDiscovery(item.url);else await xianyu.openDiscovery(item.url)});
  handle('openDiscoverySearch',async(platform:unknown)=>{if(platform!=='booth'&&platform!=='xianyu')throw new Error('平台无效。');if(!store.settings().onlineEnabled||process.env.VRC_LIBRARY_NO_NETWORK)throw new Error('请先开启联网。');const url=discovery.searchLink(platform);if(platform==='booth')await booth.openDiscovery(url);else await xianyu.openDiscovery(url)});

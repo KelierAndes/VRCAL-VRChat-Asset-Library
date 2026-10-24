@@ -1,0 +1,24 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VRChat本地素材管理器 v1.4.0-preview.8</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.8 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">闲鱼连接与窗口</a><a href="#section-3">AI 找素材</a><a href="#section-4">升级与验证</a></nav><main><h1 id="section-1">VRChat本地素材管理器 v1.4.0-preview.8</h1>
+<p>修复闲鱼关闭崩溃及会拦截聊天连接的规则，增加免 API 密钥的网页 AI 辅助找素材，移除三条示例按钮。</p>
+<h2 id="section-2">闲鱼连接与窗口</h2>
+<ul>
+<li>修复消息窗口或站内子窗口关闭后访问已销毁 <code>BrowserWindow.webContents</code>，导致主进程弹出 <code>Object has been destroyed</code> 的问题。</li>
+<li>官方公开脚本使用加密 WebSocket，旧规则只接受 HTTPS，会拦截该连接。本版只为已核实的两个精确主机放行正常 WSS 握手；仍限制资源类型、方法、端口和公共 DNS，不放宽页面导航。<a href="XIANYU_CONNECTION_CHECK.zh-CN.md">取证与限制</a>。</li>
+<li>连接失败／断开时窗口标题提示按 <strong>Ctrl＋R</strong> 重试。加载失败、渲染进程退出、断网或迟到回调不会把错误页恢复成可采用商品状态。</li>
+<li>本版修复已核实的客户端问题；网络、代理、账号验证或网站故障仍可能导致断连，页面打开不代表聊天已经连接。</li>
+</ul>
+<h2 id="section-3">AI 找素材</h2>
+<ul>
+<li>已内置 VRChat 专用检索提示词，区分品类、风格、颜色和细节，为 BOOTH 整理简短日文／英文词，为闲鱼整理中文词。API 和网页辅助共用，可在页面展开查看。</li>
+<li>移除原来的三条示例按钮，直接输入你想找的内容。</li>
+<li>保留免密钥的本地关键词搜索；这是有限词语规则，与真正 AI 分开显示。</li>
+<li>新增 <strong>使用网页 AI（免 API 密钥）</strong>：复制内置提示词与当前需求，打开千问／Kimi／DeepSeek 官网，正常登录、粘贴并发送；把完整 JSON 回答复制回来，点击 <strong>使用回答搜索商品</strong>。</li>
+<li>网页方式不调用 API，不计入 API 调用次数；需要用户在官网操作。网页登录、额度、验证和服务可用性由官网决定，不承诺永久免费或静默后台调用。</li>
+<li>回答只提供有界检索词，实际商品仍来自站内搜索；拒绝商品列表、任意网址或额外字段。错误回答保留上一次结果，原文不写入资料库。<a href="AI_DISCOVERY.zh-CN.md">操作说明</a>。</li>
+</ul>
+<h2 id="section-4">升级与验证</h2>
+<p>退出旧程序后运行 <code>VRC-Asset-Library-1.4.0-preview.8-x64.exe</code>，继续使用原资料库，无需重建标注。此版为公开预览，需手动下载，不进入稳定更新通道；之前 BOOTH 下载关联修复及其他功能继续保留。</p>
+<p>本轮使用严格窗口 mock、真实 Electron 隔离窗口、合成官方页面和模拟商品响应，验证关闭／加载失败／断网、准入规则、免密钥检索、错误回答保护及界面缩放。没有读取真实聊天或调用付费 AI，也不将模拟结果称为真实闲鱼账号聊天已通过。实际免安装程序、完整回归及 GitHub Windows CI 的结果见附件验收记录。</p>
+<p>新增说明暂用中文。发布附件包括程序、对应提交的源码、中文指南、验收记录及 SHA-256；不包含个人资料库、账号凭证或私有素材。</p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

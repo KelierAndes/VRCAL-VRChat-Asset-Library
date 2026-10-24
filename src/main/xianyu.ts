@@ -29,8 +29,15 @@ function https(raw:string):URL {
 }
 /** Only official Xianyu pages and narrowly scoped account hosts may become documents. */
 export function xianyuBrowserUrl(raw:string):URL {const u=https(raw);if(!official(u.hostname)&&!login(u.hostname))throw new Error('仅允许闲鱼官网和所需的官方登录页面。');return u}
+/** Exact production IM endpoints observed in the official public /im bundle. */
+export function xianyuWebSocketUrl(raw:string):URL|undefined {
+ if(typeof raw!=='string'||raw.length>16384)return;
+ try{const u=new URL(raw);if(u.protocol!=='wss:'||u.username||u.password||u.hash||u.port&&u.port!=='443'||!['wss-goofish.dingtalk.com','msgacs.m.taobao.com'].includes(u.hostname))return;
+  if(u.hostname==='msgacs.m.taobao.com'&&u.pathname!=='/accs/auth')return;return u;
+ }catch{return}
+}
 export function xianyuRequestAllowed(raw:string,method:string,resourceType:string):boolean {
- try{if(raw==='about:blank'&&resourceType!=='mainFrame')return true;if(/^data:image\//i.test(raw)&&resourceType==='image')return true;
+ try{if(resourceType==='webSocket')return method==='GET'&&!!xianyuWebSocketUrl(raw);if(raw==='about:blank'&&resourceType!=='mainFrame')return true;if(/^data:image\//i.test(raw)&&resourceType==='image')return true;
   const u=https(raw.startsWith('blob:https://')?raw.slice(5):raw);if(/(?:^|[/.])(?:buy|trade|order|checkout|cashier|pay|payment|cart)(?:[/.]|$)/i.test(u.pathname)||/(?:buy|trade|order|pay|cashier)/i.test(u.searchParams.get('api')||''))return false;if(['mainFrame','subFrame'].includes(resourceType)){xianyuBrowserUrl(u.href);return ['GET','HEAD','POST','OPTIONS'].includes(method)}
   if(!resource(u.hostname))return false;return ['GET','HEAD','OPTIONS'].includes(method)||method==='POST'&&(official(u.hostname)||login(u.hostname)||/^h5api\.m\.taobao\.com$/i.test(u.hostname));
  }catch{return false}
@@ -52,6 +59,7 @@ export function saveXianyuImage(bytes:Buffer,destination:string,dataDir:string,r
 export function prepareXianyuSessionMigration(dataDir:string,roots:string[]){return snapshotBrowserCookies(dataDir,roots,'xianyu-session',eligibleCookie,c=>[c.domain,c.path,c.name].join('\0'))}
 
 interface Entry {window:BrowserWindow;view:WebContentsView;channel:string;toolbarUrl:string;assetId:string;title:string;image?:XianyuImage;draft:string;result:string;status:string;officialVisible:boolean;toolbarHeight:number;closed:boolean;busy:boolean;pageReady:boolean;httpError:boolean;loadedItem?:string}
+interface PopupPage {window:BrowserWindow;contents:Electron.WebContents;title:string;failed:boolean}
 export class XianyuWorkspace {
  async readInbox(mode:'foreground'|'background',signal:AbortSignal,context:InboxReadContext={now:Date.now(),hours:24}):Promise<InboxReadResult>{
   if(signal.aborted||this.clearing||this.stopping||!this.canNetwork())return {state:'paused',message:'账号检查已暂停；请确认联网及闲鱼功能开关。',observations:[]};
@@ -59,6 +67,7 @@ export class XianyuWorkspace {
  }
  private clearing=false;
  private entry?:Entry;private remoteSession?:Electron.Session;private initializing?:Promise<void>;private stopping=false;private owned=new Set<Electron.WebContents>();private popups=new Set<BrowserWindow>();private dns=new Map<string,Promise<void>>();private cookieWrite=Promise.resolve();private generation=0;
+ private popupPages=new Map<Electron.WebContents,PopupPage>();
  constructor(private readonly deps:XianyuWorkspaceDependencies){}
  private file(name:string):string {return assertSafeWrite(path.join(this.deps.dataDir,name),this.deps.dataDir,this.deps.roots())}
  private language():AppLanguage{return normalizeLanguage(this.deps.getLanguage?.())}
@@ -85,8 +94,8 @@ export class XianyuWorkspace {
  async openMessages():Promise<void>{
   this.assertEnabled();if(!this.canNetwork())throw new Error('请先开启联网。');const generation=++this.generation;this.stopping=false;await this.initialize();if(generation!==this.generation||this.stopping||this.clearing||!this.canNetwork())return;
   const window=new BrowserWindow({width:1180,height:900,minWidth:760,minHeight:600,title:'闲鱼消息 · 待下载链接',parent:this.deps.parent()??undefined,show:false,autoHideMenuBar:true,webPreferences:this.remotePreferences()});
-  window.setMenu(null);this.popups.add(window);this.owned.add(window.webContents);this.protectContents(window.webContents);window.once('closed',()=>{this.popups.delete(window);this.owned.delete(window.webContents)});
-  try{await window.loadURL('https://www.goofish.com/im');if(!window.isDestroyed()&&!process.env.VRC_LIBRARY_TEST_HIDDEN)window.show()}catch{if(!window.isDestroyed())window.destroy();throw new Error('闲鱼消息页暂时无法打开，请检查网络或代理。')}
+  this.trackPopup(window,'闲鱼消息');
+  try{await window.loadURL('https://www.goofish.com/im');if(!window.isDestroyed()&&generation===this.generation&&!this.stopping&&!this.clearing&&this.canNetwork()&&!process.env.VRC_LIBRARY_TEST_HIDDEN)window.show()}catch{if(window.isDestroyed()||generation!==this.generation||this.stopping||this.clearing)return;window.destroy();throw new Error('闲鱼消息页暂时无法打开，请检查网络或代理后重试。')}
  }
  private async command(entry:Entry,input:unknown):Promise<unknown> {
   const data=input&&typeof input==='object'?input as Record<string,unknown>:{},command=typeof input==='string'?input:data.command;
@@ -112,11 +121,11 @@ export class XianyuWorkspace {
   }finally{entry.busy=false;this.emit()}return this.state();
  }
  private state():unknown {const e=this.entry;if(!e||e.closed)return;let url='';try{const u=xianyuBrowserUrl(e.view.webContents.getURL());url=(()=>{try{return xianyuItemUrl(u.href)}catch{return u.origin+u.pathname}})()}catch{}return {title:e.title,image:e.image?{dataUrl:'data:image/png;base64,'+e.image.png.toString('base64'),label:e.image.label,width:e.image.width,height:e.image.height}:undefined,draft:e.draft,result:e.result,status:this.t(e.status),language:this.language(),messages:localizedMessages(this.language()),canApply:(()=>{try{const item=xianyuItemUrl(e.view.webContents.getURL());return e.pageReady&&!e.httpError&&e.loadedItem===item}catch{return false}})(),officialVisible:e.officialVisible,online:this.canNetwork(),busy:e.busy,theme:this.theme(),url,sessionSaved:safeStorage.isEncryptionAvailable()}}
- private emit():void {const e=this.entry;if(e&&!e.closed&&!e.window.webContents.isDestroyed())e.window.webContents.send(e.channel+':state',this.state())}
+ private emit():void {const e=this.entry;if(e&&!e.closed&&!e.window.isDestroyed()&&!e.window.webContents.isDestroyed())e.window.webContents.send(e.channel+':state',this.state())}
  private status(message:string):void {if(this.entry){this.entry.status=message;this.emit()}}
- private layout(e:Entry):void {if(e.closed)return;const [width,height]=e.window.getContentSize(),zoom=e.window.webContents.getZoomFactor?.()??1,top=Math.min(Math.ceil(e.toolbarHeight*zoom),Math.max(64,height-120));e.view.setBounds(e.officialVisible?{x:0,y:top,width,height:Math.max(0,height-top)}:{x:width,y:height,width:0,height:0})}
- refreshTheme():void {if(this.entry){this.entry.window.setBackgroundColor(THEME_BACKGROUNDS[this.theme()]);this.entry.window.setTitle(this.t('闲鱼尝试补全')+' · '+this.entry.title);this.emit()}}
- networkChanged():void {if(!this.canNetwork()){for(const contents of this.owned)if(!contents.isDestroyed())contents.stop();void this.remoteSession?.closeAllConnections();this.status('联网已关闭或暂停；图片和名称草稿保留在本机。')}if(!this.isEnabled()){this.close();return}this.emit()}
+ private layout(e:Entry):void {if(e.closed||e.window.isDestroyed())return;const [width,height]=e.window.getContentSize(),zoom=e.window.webContents.getZoomFactor?.()??1,top=Math.min(Math.ceil(e.toolbarHeight*zoom),Math.max(64,height-120));e.view.setBounds(e.officialVisible?{x:0,y:top,width,height:Math.max(0,height-top)}:{x:width,y:height,width:0,height:0})}
+ refreshTheme():void {if(this.entry&&!this.entry.closed&&!this.entry.window.isDestroyed()){this.entry.window.setBackgroundColor(THEME_BACKGROUNDS[this.theme()]);this.entry.window.setTitle(this.t('闲鱼尝试补全')+' · '+this.entry.title);this.emit()}}
+ networkChanged():void {if(!this.canNetwork()){for(const contents of this.owned)if(!contents.isDestroyed())contents.stop();if(this.entry){this.entry.pageReady=false;this.entry.loadedItem=undefined;this.entry.httpError=true}for(const page of this.popupPages.values())this.popupFailure(page,'联网已关闭；开启后按 Ctrl+R 重试');void this.remoteSession?.closeAllConnections().catch(()=>this.status('联网已关闭；连接清理未完成，可关闭官网窗口后重试。'));this.status('联网已关闭或暂停；图片和名称草稿保留在本机。')}if(!this.isEnabled()){this.close();return}this.emit()}
  close():void {for(const win of this.discoveryWindows)if(!win.isDestroyed())win.destroy();this.discoveryWindows.clear();this.generation++;if(this.entry)this.dispose(this.entry);for(const popup of [...this.popups])if(!popup.isDestroyed())popup.destroy();this.popups.clear()}
  private dispose(e:Entry):void {if(e.closed)return;e.closed=true;ipcMain.removeHandler(e.channel);this.owned.delete(e.view.webContents);if(!e.view.webContents.isDestroyed())e.view.webContents.close();e.image=undefined;if(!e.window.isDestroyed())e.window.destroy();if(this.entry===e)this.entry=undefined}
  async shutdown():Promise<void> {this.stopping=true;++this.generation;this.close();await this.initializing;await this.flushCookies();await this.remoteSession?.cookies.flushStore();this.remoteSession?.flushStorageData()}
@@ -150,17 +159,37 @@ export class XianyuWorkspace {
  }
  private remotePreferences():Electron.WebPreferences {return {session:this.remoteSession,contextIsolation:true,nodeIntegration:false,nodeIntegrationInSubFrames:false,sandbox:true,webSecurity:true,webviewTag:false,allowRunningInsecureContent:false,disableDialogs:true,devTools:false}}
  private initialize():Promise<void> {return this.initializing??=(async()=>{const folder=this.file('xianyu-session');fs.mkdirSync(folder,{recursive:true});const remote=this.remoteSession=session.fromPath(folder,{cache:true});remote.setPermissionCheckHandler(()=>false);remote.setPermissionRequestHandler((_c,_p,callback)=>callback(false));remote.setDevicePermissionHandler(()=>false);remote.on('will-download',event=>{event.preventDefault();this.status('辅助窗口不下载文件；请使用图片副本和手机闲鱼 App。')});remote.webRequest.onBeforeRequest((details,callback)=>{
-   if(this.stopping||!this.canNetwork()||!xianyuRequestAllowed(details.url,details.method,details.resourceType)){callback({cancel:true});return}if(details.url==='about:blank'||details.url.startsWith('data:')){callback({cancel:false});return}let host:string;try{host=https(details.url.startsWith('blob:')?details.url.slice(5):details.url).hostname}catch{callback({cancel:true});return}void this.publicHost(host).then(()=>callback({cancel:this.stopping||!this.canNetwork()})).catch(()=>callback({cancel:true}));
-  });await this.restoreCookies()})()}
+   if(this.stopping||!this.canNetwork()||!xianyuRequestAllowed(details.url,details.method,details.resourceType)){callback({cancel:true});return}if(details.url==='about:blank'||details.url.startsWith('data:')){callback({cancel:false});return}let host:string;try{const target=details.resourceType==='webSocket'?xianyuWebSocketUrl(details.url):https(details.url.startsWith('blob:')?details.url.slice(5):details.url);if(!target)throw new Error();host=target.hostname}catch{callback({cancel:true});return}void this.publicHost(host).then(()=>callback({cancel:this.stopping||!this.canNetwork()})).catch(()=>callback({cancel:true}));
+  });remote.webRequest.onErrorOccurred?.(details=>{if(details.resourceType!=='webSocket'||!xianyuWebSocketUrl(details.url))return;for(const page of this.popupPages.values())if(page.contents.id===details.webContentsId)this.popupFailure(page,'连接失败或已断开，按 Ctrl+R 重试')});await this.restoreCookies()})()}
  private async publicHost(host:string):Promise<void> {let pending=this.dns.get(host);if(!pending){pending=(async()=>{let timer:ReturnType<typeof setTimeout>|undefined;try{const records=await Promise.race([lookup(host,{all:true,verbatim:true}),new Promise<never>((_r,reject)=>{timer=setTimeout(()=>reject(new Error('DNS timeout')),5000)})]);if(!records.length||records.some(r=>!isPublicAddress(r.address)))throw new Error('非公开网络地址。')}finally{if(timer)clearTimeout(timer)}})();this.dns.set(host,pending);if(this.dns.size>100)this.dns.delete(this.dns.keys().next().value!);void pending.catch(()=>this.dns.delete(host))}await pending}
+ private popupFailure(page:PopupPage,message:string):void {if(this.popupPages.get(page.contents)!==page||page.window.isDestroyed())return;page.failed=true;page.window.setTitle(this.t(page.title)+' · '+this.t(message))}
+ private trackPopup(window:BrowserWindow,title='闲鱼窗口'):void {
+  if(window.isDestroyed()||this.popups.has(window))return;
+  // BrowserWindow.webContents itself throws after 'closed'; capture it while
+  // alive and never dereference the destroyed window from cleanup callbacks.
+  const contents=window.webContents,page:PopupPage={window,contents,title,failed:false};window.setMenu(null);this.popups.add(window);this.owned.add(contents);this.popupPages.set(contents,page);
+  const release=()=>{this.popups.delete(window);this.owned.delete(contents);this.popupPages.delete(contents)};window.once('closed',release);contents.once('destroyed',release);
+  contents.on('did-start-navigation',event=>{if(event.isMainFrame&&!window.isDestroyed()&&this.popupPages.get(contents)===page){page.failed=false;window.setTitle(this.t(title)+' · '+this.t('正在加载…'))}});
+  contents.on('did-navigate',(_event,_url,status)=>{if(status>=400)this.popupFailure(page,'页面暂时不可用，按 Ctrl+R 重试')});
+  contents.on('did-fail-load',(_event,code,_description,_url,main)=>{if(main&&code!==-3)this.popupFailure(page,'页面加载失败，按 Ctrl+R 重试')});
+  contents.on('render-process-gone',()=>this.popupFailure(page,'页面已退出，按 Ctrl+R 重试'));
+  contents.on('page-title-updated',event=>{if(page.failed)event.preventDefault()});
+  contents.on('before-input-event',(event,input)=>{if(input.type!=='keyDown'||!(input.control||input.meta)||input.key.toLowerCase()!=='r'||window.isDestroyed()||contents.isDestroyed()||this.popupPages.get(contents)!==page)return;event.preventDefault();if(!this.canNetwork()||this.stopping||this.clearing){this.popupFailure(page,'联网已关闭；开启后按 Ctrl+R 重试');return}page.failed=false;try{contents.reload()}catch{this.popupFailure(page,'页面无法重载，请关闭后重新打开')}});
+  this.protectContents(contents);
+ }
  private protectContents(contents:Electron.WebContents):void {
   const guard=(event:Electron.Event&{url:string;isMainFrame?:boolean})=>{try{if(event.url==='about:blank'&&!event.isMainFrame)return;xianyuBrowserUrl(event.url);if(!this.canNetwork())throw new Error()}catch{event.preventDefault();this.status('已阻止非官方、本地或离线网页跳转。')}};
   contents.on('will-frame-navigate',guard);contents.on('will-redirect',guard);contents.on('will-attach-webview',e=>e.preventDefault());contents.on('login',(e,_details,_auth,callback)=>{e.preventDefault();callback()});
   contents.setWindowOpenHandler(details=>{try{xianyuBrowserUrl(details.url);if(!this.canNetwork()||this.stopping)throw new Error();return {action:'allow',overrideBrowserWindowOptions:{parent:this.entry?.window,width:980,height:800,autoHideMenuBar:true,webPreferences:this.remotePreferences()}}}catch{return {action:'deny'}}});
-  contents.on('did-create-window',popup=>{popup.setMenu(null);this.popups.add(popup);this.owned.add(popup.webContents);this.protectContents(popup.webContents);popup.once('closed',()=>{this.popups.delete(popup);this.owned.delete(popup.webContents)})});
-  contents.on('did-start-loading',()=>{if(this.entry?.view.webContents===contents){this.entry.pageReady=false;this.entry.httpError=false;this.entry.loadedItem=undefined;this.emit()}});
-  contents.on('did-navigate',(_event,_url,code)=>{if(this.entry?.view.webContents===contents)this.entry.httpError=code>=400});
-  contents.on('did-finish-load',()=>{if(this.entry?.view.webContents===contents){this.entry.pageReady=!this.entry.httpError;try{this.entry.loadedItem=this.entry.pageReady?xianyuItemUrl(contents.getURL()):undefined}catch{this.entry.loadedItem=undefined}}this.status('官网浏览中；网页暂无已确认可用的图搜入口，可返回图片与名称使用 App 方式。')});contents.on('did-navigate-in-page',()=>{const e=this.entry;if(e?.view.webContents===contents){let current:string|undefined;try{current=xianyuItemUrl(contents.getURL())}catch{}if(current!==e.loadedItem){e.pageReady=false;e.loadedItem=undefined;e.status='商品页面已切换，请重载并核对后采用来源。'}}this.emit()});contents.on('did-fail-load',(_e,code,_d,_u,main)=>{if(main&&code!==-3){if(this.entry?.view.webContents===contents)this.entry.pageReady=false;this.status('官网暂时不可用。可返回图片与名称，保存图片后在手机 App 手动搜图。')}});contents.on('render-process-gone',()=>this.status('官网页面已退出；可返回本机图片与名称，或重载官网。'));
+  contents.on('did-create-window',popup=>this.trackPopup(popup));
+  const currentEntry=()=>{const e=this.entry;return e&&!e.closed&&!e.window.isDestroyed()&&e.view.webContents===contents?e:undefined};
+  const failed=(message:string)=>{const e=currentEntry();if(!e)return;e.pageReady=false;e.httpError=true;e.loadedItem=undefined;e.status=message;this.emit()};
+  contents.on('did-start-loading',()=>{const e=currentEntry();if(e){e.pageReady=false;e.httpError=false;e.loadedItem=undefined;this.emit()}});
+  contents.on('did-navigate',(_event,_url,code)=>{const e=currentEntry();if(e)e.httpError=code>=400});
+  contents.on('did-finish-load',()=>{const e=currentEntry();if(!e)return;if(e.httpError||contents.isDestroyed()){failed('官网暂时不可用。可重载官网，或返回本机图片与名称。');return}e.pageReady=true;try{e.loadedItem=xianyuItemUrl(contents.getURL())}catch{e.loadedItem=undefined}e.status='官网浏览中；网页暂无已确认可用的图搜入口，可返回图片与名称使用 App 方式。';this.emit()});
+  contents.on('did-navigate-in-page',()=>{const e=currentEntry();if(!e)return;let current:string|undefined;try{current=xianyuItemUrl(contents.getURL())}catch{}if(current!==e.loadedItem){e.pageReady=false;e.loadedItem=undefined;e.status='商品页面已切换，请重载并核对后采用来源。'}this.emit()});
+  contents.on('did-fail-load',(_event,code,_description,_url,main)=>{if(main&&code!==-3)failed('官网暂时不可用。可重载官网，或返回本机图片与名称。')});
+  contents.on('render-process-gone',()=>failed('官网页面已退出；可返回本机图片与名称，或重载官网。'));
  }
  private async restoreCookies():Promise<void> {if(!this.remoteSession||!safeStorage.isEncryptionAvailable())return;try{const file=this.file('xianyu-session-cookies.bin'),stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>256*1024)return;const payload=JSON.parse(safeStorage.decryptString(fs.readFileSync(file)));if(!Number.isFinite(payload.at)||Date.now()-payload.at>30*86400000||payload.at>Date.now()+60000||!Array.isArray(payload.cookies))return;const existing=await this.remoteSession.cookies.get({});for(const cookie of payload.cookies.slice(0,100)){if(!eligibleCookie(cookie)||existing.some(c=>c.name===cookie.name&&c.domain===cookie.domain&&c.path===cookie.path))continue;await this.remoteSession.cookies.set({url:'https://'+cookie.domain.replace(/^\./,'')+(cookie.path||'/'),name:cookie.name,value:cookie.value,domain:cookie.hostOnly?undefined:cookie.domain,path:cookie.path||'/',httpOnly:cookie.httpOnly,secure:cookie.secure,sameSite:cookie.sameSite,...(!cookie.session?{expirationDate:cookie.expirationDate}:{})})}}catch{/* Login remains possible if the OS cannot decrypt an old local session. */}}
  private flushCookies():Promise<void> {if(!this.remoteSession||!safeStorage.isEncryptionAvailable())return Promise.resolve();const remote=this.remoteSession;this.cookieWrite=this.cookieWrite.then(async()=>{const cookies=(await remote.cookies.get({})).filter(eligibleCookie).slice(0,100),file=this.file('xianyu-session-cookies.bin'),tmp=this.file('xianyu-session-cookies.bin.'+randomUUID()+'.tmp');try{fs.writeFileSync(tmp,safeStorage.encryptString(JSON.stringify({at:Date.now(),cookies})),{flag:'wx'});assertSafeWrite(file,this.deps.dataDir,this.deps.roots());fs.renameSync(tmp,file)}finally{if(fs.existsSync(tmp))fs.unlinkSync(tmp)}}).catch(()=>this.status('登录状态未能保存，下次可能需要重新登录。'));return this.cookieWrite}

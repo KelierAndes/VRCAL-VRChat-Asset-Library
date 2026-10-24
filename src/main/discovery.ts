@@ -1,8 +1,9 @@
 import {randomUUID} from 'node:crypto';
 import type {AiService} from './ai-service';
 import type {ProductCandidate} from '../shared/contracts';
-import type {DiscoveryState,DiscoveryRequest,DiscoveryPlatform} from '../shared/discovery';
+import type {DiscoveryState,DiscoveryRequest,DiscoveryPlatform,DiscoveryPlan} from '../shared/discovery';
 import {discoveryRequest,discoveryUrl,discoveryItem,discoveryImage,localDiscoveryPlan,parseBoothDiscovery,decorateDiscovery} from './discovery-parser';
+import {parseWebDiscoveryReply} from './discovery-web';
 interface Dependencies {ai:()=>AiService;canNetwork:()=>boolean;xianyuEnabled:()=>boolean;booth:(url:string,signal:AbortSignal)=>Promise<{html:string;url:string}>;xianyu:(query:string,signal:AbortSignal)=>Promise<ProductCandidate[]>;cover:(url:string,signal:AbortSignal)=>Promise<string>}
 export class ProductDiscovery {
  private state:DiscoveryState={running:false,notice:'描述你想找的素材，结果来自网站实际商品。',products:[],sources:{}};
@@ -10,19 +11,21 @@ export class ProductDiscovery {
  constructor(private deps:Dependencies){}
  snapshot():DiscoveryState{return structuredClone(this.state)}
  cancel():void {const task=this.active;if(task){task.controller.abort();task.ai.cancel(task.id);this.active=undefined;this.state.running=false;this.state.notice='已停止，已找到的商品仍可查看。'}}
- start(value:unknown):DiscoveryState {
+ start(value:unknown):DiscoveryState {return this.begin(value)}
+ startWithWebPlan(value:unknown,reply:unknown):DiscoveryState {const plan=parseWebDiscoveryReply(reply);return this.begin(value,plan)}
+ private begin(value:unknown,plan?:DiscoveryPlan):DiscoveryState {
   const request=discoveryRequest(value);if(!this.deps.canNetwork())throw new Error('请先开启联网。');if(request.platforms.includes('xianyu')&&!this.deps.xianyuEnabled())throw new Error('请先在设置中启用闲鱼辅助搜索。');
   this.cancel();const task={id:randomUUID(),controller:new AbortController(),ai:this.deps.ai()};this.active=task;
-  this.state={running:true,request,products:[],sources:{},notice:'正在整理检索词…'};void this.run(request,task);return this.snapshot();
+  this.state={running:true,request,products:[],sources:{},notice:plan?'正在使用你提供的网页 AI 检索词…':'正在整理检索词…'};void this.run(request,task,plan);return this.snapshot();
  }
  product(url:string):{platform:DiscoveryPlatform;url:string}|undefined {const found=this.state.products.find(p=>p.url===url);if(found&&discoveryItem(url,found.platform)===url)return {platform:found.platform,url};}
  searchLink(platform:DiscoveryPlatform):string {const p=this.state.plan;if(!p||!this.state.request?.platforms.includes(platform))throw new Error('请先进行一次搜索。');return discoveryUrl(platform,platform==='booth'?p.boothQueries[0]:p.xianyuQuery);}
- private async run(request:DiscoveryRequest,task:NonNullable<ProductDiscovery['active']>):Promise<void>{
+ private async run(request:DiscoveryRequest,task:NonNullable<ProductDiscovery['active']>,webPlan?:DiscoveryPlan):Promise<void>{
   const live=()=>this.active===task&&!task.controller.signal.aborted&&this.deps.canNetwork();
   try{
-   const result=await task.ai.planSearch(request.description,request.avatar||'',task.id);if(!live())return;
-   const plan=result.ok?result.record.suggestion:localDiscoveryPlan(request);this.state.plan=plan;this.state.method=result.ok?'ai':'local';
-   const note=result.ok?'AI 已整理检索词；商品来自实际搜索页面。':result.message+' 本次使用本地常见词规则，不代表已使用 AI。';this.state.notice=note;
+   const result=webPlan?undefined:await task.ai.planSearch(request.description,request.avatar||'',task.id);if(!live())return;
+   const plan=webPlan||(result?.ok?result.record.suggestion:localDiscoveryPlan(request));this.state.plan=plan;this.state.method=webPlan?'web-ai':result?.ok?'ai':'local';
+   const note=webPlan?'已使用你提供的网页 AI 检索词；商品来自实际搜索页面，回答本身不作为商品或适配证明。':result?.ok?'AI 已整理检索词；商品来自实际搜索页面。':(result?.message||'AI 未启用。')+' 本次使用本地常见词规则，不代表已使用 AI。';this.state.notice=note;
    // Each platform can fail independently. BOOTH page/cover access shares the enrichment limiter and cache.
    for(const platform of request.platforms){
     if(!live())return;this.state.sources[platform]='正在搜索…';

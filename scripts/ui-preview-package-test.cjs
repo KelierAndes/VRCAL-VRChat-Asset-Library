@@ -1,4 +1,4 @@
-const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto'),{chromium}=require('playwright'),{spawn}=require('node:child_process'),net=require('node:net'),{Store}=require('../dist/main/main/store');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),crypto=require('node:crypto'),{chromium}=require('playwright'),{spawn,execFileSync}=require('node:child_process'),net=require('node:net'),{Store}=require('../dist/main/main/store');
 const repo=path.resolve(__dirname,'..'),executable=process.env.VRC_TEST_APP_EXECUTABLE;if(!executable||!path.isAbsolute(executable)||!fs.existsSync(executable))throw Error('Pass the local packaged executable in VRC_TEST_APP_EXECUTABLE');
 const run=fs.mkdtempSync(path.resolve(repo,'../ui-preview-package-')),root=path.join(run,'素材_日本語😀'),profile=path.join(run,'Library'),folder=path.join(root,'服装','合成 三角模型');fs.mkdirSync(folder,{recursive:true});const source=path.join(folder,'model.obj');fs.writeFileSync(source,'o Triangle\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n');const digest=()=>crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex'),before=digest();
 const projectPath=path.join(root,'合成角色工程');for(const folder of ['Assets','Packages','ProjectSettings'])fs.mkdirSync(path.join(projectPath,folder),{recursive:true});fs.writeFileSync(path.join(projectPath,'Packages/manifest.json'),'{"dependencies":{}}');fs.writeFileSync(path.join(projectPath,'ProjectSettings/ProjectVersion.txt'),'m_EditorVersion: 2022.3.22f1\n');
@@ -13,7 +13,23 @@ const launch=async()=>{
  while(Date.now()<deadline&&!ended){try{const response=await fetch('http://127.0.0.1:'+port+'/json/version');if(response.ok){ready=true;break}}catch{}await sleep(150)}
  if(!ready){child.kill();throw Error('Portable child did not start its isolated test endpoint')}
  const browser=await chromium.connectOverCDP('http://127.0.0.1:'+port),windows=()=>browser.contexts().flatMap(c=>c.pages());
- app={windows,firstWindow:async()=>windows().find(p=>p.url().includes('/renderer/index.html')),close:async()=>{const session=await browser.newBrowserCDPSession();await Promise.race([session.send('Browser.close').catch(()=>{}),sleep(3000)]);await Promise.race([browser.close().catch(()=>{}),sleep(3000)]);const until=Date.now()+20000;while(!ended&&Date.now()<until)await sleep(100);if(!ended){child.kill();throw Error('Owned portable launcher did not exit after closing')}}};
+ let closing;
+ app={windows,firstWindow:async()=>windows().find(p=>p.url().includes('/renderer/index.html')),close:()=>closing??=(async()=>{
+  const started=Date.now();if(browser.isConnected()){const session=await browser.newBrowserCDPSession();await Promise.race([session.send('Browser.close').catch(()=>{}),sleep(3000)]);await Promise.race([browser.close().catch(()=>{}),sleep(3000)])}
+  const lifecycle={pid:child.pid,port,closedApplicationEndpoint:false,cleanupSampled:false};let sampled=false;
+  while(!ended&&Date.now()-started<120000){
+   if(!sampled&&Date.now()-started>=20000){sampled=true;lifecycle.cleanupSampled=true;let endpointAlive=false;
+    try{endpointAlive=(await fetch('http://127.0.0.1:'+port+'/json/version',{signal:AbortSignal.timeout(1500)})).ok}catch{}
+    lifecycle.closedApplicationEndpoint=!endpointAlive;
+    try{const rows=execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',`@(Get-CimInstance Win32_Process -Filter 'ParentProcessId=${child.pid}' | Select-Object ProcessId,Name) | ConvertTo-Json -Compress`],{encoding:'utf8',windowsHide:true,timeout:5000});lifecycle.children=JSON.parse(rows||'[]')}catch{lifecycle.children='unavailable'}
+    fs.writeFileSync(path.join(run,'launcher-lifecycle-'+port+'.json'),JSON.stringify(lifecycle,null,2));
+    if(endpointAlive){child.kill();throw Error('Packaged application endpoint is still running 20 seconds after close; inspect launcher lifecycle diagnostics')}
+   }
+   await sleep(100);
+  }
+  lifecycle.durationMs=Date.now()-started;lifecycle.launcherExited=ended;fs.writeFileSync(path.join(run,'launcher-lifecycle-'+port+'.json'),JSON.stringify(lifecycle,null,2));
+  if(!ended){child.kill();throw Error('Owned portable launcher cleanup did not finish within 120 seconds after the application closed')}
+ })()};
  const page=await app.firstWindow();if(!page)throw Error('Packaged main page missing');page.setDefaultTimeout(25000);await page.locator('.inbox-nav').waitFor();assert.equal((await page.evaluate(()=>window.library.snapshot())).settings.dataDir,profile);return page;
 };
 (async()=>{
@@ -32,5 +48,5 @@ const launch=async()=>{
  assert.equal((await page.evaluate(()=>window.library.aiState())).enabled,false);await page.evaluate(()=>window.library.setViewPreferences({theme:'x-light'}));await app.close();app=null;
  page=await launch();const restored=await page.evaluate(id=>window.library.get(id),asset.id);assert.equal(restored.manual.notes,'PACKAGED-PERSISTENCE');assert.equal(restored.manual.favorite,true);assert.equal((await page.evaluate(()=>window.library.snapshot())).settings.theme,'x-light');assert.equal((await page.evaluate(()=>window.library.snapshot())).settings.workbenchProjectId,project.id);const imports=await page.evaluate(id=>window.library.projectImportJobs(id),project.id);assert.equal(imports.find(j=>j.id===copied.id).review.appearance,true);assert.equal(imports.find(j=>j.id===copied.id).review.movement,true);checks.push('Second packaged launch restores workbench target and explicit import review');await app.close();app=null;assert.equal(digest(),before);checks.push('Second packaged launch preserves library/theme and synthetic source SHA-256');
  assert.equal(crypto.createHash('sha256').update(fs.readFileSync(downloadedFile)).digest('hex'),downloadHash);fs.writeFileSync(path.join(run,'report.json'),JSON.stringify({ok:true,packaged:true,executable,version,checks,run},null,2));console.log(JSON.stringify({ok:true,checks,run}));
-})().catch(async error=>{console.error(error);if(app){try{await(await app.firstWindow()).screenshot({path:path.join(run,'failure.png')})}catch{}await app.close()}process.exitCode=1});
+})().catch(async error=>{console.error(error);if(app){try{await(await app.firstWindow()).screenshot({path:path.join(run,'failure.png')})}catch{}await app.close().catch(()=>{})}process.exitCode=1});
 

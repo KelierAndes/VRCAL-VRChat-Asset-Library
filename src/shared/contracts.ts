@@ -72,6 +72,8 @@ export type LibraryEvent = {type:'change'}|{type:'scan';progress:ScanProgress}|{
 export interface LibraryAPI {
   discoveryState():Promise<import('./discovery').DiscoveryState>;
   startDiscovery(request:import('./discovery').DiscoveryRequest):Promise<import('./discovery').DiscoveryState>;
+  prepareWebDiscovery(provider:import('./discovery-prompt').DiscoveryWebProvider,request:import('./discovery').DiscoveryRequest):Promise<void>;
+  startWebDiscovery(request:import('./discovery').DiscoveryRequest,reply:string):Promise<import('./discovery').DiscoveryState>;
   cancelDiscovery():Promise<import('./discovery').DiscoveryState>;
   openDiscoveryProduct(url:string):Promise<void>;
   openDiscoverySearch(platform:import('./discovery').DiscoveryPlatform):Promise<void>;
