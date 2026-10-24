@@ -1,0 +1,21 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1.4.0-preview.13 · 启动与刷新开销优化</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.13 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">改进</a><a href="#section-3">怎么选下载包</a><a href="#section-4">验证范围</a></nav><main><h1 id="section-1">1.4.0-preview.13 · 启动与刷新开销优化</h1>
+<p>本次处理普通启动和无云端资料时的重复工作，并增加完整解压运行包。preview.12 的应用内网页 AI、素材匹配、扫描与工程功能继续保留。</p>
+<h2 id="section-2">改进</h2>
+<ul>
+<li>原本随启动加载的完整网页解析器，改为首次真正解析网页时加载。保留原版 Cheerio、同步接口和既有解析规则，覆盖 BOOTH、闲鱼及百度页面。</li>
+<li>没有云端文件或请求的素材页为空时，跳过本地全库的复制与关联；已有云端文件的识别与本地／云端标记保持。</li>
+<li>新增可重复运行的隔离启动和全进程内存基准。详细数据见同版 <code>Performance-1.4.0-preview.13.json</code>，不把局部微基准当作整体启动收益。</li>
+</ul>
+<h2 id="section-3">怎么选下载包</h2>
+<ul>
+<li><code>x64.exe</code>：单文件直接运行，保留现有单文件更新方式。</li>
+<li><code>x64-Folder.zip</code>：完整解压后运行目录中的 <code>VRC素材库.exe</code>，以后直接启动，省去每次展开程序的步骤；当前需要从发布页手动更新。保留同目录其他程序文件。</li>
+<li><code>Source.zip</code>：完整对应源码，用于开发；不是可直接运行的程序包。</li>
+</ul>
+<p>升级前正常退出旧版，继续使用原资料库，无需重新确认素材。不要同时启动新旧版操作同一资料库。公开预览需手动下载，不进入稳定版自动更新通道；旧版撤下的附件保持撤下。</p>
+<h2 id="section-4">验证范围</h2>
+<p>最终类型检查、回归数量、打包实机、首屏时间、内存定义和合成源文件哈希见随版验收记录。测速使用 300 条无封面、离线合成索引，每种方式 4 次；实际网页、封面、3D、资料规模和机器负载会改变结果。</p>
+<p>本轮不扩大账号读取范围，不改动用户原素材或 Unity 工程。首次网页解析会承担延后加载的成本。既有网页 AI 真实账号完整流程、验证码等未验收边界继续保留。</p>
+<p><a href="PERFORMANCE.zh-CN.html">性能与程序包说明</a> · <a href="AI_DISCOVERY.zh-CN.html">应用内 AI 指南</a> · <a href="AVATAR_WORKFLOW_REPORT.zh-CN.html">功能现状</a></p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

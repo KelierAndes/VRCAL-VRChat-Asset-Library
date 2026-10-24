@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 import { lookup } from 'node:dns/promises';
-import * as cheerio from 'cheerio';
+import {loadHtml} from './html-parser';
 import type { AssetRecord, Category, OnlineInfo, ProductCandidate, QueueProgress, TransferProgress, TransferSummary, SpeedSample, MatchEvidence } from '../shared/contracts';
 import { assertSafeWrite, writeOwnedAtomic } from './safety';
 import { inferAvatars, inferProductCategory,officialProductCategory } from './hints';
@@ -77,7 +77,7 @@ function officialTitleAliases(title:string,description:string):string[] {
 }
 
 export function parseProduct(html:string, rawUrl:string):ParsedProduct {
-  const url=publicHttpsUrl(rawUrl).href, $=cheerio.load(html);
+  const url=publicHttpsUrl(rawUrl).href, $=loadHtml(html);
   const expectedId=boothItem(url);
   const marketHost=/(?:^|\.)goofish\.com$/i.test(new URL(url).hostname),marketId=marketItem(url);
   if(marketHost&&!marketId)throw new RequestFailure('请先打开闲鱼商品详情页，再尝试补全。','not-found');
@@ -133,7 +133,7 @@ export function captureMarketplaceProduct(url:string,snapshot:unknown,manualTitl
 }
 
 export function parseSearch(html:string, url:string):ProductCandidate[] {
-  const $=cheerio.load(html), results:ProductCandidate[]=[];
+  const $=loadHtml(html), results:ProductCandidate[]=[];
   if(/captcha|access denied|just a moment|年齢確認|年齢認証|ログイン - BOOTH/i.test($('title').text()))throw new RequestFailure('网站需要验证，已停止读取','blocked');
   const main=$('.market-items').first();
   const empty=(main.length?main:$('body')).find('h2,h3,.search-empty,.no-results,[data-search-empty]').toArray().some(element=>/条件に一致する商品は見つかりませんでした|検索結果がありません|no\s+(?:matching\s+)?(?:items|products|results)(?:\s+(?:were\s+)?found)?|没有找到(?:匹配|相关)?(?:商品|结果)|沒有找到(?:符合|相關)?(?:商品|結果)/i.test($(element).text()));

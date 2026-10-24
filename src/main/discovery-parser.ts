@@ -1,4 +1,4 @@
-import * as cheerio from 'cheerio';
+import {loadHtml} from './html-parser';
 import {parseSearch,publicHttpsUrl} from './online';
 import type {DiscoveryPlatform,DiscoveryPlan,DiscoveryProduct,DiscoveryRequest} from '../shared/discovery';
 import {redactAiText} from './ai-privacy';
@@ -33,7 +33,7 @@ export function decorateDiscovery(product:import('../shared/contracts').ProductC
 }
 export function parseBoothDiscovery(html:string,url:string):import('../shared/contracts').ProductCandidate[] {
  if(new URL(url).hostname!=='booth.pm'||!new URL(url).pathname.startsWith('/ja/search/'))throw new Error('搜索页已跳转，请在 BOOTH 完成验证后重试。');
- const $=cheerio.load(html),products=parseSearch(html,url);
+ const $=loadHtml(html),products=parseSearch(html,url);
  if(!products.length&&!/market-items|search-results|条件に一致する商品|no-results|search-empty/.test(html))throw new Error('未能读取 BOOTH 搜索结果，请打开站内搜索核对。');
  return products.filter(p=>!/vroid|vrm専用|実物|実際の衣服/i.test(p.title)).slice(0,12).map(p=>{
   const card=$('.item-card').filter((_i,e)=>$(e).find('a[href*="/items/"]').toArray().some(a=>{try{return discoveryItem(new URL($(a).attr('href')!,url).href,'booth')===p.url}catch{return false}})).first();

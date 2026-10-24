@@ -1,0 +1,30 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>启动速度与内存：怎样测、怎样选择程序包</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.13 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">这次优化了什么</a><a href="#section-3">两种程序包</a><a href="#section-4">升级与资料库</a><a href="#section-5">实测口径</a><a href="#section-6">已测基线与本版结果</a></nav><main><h1 id="section-1">启动速度与内存：怎样测、怎样选择程序包</h1>
+<h2 id="section-2">这次优化了什么</h2>
+<ul>
+<li>启动素材库时不提前加载完整网页解析器。首次解析 BOOTH、闲鱼或百度页面时，再加载原来的 Cheerio；解析实现和结果保持。</li>
+<li>没有云端文件时，列表和详情不再为了云端关联而复制、遍历本地全库。已经登记云端文件的匹配行为保持。</li>
+<li>提供可完整解压后运行的程序 ZIP，减少单文件 EXE 每次启动展开程序的开销。</li>
+</ul>
+<p>这两处代码优化针对可验证的重复工作。网页首次解析会承担延后的加载成本；不会将模块微基准的节省直接当作整个应用的节省。</p>
+<h2 id="section-3">两种程序包</h2>
+<p><code>VRC-Asset-Library-版本-x64.exe</code> 是单文件便携启动器。双击即可运行；它需要先在临时位置展开程序，退出后清理临时程序文件。保留现有受校验的单文件更新方式。</p>
+<p><code>VRC-Asset-Library-版本-x64-Folder.zip</code> 是完整解压运行包。右键解压全部内容，进入目录，运行 <code>VRC素材库.exe</code>。以后直接运行这个文件，可为它创建快捷方式。程序需要同目录 DLL、resources 等文件，不能只把里面的 EXE 单独拿走，也不要直接在压缩包预览中运行。</p>
+<p>解压目录运行当前不支持应用内自动替换，需要从官方发布页手动更新。公开预览版本本身不进入稳定自动更新通道。本次保留更新器的原有验证和替换边界。</p>
+<h2 id="section-4">升级与资料库</h2>
+<p>升级前正常退出旧版，再启动选定的新版本。继续使用原资料库；不要为测速删除资料库、封面或系统缓存。程序包与素材目录、资料库分别存放。手动换程序目录不会替你迁移素材。</p>
+<h2 id="section-5">实测口径</h2>
+<p>基准脚本是 <code>scripts/benchmark-startup.cjs</code>，只创建隔离资料库，不打开用户账号、素材或 Unity 工程。</p>
+<ul>
+<li>环境为本次 Windows 11 电脑，Intel Core i9-13900H、约 32 GiB 内存；其他程序保持运行，系统负载会影响结果。</li>
+<li>预置 300 条合成索引，每条含 1035 字符合成说明；没有封面、云端文件、实际压缩包扫描、联网、下载或 3D。首屏显示 100 张卡片。合成源文件前后清单与 SHA-256 一致。</li>
+<li>每种程序包启动 4 次：第 1 次使用新的浏览器配置；后 3 次重复使用该隔离配置，重新创建整个程序进程。没有清空 Windows 文件缓存，因此不称为操作系统冷启动。</li>
+<li>从创建程序进程计时，直到素材卡片可见、加载完成，并经过两帧绘制。包含隔离测试连接和轮询开销，不是无测量工具的点击到首帧；单文件展开耗时计入，退出清理不计入。</li>
+<li>首次与再次启动分别保留；再次启动报告后 3 次中位数。内存取每次界面就绪后等待 8 秒的采样，报告全部 4 次中位数。</li>
+<li>内存统计整棵本次启动的进程树，包括启动器、主进程、界面、GPU 与辅助进程。使用 Windows <code>WorkingSetPrivate</code> 的私有驻留量，另列 <code>PrivateBytes</code> 私有提交量；不能把含共享页的工作集相加当作独占物理内存。</li>
+<li>不强制回收 JS 堆、不关闭 GPU、不最小化测试窗口。1 MiB = 1,048,576 字节。网页、封面、3D、大资料库和系统内存压力都会改变实际占用。</li>
+</ul>
+<h2 id="section-6">已测基线与本版结果</h2>
+<p>同机 preview.12 的单文件包再次启动中位数为 <strong>7.570 秒</strong>，新浏览器配置启动为 <strong>8.313 秒</strong>；解压目录分别为 <strong>0.755 秒</strong>和 <strong>0.909 秒</strong>。私有驻留内存四次中位数分别约 <strong>159.3 MiB</strong>、<strong>158.5 MiB</strong>。这是上述隔离条件的结果。</p>
+<p>preview.13 的最终对照、各次样本及提交内存见同版附件 <code>Performance-1.4.0-preview.13.json</code> 和验收记录。保留波动和具体条件，不将微基准或单次最好值当作固定承诺。</p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

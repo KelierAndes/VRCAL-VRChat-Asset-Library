@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.13',date:'2026-10-24',channel:'preview',title:'启动与刷新开销优化',sections:[
+    {kind:'improved',items:['完整网页解析器延后到首次实际解析时加载，保留原解析结果；没有云端文件时，列表刷新跳过无意义的本地全库关联。']},
+    {kind:'added',items:['发布附件新增解压运行 ZIP。完整解压后直接启动其中的程序，省去单文件启动时展开程序的步骤。']},
+    {kind:'notes',items:['解压目录运行当前需从官方发布页手动更新；单文件 EXE 保留原有更新方式。公开预览不进入稳定更新通道。','启动和内存数据采用隔离、离线、无封面合成素材测量；网页、图片、3D、磁盘与机器负载会改变实际占用。具体口径和结果见本版验收附件。']}
+  ]},
   {version:'1.4.0-preview.12',date:'2026-10-24',channel:'preview',title:'应用内网页 AI 找素材',sections:[
     {kind:'added',items:['千问、Kimi、DeepSeek 官方网页可在“AI 找素材”页面内打开，无需填写 API 密钥或切到外部浏览器。尝试自动填好本次需求，由用户在官网发送；有效回答衔接真实商品搜索。','每次需求绑定独立标记，严格核对当前回答并等待连续稳定；保留同页复制提示词、重新填入和粘贴回答回退。']},
     {kind:'improved',items:['三家官网分别保存登录会话，随资料库迁移，普通备份不含凭证；远程页面无桌面接口，限制导航、权限与下载。','网页区域适配滚动、缩放、切页和本地弹窗；修改需求或关闭工作区使旧回答失效。保留原有本地规则和 API 搜索。']},

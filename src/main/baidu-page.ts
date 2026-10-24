@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {load} from 'cheerio';
+import {loadHtml as load} from './html-parser';
 import type {BaiduScanState} from '../shared/cloud-contracts';
 
 export interface BaiduVisibleItem {id?:string;name:string;path:string;directory:boolean;size?:number;modifiedAt?:string;productId?:string}

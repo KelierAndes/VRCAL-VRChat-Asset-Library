@@ -4,6 +4,45 @@ const api=()=>{assert(fs.existsSync(backend),'Cloud catalog is not implemented')
 function local(id,name,extra={}){return {id,name,path:path.resolve('Synthetic',name),kind:'unitypackage',size:100,mtimeMs:1,missing:false,group:'Synthetic',localCategory:'服装',localAvatars:[],hintUrls:[],manual:{notes:'preserve'},online:{status:'pending'},createdAt:'2026-10-21T00:00:00Z',updatedAt:'2026-10-21T00:00:00Z',...extra}}
 function capture(items,extra={}){return {accountKey:'account-a',directoryPath:'/素材',items:items.map(i=>({...i,path:'/素材/'+i.name})),capturedAt:'2026-10-21T00:00:00Z',source:'web-visible',complete:false,warnings:[],...extra}}
 function setup(locals=[]){const {CloudCatalog}=api();let data;const repository={read:()=>data,write:d=>data=structuredClone(d),locals:()=>locals};return {catalog:new CloudCatalog(repository),repository,locals,get data(){return data}}}
+
+test('an empty cloud catalog decorates local assets without enumerating the library',()=>{
+ const assets=[local('present','present.zip'),local('missing','missing.zip',{missing:true,storage:{kind:'both',cloudCount:7,cloudEntries:[]}})],before=structuredClone(assets),f=setup(assets);let localReads=0;
+ f.repository.locals=()=>{localReads++;return assets};
+ assert.deepEqual(f.catalog.list({}),{items:[],total:0,directories:[],warnings:[]});
+ const decorated=f.catalog.decorate(assets);
+ assert.deepEqual(decorated,assets.map(asset=>({...asset,storage:{kind:'local',cloudCount:0,lastSeenAt:undefined,cloudEntries:[]}})));
+ assert.equal(localReads,0,'empty cloud data must not request the full local catalog');
+ assert.notEqual(decorated,assets);assert.notEqual(decorated[0],assets[0]);assert.deepEqual(assets,before);
+});
+test('empty captures retain directory metadata and warnings without enumerating local assets',()=>{
+ const assets=[local('one','local.zip')],f=setup(assets);let localReads=0;
+ f.repository.locals=()=>{localReads++;return assets};
+ f.catalog.capture(capture([],{warnings:['visible-partial']}));
+ f.catalog.capture(capture([],{accountKey:'account-b',warnings:['visible-partial','live-layout-unverified']}));
+ const page=f.catalog.list({});
+ assert.deepEqual(page,{items:[],total:0,directories:[{accountKey:'account-a',path:'/素材',capturedAt:'2026-10-21T00:00:00Z',count:0},{accountKey:'account-b',path:'/素材',capturedAt:'2026-10-21T00:00:00Z',count:0}],warnings:['仅记录当前可见条目，目录中可能还有其他文件。','真实登录和网页布局尚待验证。']});
+ assert.deepEqual(f.catalog.decorate(assets),[{...assets[0],storage:{kind:'local',cloudCount:0,lastSeenAt:undefined,cloudEntries:[]}}]);
+ assert.equal(localReads,0,'captures with no files must not request local materials');
+});
+test('an empty requested decoration skips local enumeration even with populated captures',()=>{
+ const asset=local('one','match.zip'),f=setup([asset]);f.catalog.capture(capture([{name:asset.name,directory:false,size:asset.size}]));let localReads=0;
+ f.repository.locals=()=>{localReads++;return [asset]};
+ assert.deepEqual(f.catalog.decorate([]),[]);
+ assert.equal(localReads,0,'an empty gallery page must not join all local materials');
+});
+test('mixed empty and populated captures preserve duplicate storage entries and stale timestamps',()=>{
+ const asset=local('one','match.zip'),f=setup([asset]);let localReads=0;
+ f.repository.locals=()=>{localReads++;return [asset]};
+ f.catalog.capture(capture([],{accountKey:'account-empty'}));
+ f.catalog.capture(capture([{name:asset.name,directory:false,size:asset.size}],{capturedAt:'2000-01-01T00:00:00Z'}));
+ f.catalog.capture(capture([{name:asset.name,directory:false,size:asset.size}],{accountKey:'account-b',capturedAt:'2999-01-01T00:00:00Z'}));
+ const page=f.catalog.list({});assert.equal(localReads,1);assert.equal(page.total,2);
+ assert.deepEqual(page.items.map(row=>({relation:row.relation,basis:row.basis,localIds:row.localIds,stale:row.stale})),[{relation:'both',basis:'filename-size',localIds:['one'],stale:true},{relation:'both',basis:'filename-size',localIds:['one'],stale:false}]);
+ const entries=page.items.map(row=>({key:row.key,path:row.path,accountKey:row.accountKey,capturedAt:row.capturedAt,basis:row.basis}));
+ assert.deepEqual(f.catalog.decorate([asset]),[{...asset,storage:{kind:'both',cloudCount:2,lastSeenAt:'2999-01-01T00:00:00Z',cloudEntries:entries}}]);
+ assert.equal(localReads,2,'each populated operation still checks current local availability');assert.equal(asset.storage,undefined);
+});
+
 test('confirmed BOOTH identity links cloud/local without pretending equal file content; cloud-only stays separate',()=>{const a=local('local','different_v2.unitypackage',{online:{status:'matched',url:'https://booth.pm/zh-cn/items/6986518'}}),f=setup([a]);f.catalog.capture(capture([{name:'6986518 Lilith Vice',directory:true},{name:'独立新商品.zip',directory:false,size:900}]));const page=f.catalog.list({});assert.equal(page.total,2);const row=page.items.find(v=>v.name.startsWith('6986518'));assert.equal(row.relation,'both');assert.equal(row.basis,'product-id');assert.equal(row.contentVerified,false);assert.deepEqual(row.localIds,['local']);assert.equal(page.items.find(v=>v.name==='独立新商品.zip').relation,'cloud-only');const decorated=f.catalog.decorate([a])[0];assert.equal(decorated.storage.kind,'both');assert.equal(decorated.manual.notes,'preserve');assert.equal(a.storage,undefined)});
 test('exact filename and size can link a unique file; same names with different versions/authors stay candidates',()=>{const a=local('one','Li-ne_Lovely Hair_v1.unitypackage'),f=setup([a]);f.catalog.capture(capture([{name:a.name,directory:false,size:100},{name:'Lovely Hair_v2.unitypackage',directory:false,size:200}]));assert.equal(f.catalog.list({}).items.find(v=>v.name===a.name).basis,'filename-size');const g=setup([a,local('two',a.name,{online:{status:'matched',url:'https://other.booth.pm/items/1234567'}})]);g.catalog.capture(capture([{name:a.name,directory:false,size:100}]));assert.equal(g.catalog.list({}).items[0].relation,'review');assert.deepEqual(g.catalog.list({}).items[0].localIds,[])});
 test('conflicting or multiple product IDs and date strings do not auto-associate',()=>{const a=local('one','dress.unitypackage',{online:{status:'matched',url:'https://booth.pm/zh-cn/items/6986518'}}),f=setup([a]);f.catalog.capture(capture([{name:'6986518_7643173.zip',directory:false,size:100},{name:'20261021.zip',directory:false,size:100},{name:'7643173_dress.zip',directory:false,size:100}]));assert(f.catalog.list({}).items.every(v=>v.relation!=='both'))});
