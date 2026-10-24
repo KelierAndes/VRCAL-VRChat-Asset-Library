@@ -4,7 +4,7 @@ const filename=path.resolve(__dirname,'../src/main/link-inbox-dom.ts'),compiled=
 const own='<header><div class="user-order-container--fixture"><a href="/personal"><img src="https://img.alicdn.com/bao/uploaded/i1/synthetic-mtopupload.jpg">Synthetic user</a></div></header>';
 const link='https://pan.baidu.com/s/1SyntheticDelivery';
 const item='<div role="listitem" data-fixture-message aria-label="未读"><time datetime="2026-10-24T11:30:00+08:00"></time>'+link+' 提取码: Ab12</div>';
-function capture(html,{mode='foreground',identityOnly=false,forbidMessageText=false,forbidQuotedText=false,href='https://www.goofish.com/im'}={}){
+function capture(html,{mode='foreground',identityOnly=false,forbidMessageText=false,forbidQuotedText=false,href='https://www.goofish.com/im',script}={}){
  const $=load(html),cache=new WeakMap();let messageReads=0;
  const hidden=node=>$(node).parents().addBack().toArray().some(e=>$(e).attr('hidden')!==undefined||/display\s*:\s*none|visibility\s*:\s*hidden/i.test($(e).attr('style')||''));
  class Element{
@@ -25,7 +25,7 @@ function capture(html,{mode='foreground',identityOnly=false,forbidMessageText=fa
   getClientRects(){return hidden(this.node)?[]:[{}]}
  }
  const wrap=node=>{if(!node)return null;if(!cache.has(node))cache.set(node,new Element(node));return cache.get(node)},document={querySelectorAll:selector=>$(selector).toArray().map(wrap),querySelector:selector=>wrap($(selector)[0])};
- const result=JSON.parse(JSON.stringify(vm.runInNewContext(inboxCaptureScript('xianyu',mode,identityOnly),{document,location:new URL(href),URL,HTMLElement:Element,getComputedStyle:element=>({display:hidden(element.node)?'none':'block',visibility:'visible'})})));
+ const result=JSON.parse(JSON.stringify(vm.runInNewContext(script??inboxCaptureScript('xianyu',mode,identityOnly),{document,location:new URL(href),URL,HTMLElement:Element,getComputedStyle:element=>({display:hidden(element.node)?'none':'block',visibility:'visible'})})));
  return {result,messageReads};
 }
 // These are semantic layout variants, not claims about newly observed live site
@@ -104,4 +104,20 @@ test('official unselected conversation and truly empty conversation list have ex
 test('official recipe rejects ambiguous lists and forged class substrings without scanning the surrounding page',()=>{
  const duplicate=official({messages:message(link)}).replace('</main>','<div id="message-list-scrollable" class="message-list--fixture"><div id="msg-list-container">'+message(link)+'</div></div></main>');const bad=capture(duplicate).result;assert.equal(bad.supported,false);assert.deepEqual(bad.rows,[]);
  const forged=official({messages:message(link).replace('message-text--fixture','not-message-text--fixture')});const value=capture(forged).result;assert.equal(value.supported,true);assert.deepEqual(value.rows,[]);
+});
+
+test('official selected share survives wrapped text, account verification and encrypted restart as time-review only',async t=>{
+ // Recreate the public message shape shown in feedback, with entirely synthetic
+ // account/product/link data. CSS wrapping and WBR do not change a link's text.
+ const body='【超级会员V6】通过百度网盘分享的文件：Synthetic Garment 等3个文件\n链接:<span>https://pan.baidu.com/s/1Synthetic</span><wbr><span>Delivery?pwd=Ab12</span>\n复制这段内容打开「百度网盘APP 即可获取」';
+ const html=official({conversations:conversation('No delivery in unread preview'),messages:message(body,{quote:'https://pan.baidu.com/s/1NeverReadOldQuote',time:'18:25'})});
+ const Module=require('node:module'),filename=path.resolve(__dirname,'../src/main/link-inbox-reader.ts'),reader=new Module(filename,module);reader.filename=filename;reader.paths=Module._nodeModulePaths(path.dirname(filename));reader.require=Module.createRequire(path.resolve(__dirname,'../dist/main/main/link-inbox-reader.js'));reader._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,filename);
+ const now=Date.parse('2026-10-25T19:00:00+08:00'),context={now,hours:6};let evaluations=0;
+ const page={isDestroyed:()=>false,getURL:()=> 'https://www.goofish.com/im',executeJavaScript:async script=>{evaluations++;return capture(html,{script,forbidQuotedText:true}).result}};
+ const result=await reader.exports.readOwnedInbox('xianyu',[page],'foreground',new AbortController().signal,context,()=>true);
+ assert.equal(evaluations,2);assert.equal(result.state,'ready');assert.equal(result.observations.length,1);assert.equal(result.observations[0].sourceAt,undefined);assert.match(result.message,/时间／提取码待核对/);
+ const crypto=require('node:crypto'),os=require('node:os'),{LinkInboxStore}=require('../dist/main/main/link-inbox-store'),{INBOX_POLICY_VERSION}=require('../dist/main/shared/inbox-policy');
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'vrc-inbox-flow-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));const key=crypto.randomBytes(32),cipher={encrypt:text=>{const iv=crypto.randomBytes(12),c=crypto.createCipheriv('aes-256-gcm',key,iv),bytes=Buffer.concat([c.update(text,'utf8'),c.final()]);return Buffer.concat([iv,c.getAuthTag(),bytes])},decrypt:bytes=>{const c=crypto.createDecipheriv('aes-256-gcm',key,bytes.subarray(0,12));c.setAuthTag(bytes.subarray(12,28));return Buffer.concat([c.update(bytes.subarray(28)),c.final()]).toString('utf8')}};
+ const make=()=>new LinkInboxStore({dataDir:dir,roots:()=>[],cipher,now:()=>now}),store=make();store.configure({enabled:true,background:false,hours:6},{version:INBOX_POLICY_VERSION,acceptedAt:now,scope:'foreground'});for(const observation of result.observations)store.ingest(observation);
+ const state=store.state();assert.equal(state.items.length,1);assert.equal(state.items[0].url,link);assert.equal(state.items[0].code,'Ab12');assert.equal(state.items[0].sourceAt,undefined);assert.equal(state.unread,0);assert(!fs.readFileSync(path.join(dir,'link-inbox.bin')).includes(Buffer.from('pan.baidu.com')));assert.deepEqual(make().state(),JSON.parse(JSON.stringify(state)));
 });

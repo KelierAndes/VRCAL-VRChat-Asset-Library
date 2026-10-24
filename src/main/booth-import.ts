@@ -56,6 +56,13 @@ function evidenceAndHints(file:string,listing?:FileListing):{localEvidence:Avata
 
 /** Register only the completed file supplied by the download owner. No source is moved, copied, unpacked or executed. */
 export async function importBoothDownload(store:Store,file:string,sourceItem:string|undefined,downloadDir:string):Promise<{assetId:string}>{
+  return importCompletedDownload(store,file,downloadDir,'booth',sourceItem);
+}
+
+/** Register exactly one finalized app download; never starts a directory scan. */
+export async function importCompletedDownload(store:Store,file:string,downloadDir:string,provider:'booth'|'baidu',sourceItem?:string):Promise<{assetId:string}>{
+  if(provider!=='booth'&&provider!=='baidu')throw new Error('下载来源无效。');
+  if(provider==='baidu'&&sourceItem)throw new Error('百度分享链接不能作为 BOOTH 商品来源。');
   const roots=store.settings().roots,sourceUrl=sourceItemUrl(sourceItem),first=await validateDownload(file,downloadDir,roots),extension=path.extname(first.file).toLowerCase();
   const dataRelative=path.relative(store.dataDir,first.file).replace(/\\/g,'/').toLowerCase();
   if(isWithin(first.file,store.dataDir)&&/^(?:library\.sqlite(?:-(?:wal|shm))?|queue\.json)$|^cache(?:\/|$)/.test(dataRelative))throw new Error('应用资料库和封面缓存不能作为下载素材登记，请使用独立的下载文件或子目录。');
@@ -65,7 +72,7 @@ export async function importBoothDownload(store:Store,file:string,sourceItem:str
   const latest=await validateDownload(first.file,first.directory,store.settings().roots);
   if(!unchanged(first.stat,latest.stat))throw new Error('下载文件在读取过程中发生变化，请等下载完成后重试。');
   const {localEvidence,localNameHints}=evidenceAndHints(first.file,listing),fileIdentity=latest.stat.ino>0n&&latest.stat.birthtimeNs>0n?{device:latest.stat.dev.toString(),inode:latest.stat.ino.toString(),birthtime:latest.stat.birthtimeNs.toString()}:undefined;
-  const record=store.upsertScan({path:first.file,name:path.basename(first.file),group:'BOOTH 下载',kind,size:Number(latest.stat.size),mtimeMs:Number(latest.stat.mtimeNs)/1e6,localCategory:inferCategory(path.basename(first.file)),localAvatars:[...new Set(localEvidence.map(entry=>entry.avatar))],localEvidence,compatibilityComplete:!!listing&&!listing.truncated&&listing.entries.length>0&&localEvidence.length>0,localNameHints,hintUrls:sourceUrl?[sourceUrl]:[],fileIdentity});
+  const record=store.upsertScan({path:first.file,name:path.basename(first.file),group:provider==='baidu'?'百度网盘下载':'BOOTH 下载',kind,size:Number(latest.stat.size),mtimeMs:Number(latest.stat.mtimeNs)/1e6,localCategory:inferCategory(path.basename(first.file)),localAvatars:[...new Set(localEvidence.map(entry=>entry.avatar))],localEvidence,compatibilityComplete:!!listing&&!listing.truncated&&listing.entries.length>0&&localEvidence.length>0,localNameHints,hintUrls:sourceUrl?[sourceUrl]:[],fileIdentity});
   // The download owner supplies an observed product identity, not a name search
   // hint. Keep it separate from human annotations and never revive a skipped,
   // excluded, rematching or differently linked asset during a history repair.

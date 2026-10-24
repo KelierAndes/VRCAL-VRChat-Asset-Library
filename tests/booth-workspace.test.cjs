@@ -47,6 +47,79 @@ class Download extends EventEmitter {
 function start(workspace,download,contents=workspace.entry.view.webContents){let denied=false;workspace.remoteSession.emit('will-download',{preventDefault:()=>{denied=true}},download,contents);return denied}
 const settled=()=>new Promise(resolve=>setImmediate(resolve));
 
+test('new product-page downloads share an owned product folder and immediately import their original filenames',async t=>{
+ const f=fixture(t);await f.workspace.open({tab:'search',query:'456'});const untouched=path.join(f.downloadDir,'old-user-file.zip');fs.writeFileSync(untouched,'ORIGINAL USER BYTES');
+ const base=new Download({name:'Crimson_lupus_rurune_ver1.02.zip'}),material=new Download({name:'MAT_TEX_Crimson_lupus_ver1.01.zip'});
+ assert.equal(start(f.workspace,base),false);assert.equal(start(f.workspace,material),false);
+ assert.equal(path.dirname(base.path),path.dirname(material.path));assert.equal(path.basename(base.path),'Crimson_lupus_rurune_ver1.02.zip');assert.equal(path.basename(material.path),'MAT_TEX_Crimson_lupus_ver1.01.zip');
+ base.complete();material.complete();await settled();assert.equal(f.imports.length,2);assert(f.imports.every(value=>value.url==='https://booth.pm/zh-cn/items/456'));assert.equal(fs.readFileSync(untouched,'utf8'),'ORIGINAL USER BYTES');
+ const state=f.workspace.snapshot();assert(state.downloads.every(value=>value.assetId==='downloaded-1'));assert(!JSON.stringify(state).includes(f.downloadDir));assert(!JSON.stringify(state).includes('TOP_SECRET_SIGNED_TOKEN'));
+});
+
+test('new BOOTH grouping separates different product IDs and keeps repeated filenames without overwriting',async t=>{
+ const f=fixture(t);await f.workspace.open({tab:'search',query:'456'});const first=new Download({name:'same.zip'});assert.equal(start(f.workspace,first),false);first.complete();await settled();const firstBytes=fs.readFileSync(first.path);
+ const repeat=new Download({name:'same.zip'});assert.equal(start(f.workspace,repeat),false);assert.notEqual(repeat.path,first.path);assert.equal(path.basename(repeat.path),'same.zip');repeat.complete();await settled();assert.deepEqual(fs.readFileSync(first.path),firstBytes);
+ await f.workspace.entry.view.webContents.loadURL('https://booth.pm/ja/items/789');const other=new Download({name:'MAT_TEX.zip'});assert.equal(start(f.workspace,other),false);assert.notEqual(path.dirname(first.path),path.dirname(other.path));other.complete();await settled();assert.equal(f.imports.at(-1).url,'https://booth.pm/zh-cn/items/789');
+});
+
+test('late exact BOOTH source groups only the just-completed app download and persists the final path',async t=>{
+ const f=fixture(t);await f.workspace.open({tab:'library'});await settled();const contents=f.workspace.entry.view.webContents;let release;
+ contents.executeJavaScriptInIsolatedWorld=async()=>new Promise(resolve=>{release=resolve});const pending=new Download({name:'MAT_TEX_Crimson_lupus.zip'});pending.getURLChain=()=>['https://booth.pm/downloadables/987',pending.getURL()];assert.equal(start(f.workspace,pending),false);const original=pending.path;pending.complete();await settled();assert.equal(f.imports.length,0);
+ release('456');await settled();assert.equal(f.imports.length,1);const grouped=f.imports[0].file;assert.notEqual(grouped,original);assert.equal(fs.existsSync(original),false);assert.equal(fs.readFileSync(grouped,'utf8'),'abcde');
+ await contents.loadURL('https://booth.pm/ja/items/456');const base=new Download({name:'Crimson_lupus_rurune.zip'});assert.equal(start(f.workspace,base),false);assert.equal(path.dirname(grouped),path.dirname(base.path));base.complete();await settled();
+ const records=JSON.parse(fs.readFileSync(path.join(f.dataDir,'booth-downloads.json'),'utf8'));assert.equal(records.find(row=>row.name==='MAT_TEX_Crimson_lupus.zip').file,grouped);assert.equal(f.workspace.downloadPath(records.find(row=>row.name==='MAT_TEX_Crimson_lupus.zip').id),grouped);
+});
+
+test('unsupported grouping links leave the new completed download in place and still import it',async t=>{
+ const f=fixture(t);await f.workspace.open({tab:'library'});await settled();let release;f.workspace.entry.view.webContents.executeJavaScriptInIsolatedWorld=async()=>new Promise(resolve=>{release=resolve});
+ const item=new Download({name:'materials.zip'});item.getURLChain=()=>['https://booth.pm/downloadables/987'];start(f.workspace,item);const original=item.path;item.complete();await settled();const link=fs.linkSync;fs.linkSync=(from,to)=>{if(from===original){const error=new Error('unsupported fixture filesystem');error.code='ENOTSUP';throw error}return link(from,to)};
+ try{release('456');await settled()}finally{fs.linkSync=link}
+ assert.equal(f.imports.length,1);assert.equal(f.imports[0].file,original);assert.equal(fs.readFileSync(original,'utf8'),'abcde');assert.equal(f.workspace.snapshot().downloads[0].assetId,'downloaded-1');
+});
+
+test('late grouping never removes a substituted target and retains the completed original',async t=>{
+ const f=fixture(t);await f.workspace.open({tab:'library'});await settled();let release;f.workspace.entry.view.webContents.executeJavaScriptInIsolatedWorld=async()=>new Promise(resolve=>{release=resolve});
+ const item=new Download({name:'materials.zip'});item.getURLChain=()=>['https://booth.pm/downloadables/987'];start(f.workspace,item);const original=item.path;item.complete();await settled();let replacement;const link=fs.linkSync;fs.linkSync=(from,to)=>{link(from,to);if(from===original){fs.unlinkSync(to);fs.writeFileSync(to,'UNRELATED TARGET BYTES');replacement=to}};
+ try{release('456');await settled()}finally{fs.linkSync=link}
+ assert(replacement);assert.equal(f.imports.length,0);assert.match(f.workspace.snapshot().downloads[0].error,/导入/);assert.equal(fs.readFileSync(original,'utf8'),'abcde');assert.equal(fs.readFileSync(replacement,'utf8'),'UNRELATED TARGET BYTES');
+ await f.workspace.retryImport(f.workspace.snapshot().downloads[0].id);assert.equal(f.imports[0].file,original);assert.equal(fs.readFileSync(replacement,'utf8'),'UNRELATED TARGET BYTES');
+});
+
+test('late grouping rolls back only its own link when original removal fails, and retries never move history',async t=>{
+ const f=fixture(t);await f.workspace.open({tab:'library'});await settled();let release;f.workspace.entry.view.webContents.executeJavaScriptInIsolatedWorld=async()=>new Promise(resolve=>{release=resolve});
+ const item=new Download({name:'materials.zip'});item.getURLChain=()=>['https://booth.pm/downloadables/987'];start(f.workspace,item);const original=item.path;item.complete();await settled();const unlink=fs.unlinkSync;fs.unlinkSync=file=>{if(file===original)throw new Error('synthetic file lock');return unlink(file)};
+ try{release('456');await settled()}finally{fs.unlinkSync=unlink}
+ assert.equal(f.imports.length,0);assert.equal(fs.readFileSync(original,'utf8'),'abcde');assert.equal(fs.lstatSync(original).nlink,1);const id=f.workspace.snapshot().downloads[0].id;await f.workspace.retryImport(id);assert.equal(f.imports[0].file,original);assert.equal(f.workspace.downloadPath(id),original);
+});
+
+test('late grouping rejects a replaced task folder without removing either user-visible file',async t=>{
+ const f=fixture(t);await f.workspace.open({tab:'library'});await settled();let release;f.workspace.entry.view.webContents.executeJavaScriptInIsolatedWorld=async()=>new Promise(resolve=>{release=resolve});
+ const item=new Download({name:'materials.zip'});item.getURLChain=()=>['https://booth.pm/downloadables/987'];start(f.workspace,item);item.complete();await settled();const parent=path.dirname(item.path),saved=parent+'-preserved';fs.renameSync(parent,saved);fs.mkdirSync(parent);fs.writeFileSync(item.path,'other');
+ release('456');await settled();assert.equal(f.imports.length,0);assert.match(f.workspace.snapshot().downloads[0].error,/导入/);assert.equal(fs.readFileSync(item.path,'utf8'),'other');assert.equal(fs.readFileSync(path.join(saved,item.getFilename()),'utf8'),'abcde');
+});
+
+test('a same-size file substituted while BOOTH source capture waits is never grouped removed or imported',async t=>{
+ const f=fixture(t);await f.workspace.open({tab:'library'});await settled();let release;f.workspace.entry.view.webContents.executeJavaScriptInIsolatedWorld=async()=>new Promise(resolve=>{release=resolve});
+ const item=new Download({name:'materials.zip'});item.getURLChain=()=>['https://booth.pm/downloadables/987'];start(f.workspace,item);item.complete();await settled();assert.equal(f.imports.length,0);const original=item.path,preserved=original+'.preserved';fs.renameSync(original,preserved);fs.writeFileSync(original,'other');
+ release('456');await settled();assert.equal(f.imports.length,0);assert.equal(fs.readFileSync(original,'utf8'),'other');assert.equal(fs.readFileSync(preserved,'utf8'),'abcde');assert.equal(f.workspace.snapshot().downloads[0].assetId,undefined);assert.match(f.workspace.snapshot().downloads[0].error,/导入/);const journal=JSON.parse(fs.readFileSync(path.join(f.dataDir,'booth-downloads.json'),'utf8'));assert.equal(journal[0].file,original);
+ await assert.rejects(()=>f.workspace.retryImport(journal[0].id),/导入/);assert.equal(f.imports.length,0);assert.equal(fs.readFileSync(original,'utf8'),'other');
+});
+
+test('a replaced owned BOOTH folder with a copied marker stops updates and cannot be retried into another folder',async t=>{
+ for(const phase of ['updated','done']){const f=fixture(t);await f.workspace.open({tab:'search',query:'456'});const item=new Download({name:'base.zip'});assert.equal(start(f.workspace,item),false);const folder=path.dirname(item.path),preserved=folder+'-preserved';fs.writeFileSync(item.path,'abcde');fs.renameSync(folder,preserved);fs.mkdirSync(folder);fs.copyFileSync(path.join(preserved,'.vrcal-download-group.json'),path.join(folder,'.vrcal-download-group.json'));fs.writeFileSync(item.path,'other');
+  if(phase==='updated')item.progress(5);else{item.options.received=5;item.emit('done',{},'completed')}
+  await settled();assert.equal(f.imports.length,0);assert.equal(fs.readFileSync(item.path,'utf8'),'other');assert.equal(fs.readFileSync(path.join(preserved,'base.zip'),'utf8'),'abcde');
+  if(phase==='updated')assert.equal(item.cancelled,true);else{assert.match(f.workspace.snapshot().downloads[0].error,/导入/);await assert.rejects(()=>f.workspace.retryImport(f.workspace.snapshot().downloads[0].id),/导入/);assert.equal(f.imports.length,0)}
+ }
+});
+
+test('grouping failure does not clean up an externally replaced target directory even with the same hard-linked bytes',async t=>{
+ const f=fixture(t);await f.workspace.open({tab:'library'});await settled();let release;f.workspace.entry.view.webContents.executeJavaScriptInIsolatedWorld=async()=>new Promise(resolve=>{release=resolve});const item=new Download({name:'materials.zip'});item.getURLChain=()=>['https://booth.pm/downloadables/987'];start(f.workspace,item);const original=item.path;item.complete();await settled();const link=fs.linkSync;let replacement;
+ fs.linkSync=(from,to)=>{link(from,to);if(from===original&&!replacement){const folder=path.dirname(to),saved=folder+'-preserved';fs.renameSync(folder,saved);fs.mkdirSync(folder);fs.copyFileSync(path.join(saved,'.vrcal-download-group.json'),path.join(folder,'.vrcal-download-group.json'));fs.unlinkSync(path.join(saved,path.basename(to)));link(from,to);replacement=to}};
+ try{release('456');await settled()}finally{fs.linkSync=link}
+ assert(replacement);assert.equal(f.imports.length,0);assert.equal(fs.readFileSync(original,'utf8'),'abcde');assert.equal(fs.existsSync(replacement),true,'external replacement must stay untouched');assert.equal(fs.readFileSync(replacement,'utf8'),'abcde');assert.match(f.workspace.snapshot().downloads[0].error,/导入/);
+});
+
 test('inbox account checks inspect only owned URLs and do not create sessions or read unverified purchase pages',async t=>{
  const f=fixture(t),signal=new AbortController().signal;
  assert.equal((await f.workspace.readInbox('background',signal)).state,'unsupported');assert.equal(f.workspace.remoteSession,undefined);

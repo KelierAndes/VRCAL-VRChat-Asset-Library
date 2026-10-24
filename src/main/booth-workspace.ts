@@ -14,6 +14,7 @@ import {NATIVE_MESSAGES} from '../shared/messages-native';
 import {snapshotBrowserCookies} from './browser-cookie-migration';
 import {readOwnedInbox,evaluateInboxPage} from './link-inbox-reader';
 import {inboxBoothLibraryItemUrl} from './link-inbox-store';
+import {DownloadFolders} from './download-folders';
 import {BOOTH_DOWNLOAD_SOURCE_WORLD,boothDownloadLibraryPage,boothDownloadableIds,boothDownloadCaptureScript} from './booth-download-source';
 import type {InboxReadContext,InboxReadResult} from './link-inbox-monitor';
 
@@ -69,6 +70,8 @@ export function reserveBoothDownload(directory:string,filename:string,dataDir:st
  return assertSafeWrite(path.join(folder,boothDownloadName(filename)),dataDir,roots,true);
 }
 interface StoredDownload extends BoothDownload {file?:string;associationVersion?:1}
+interface FreshDownloadFolder {directory:string;identity:fs.BigIntStats}
+const sameDownloadedFile=(a:fs.BigIntStats,b:fs.BigIntStats):boolean=>b.isFile()&&!b.isSymbolicLink()&&a.dev===b.dev&&a.ino>0n&&a.ino===b.ino&&a.birthtimeNs===b.birthtimeNs&&a.size===b.size&&a.mtimeNs===b.mtimeNs;
 interface Entry {window:BrowserWindow;view:WebContentsView;channel:string;toolbarUrl:string;assetId?:string;title:string;tab:BoothTab|'search';query:string;status:string;statusValues?:Record<string,string|number>;loading:boolean;loaded:boolean;lastLoadedUrl?:string;httpError:boolean;busy:boolean;applied?:string;closed:boolean}
 interface BrowserState {title:string;tab:string;query:string;url:string;status:string;loading:boolean;canApply:boolean;canGoBack:boolean;canGoForward:boolean;applied:boolean;downloadDir?:string;sessionSaved:boolean;activeDownloads:number;theme:AppTheme;language:AppLanguage;messages:Record<string,string>}
 export class BoothWorkspace {
@@ -109,7 +112,9 @@ export class BoothWorkspace {
  private restoringDownloads?:Promise<void>;
  private readonly downloadListener=(event:Electron.Event,item:Electron.DownloadItem,contents:Electron.WebContents)=>this.startDownload(event,item,contents);
  private readonly cookieListener=(_event:Electron.Event,cookie:Electron.Cookie)=>{if(!this.restoringCookies&&!this.clearing&&cookieHost(cookie.domain||'')){if(this.cookieTimer)clearTimeout(this.cookieTimer);this.cookieTimer=setTimeout(()=>{this.cookieTimer=undefined;void this.flushCookies()},300)}};
- constructor(private readonly deps:BoothWorkspaceDependencies){this.loadHistory()}
+ private readonly downloadFolders:DownloadFolders;
+ private readonly completedFiles=new WeakMap<StoredDownload,fs.BigIntStats>();
+ constructor(private readonly deps:BoothWorkspaceDependencies){this.downloadFolders=new DownloadFolders(deps.dataDir,deps.roots);this.loadHistory()}
  private file(name:string):string {return assertSafeWrite(path.join(this.deps.dataDir,name),this.deps.dataDir,this.deps.roots())}
  snapshot():BoothState {return {downloadDir:this.deps.getDownloadDir(),sessionSaved:!!this.remoteSession&&safeStorage.isEncryptionAvailable(),downloads:this.downloads.map(({file:_file,associationVersion:_association,...publicItem})=>({...publicItem})),active:!!this.entry&&!this.entry.closed}}
  downloadPath(id:string):string|undefined {
@@ -241,8 +246,9 @@ export class BoothWorkspace {
   if(!this.deps.canNetwork()||this.clearing||this.stopping||!this.owned.has(contents)||!item.hasUserGesture()){reject('下载须由你在 BOOTH 网页点击；联网关闭时不会下载。');return}
   try{const origin=boothBrowserUrl(item.getInitiatorOrigin());if(!officialHost(origin.hostname))throw new Error();boothBrowserUrl(item.getURL())}catch{reject('仅接收由 BOOTH 网页发起的公开 HTTPS 下载。');return}
   const directory=this.deps.getDownloadDir();if(!directory){reject('请先在素材库的 BOOTH 页面选择下载保存位置，再点击下载。');return}
-  const id=randomUUID();let file:string;try{file=reserveBoothDownload(directory,item.getFilename(),this.deps.dataDir,this.deps.roots(),id);item.setSavePath(file)}catch{reject('下载位置受到保护或不可写；请在素材库重新选择位置。');return}
-  const sourceUrl=boothAppliedProduct(contents.getURL()),record:StoredDownload={id,name:path.basename(file),file,sourceUrl,state:'downloading',receivedBytes:0,totalBytes:item.getTotalBytes(),downloadBps:0,startedAt:new Date().toISOString()};
+  const id=randomUUID(),sourceUrl=boothAppliedProduct(contents.getURL());let file:string,freshFolder:FreshDownloadFolder|undefined;
+  try{const productId=sourceUrl?new URL(sourceUrl).pathname.split('/').at(-1):undefined;file=productId?this.downloadFolders.reserve(directory,'booth',productId,'BOOTH '+productId,boothDownloadName(item.getFilename())).file:reserveBoothDownload(directory,item.getFilename(),this.deps.dataDir,this.deps.roots(),id);if(!productId)freshFolder={directory,identity:fs.lstatSync(path.dirname(file),{bigint:true})};this.downloadFolders.assertOwned(file);item.setSavePath(file)}catch{reject('下载位置受到保护或不可写；请在素材库重新选择位置。');return}
+  const record:StoredDownload={id,name:path.basename(file),file,sourceUrl,state:'downloading',receivedBytes:0,totalBytes:item.getTotalBytes(),downloadBps:0,startedAt:new Date().toISOString()};
   let sourceReady:Promise<void>|undefined;
   if(!sourceUrl&&boothDownloadLibraryPage(contents.getURL())){
    let chain:unknown=[];try{if(typeof item.getURLChain==='function')chain=item.getURLChain()}catch{/* Older transfers may not expose a redirect chain. */}
@@ -255,7 +261,7 @@ export class BoothWorkspace {
   }
   this.downloads.unshift(record);this.downloads=this.downloads.filter((value,index)=>index<MAX_HISTORY||this.activeItems.has(value.id));this.activeItems.set(id,item);this.saveHistory();this.notify();let lastAt=Date.now(),lastBytes=0,lastNotification=0;
   item.on('updated',(_event,state)=>{
-   try{assertSafeWrite(file,this.deps.dataDir,this.deps.roots(),true);if(!this.deps.canNetwork()||this.clearing){item.cancel();return}}catch{record.error='保存路径已变化，下载已停止。';item.cancel();return}
+   try{this.downloadFolders.assertOwned(file);assertSafeWrite(file,this.deps.dataDir,this.deps.roots(),true);if(!this.deps.canNetwork()||this.clearing){item.cancel();return}}catch{record.error='保存路径已变化，下载已停止。';item.cancel();return}
    const now=Date.now(),received=item.getReceivedBytes();record.receivedBytes=received;record.totalBytes=item.getTotalBytes();record.downloadBps=state==='interrupted'?0:Math.max(0,(received-lastBytes)*1000/Math.max(1,now-lastAt));record.state=state==='interrupted'?'interrupted':'downloading';lastAt=now;lastBytes=received;
    if(now-lastNotification>=250){lastNotification=now;this.notify()}if(state==='interrupted'){this.downloadSources.get(id)?.controller.abort();record.error='下载中断；请回 BOOTH 重新点击下载。';this.saveHistory()}
   });
@@ -263,11 +269,44 @@ export class BoothWorkspace {
    this.activeItems.delete(id);record.receivedBytes=item.getReceivedBytes();record.totalBytes=item.getTotalBytes();record.downloadBps=0;record.finishedAt=new Date().toISOString();
    if(record.state!=='interrupted'||state==='completed')record.state=state==='completed'?'completed':state==='cancelled'?'cancelled':'interrupted';
    if(state!=='completed'){this.downloadSources.get(id)?.controller.abort();record.error??=state==='cancelled'?'下载已取消；已保留任务记录。':'下载中断；请回 BOOTH 重新点击下载。';this.saveHistory();this.notify();return}
-   void this.importDownload(record,file,sourceReady).catch(()=>{});
+   // Pin the actual completed file synchronously. A delayed source lookup must
+   // never reclassify another same-size file substituted while it is pending.
+   try{this.completedFiles.set(record,this.completedFile(file,record.receivedBytes))}catch{record.error='文件已保存，但自动导入未完成；可定位文件或重试导入。';this.saveHistory();this.notify();return}
+   void this.importDownload(record,file,sourceReady,freshFolder).catch(()=>{});
   });
  }
- private importDownload(record:StoredDownload,file:string,sourceReady?:Promise<void>):Promise<void> {
-  const pending=(async()=>{try{if(sourceReady)await sourceReady;assertSafeWrite(file,this.deps.dataDir,this.deps.roots(),true);const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size!==record.receivedBytes)throw new Error();const imported=await this.deps.onDownloaded(file,record.sourceUrl);record.assetId=imported.assetId;if(!record.assetId)throw new Error();if(record.sourceUrl)record.associationVersion=1;record.error=undefined;this.status('下载完成并已导入素材库：{name}',{name:record.name})}catch{record.error='文件已保存，但自动导入未完成；可定位文件或重试导入。';throw new Error('文件已保存，但自动导入未完成。')}finally{this.saveHistory();this.notify()}})();
+ private completedFile(file:string,bytes:number):fs.BigIntStats {
+  this.downloadFolders.assertOwned(file);assertSafeWrite(file,this.deps.dataDir,this.deps.roots(),true);const stat=fs.lstatSync(file,{bigint:true});if(!stat.isFile()||stat.isSymbolicLink()||Number(stat.size)!==bytes)throw new Error('下载文件已变化。');return stat;
+ }
+ /** A late library-page identity may organize this new task only. History and
+  * retries never reach this path; unsupported filesystems retain the first file. */
+ private groupFreshDownload(record:StoredDownload,file:string,fresh:FreshDownloadFolder,completed:fs.BigIntStats):string {
+  if(this.clearing||this.stopping||record.assetId||record.state!=='completed'||record.file!==file||!record.sourceUrl)return file;
+  const source=boothAppliedProduct(record.sourceUrl);if(!source||path.basename(path.dirname(file))!=='booth-'+record.id)return file;
+  const sameIdentity=(a:fs.BigIntStats,b:fs.BigIntStats)=>a.dev===b.dev&&a.ino>0n&&a.ino===b.ino&&a.birthtimeNs===b.birthtimeNs;
+  const sameFile=(a:fs.BigIntStats,b:fs.BigIntStats)=>b.isFile()&&!b.isSymbolicLink()&&sameIdentity(a,b)&&a.size===b.size&&a.mtimeNs===b.mtimeNs;
+  assertSafeWrite(file,this.deps.dataDir,this.deps.roots(),true);
+  const parent=path.dirname(file),folder=fs.lstatSync(parent,{bigint:true}),original=fs.lstatSync(file,{bigint:true});
+  if(!folder.isDirectory()||folder.isSymbolicLink()||!sameIdentity(fresh.identity,folder)||!sameDownloadedFile(completed,original)||original.nlink!==1n||Number(original.size)!==record.receivedBytes)throw new Error('下载文件已变化。');
+  const productId=new URL(source).pathname.split('/').at(-1)!;let target:string;
+  try{target=this.downloadFolders.reserve(fresh.directory,'booth',productId,'BOOTH '+productId,record.name).file;this.downloadFolders.assertOwned(target)}catch{return file}
+  // The destination is exclusively reserved. Linking within the same selected
+  // root avoids copying a large archive or ever overwriting another download.
+  try{fs.linkSync(file,target)}catch{return file}
+  try{
+   assertSafeWrite(parent,this.deps.dataDir,this.deps.roots(),true);assertSafeWrite(path.dirname(target),this.deps.dataDir,this.deps.roots(),true);this.downloadFolders.assertOwned(target);
+   const linked=fs.lstatSync(target,{bigint:true}),current=fs.lstatSync(file,{bigint:true}),currentFolder=fs.lstatSync(parent,{bigint:true});
+   if(!sameIdentity(fresh.identity,currentFolder)||!sameFile(original,current)||!sameFile(original,linked)||current.nlink!==2n||linked.nlink!==2n||record.sourceUrl!==source)throw new Error('下载文件已变化。');
+   fs.unlinkSync(file);record.file=target;return target;
+  }catch(error){
+   // Clean up only our added link while the original verified file still exists.
+   // Neither path is opened for writing, and a replaced path is never removed.
+   try{assertSafeWrite(parent,this.deps.dataDir,this.deps.roots(),true);assertSafeWrite(path.dirname(target),this.deps.dataDir,this.deps.roots(),true);this.downloadFolders.assertOwned(target);const current=fs.lstatSync(file,{bigint:true}),linked=fs.lstatSync(target,{bigint:true});if(sameFile(original,current)&&sameFile(original,linked)&&current.nlink===2n&&linked.nlink===2n)fs.unlinkSync(target)}catch{/* An externally changed path remains untouched. */}
+   throw error;
+  }
+ }
+ private importDownload(record:StoredDownload,file:string,sourceReady?:Promise<void>,freshFolder?:FreshDownloadFolder):Promise<void> {
+  const pending=(async()=>{try{if(sourceReady)await sourceReady;const completed=this.completedFiles.get(record),before=this.completedFile(file,record.receivedBytes);if(completed&&!sameDownloadedFile(completed,before))throw new Error('下载文件已变化。');if(freshFolder&&completed)file=this.groupFreshDownload(record,file,freshFolder,completed);const stat=this.completedFile(file,record.receivedBytes);if(completed&&!sameDownloadedFile(completed,stat))throw new Error('下载文件已变化。');const imported=await this.deps.onDownloaded(file,record.sourceUrl);record.assetId=imported.assetId;if(!record.assetId)throw new Error();if(record.sourceUrl)record.associationVersion=1;record.error=undefined;this.status('下载完成并已导入素材库：{name}',{name:record.name})}catch{record.error='文件已保存，但自动导入未完成；可定位文件或重试导入。';throw new Error('文件已保存，但自动导入未完成。')}finally{this.saveHistory();this.notify()}})();
   this.inFlightImports.add(pending);void pending.finally(()=>this.inFlightImports.delete(pending)).catch(()=>{});return pending;
  }
  private loadHistory():void {

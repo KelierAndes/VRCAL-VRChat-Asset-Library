@@ -16,6 +16,7 @@ import {inferLocalCategory,inferProductCategory,normalizeCategory,officialProduc
 import {boothProductId} from './matching';
 import {validateWrapper} from './wrappers';
 import {normalizeSourceRoots,sourcePathKey,sourcePathActive,assertSourceSeparation} from './source-roots';
+import {MANAGED_DOWNLOAD_DIRECTORY} from './download-folders';
 
 export type ScanInput=Pick<AssetRecord,'path'|'name'|'group'|'kind'|'size'|'mtimeMs'|'localCategory'|'localAvatars'|'hintUrls'|'previewFile'|'localEvidence'|'compatibilityComplete'|'localNameHints'|'fileIdentity'|'wrapper'>;
 const kinds=['folder','archive','unitypackage','file','unity-project'];
@@ -34,9 +35,12 @@ type Undo={manual?:ManualDelta[];collections?:{id:string;before:LibraryCollectio
 type SourceUndo=SourceUndoInfo&{entries:{id:string;online:OnlineInfo;source:FieldValue}[]};
 type RecoveryRecord={kind:'asset'|'collection'|'tag-alias'|'settings';key:string;record:string;error:string};
 type StoredAsset=AssetRecord&{scanContainer?:boolean;scanCover?:boolean};
-const BOOTH_TASK_DIRECTORY=/^booth-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+const LEGACY_DOWNLOAD_DIRECTORY=/^(?:booth-)?[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+const downloadGroup=(group:string)=>group==='BOOTH 下载'||group==='百度网盘下载';
+/** Kept under its legacy API name for old BOOTH backups and integrations. */
 export function safeBoothDownloadPath(value:string,dataDir:string,roots:string[]):string {
-  if(typeof value!=='string'||!path.isAbsolute(value)||/[\x00-\x1f]/.test(value)||/[\\/:]/.test(path.basename(value))||!BOOTH_TASK_DIRECTORY.test(path.basename(path.dirname(value))))throw new Error('备份的 BOOTH 下载引用无效。');
+  const parent=typeof value==='string'?path.basename(path.dirname(value)):'';
+  if(typeof value!=='string'||!path.isAbsolute(value)||/[\x00-\x1f]/.test(value)||/[\\/:]/.test(path.basename(value))||path.basename(value).toLowerCase()==='.vrcal-download-group.json'||!LEGACY_DOWNLOAD_DIRECTORY.test(parent)&&!MANAGED_DOWNLOAD_DIRECTORY.test(parent))throw new Error('备份的下载引用无效。');
   const resolved=assertSafeWrite(value,dataDir,['E:\\VRChat',...roots],true),relative=path.relative(dataDir,resolved).replace(/\\/g,'/').toLowerCase();
   if(isWithin(resolved,dataDir)&&/^(?:library\.sqlite(?:-(?:wal|shm))?|queue\.json|booth-downloads\.json|(?:(?:booth|baidu|xianyu)-session|ai-web-(?:qwen|kimi|deepseek))-cookies\.bin)$|^(?:cache|session|crashes|booth-session|baidu-session|xianyu-session|ai-web-qwen|ai-web-kimi|ai-web-deepseek)(?:\/|$)/.test(relative))throw new Error('应用资料文件不能作为 BOOTH 下载引用恢复。');
   try{const stat=fs.lstatSync(resolved);if(!stat.isFile()||stat.isSymbolicLink())throw new Error('BOOTH 下载引用必须是普通文件。')}catch(error:any){if(!['ENOENT','ENOTDIR'].includes(error.code))throw error}
@@ -309,7 +313,7 @@ export class Store {
   saveCloudData(value:CloudCatalogData):void {const data=cleanCloudCatalog(value);this.writable();this.db.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('cloud-catalog',JSON.stringify(data))}
   exportData(target:string):void {
     const protectedPaths=this.protectedPaths(),destination=assertSafeWrite(target,this.dataDir,protectedPaths,true),assets=this.allStored(),collections=this.listCollections(),tagAliases=this.aliases(),recoveryRecords=this.recoveryRecords(),covers:Record<string,string>=Object.create(null),coverManifest:Record<string,{sha256:string;bytes:number}>=Object.create(null),manualCovers=new Set(assets.map(asset=>asset.manual.coverFile).filter(Boolean));let total=0;
-    const downloadPaths=assets.filter(asset=>![...this.rootPaths,...this.detachedRootPaths].some(root=>isWithin(asset.path,root))).map(asset=>{if(asset.group!=='BOOTH 下载'||!['archive','unitypackage','file'].includes(asset.kind))throw new Error('备份包含未登记的素材范围外文件。');return safeBoothDownloadPath(asset.path,this.dataDir,protectedPaths)});
+    const downloadPaths=assets.filter(asset=>![...this.rootPaths,...this.detachedRootPaths].some(root=>isWithin(asset.path,root))).map(asset=>{if(!downloadGroup(asset.group)||!['archive','unitypackage','file'].includes(asset.kind))throw new Error('备份包含未登记的素材范围外文件。');return safeBoothDownloadPath(asset.path,this.dataDir,protectedPaths)});
     const cloud=this.cloudData(),cloudReferences=cloud.captures.length?{cloudCatalog:cloud}:{},downloadReferences=downloadPaths.length?{downloadPaths}:{};
     for(const file of new Set(assets.flatMap(asset=>[asset.manual.coverFile,asset.online.coverFile,asset.previewFile,...(asset.online.candidates??[]).map(candidate=>candidate.coverFile)]).filter((file):file is string=>!!file))){
       const source=safeCoverPath(this.dataDir,file);try{const stat=fs.lstatSync(source);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>25*1024*1024){if(manualCovers.has(file))throw new Error('手动封面无法完整备份，请重新选择该图片。');continue;}total+=stat.size;if(total>256*1024*1024)throw new Error('封面超过 256 MB，请减少一次备份的图片数量。');const bytes=fs.readFileSync(source);covers[file]=bytes.toString('base64');coverManifest[file]={sha256:crypto.createHash('sha256').update(bytes).digest('hex'),bytes:bytes.length};}catch(error:any){if(error.code!=='ENOENT')throw error;if(manualCovers.has(file))throw new Error('手动封面文件缺失，请重新选择该图片后备份。');}
@@ -329,12 +333,12 @@ export class Store {
     const nextDirectSources=normalizeSourceRoots([...(this.settings().directSources??[]),...normalizeSourceRoots(backup.settings?.directSources??[])]).filter(source=>nextRoots.some(root=>sourcePathKey(root)===sourcePathKey(source)));
     const nextDetachedRoots=normalizeSourceRoots([...this.detachedRootPaths.filter(root=>!roots.some(active=>isWithin(root,active))),...detachedRoots]);
     const protectedPaths=['E:\\VRChat',...nextRoots,...nextDetachedRoots];assertSourceSeparation(this.dataDir,[...nextRoots,...nextDetachedRoots],this.settings().backupDir);assertSafeWrite(this.dataDir,this.dataDir,protectedPaths);
-    const downloads=new Set<string>();if(backup.downloadPaths!==undefined){if(backup.version!==2||!Array.isArray(backup.downloadPaths)||backup.downloadPaths.length>100000)throw new Error('备份的 BOOTH 下载白名单无效。');for(const value of backup.downloadPaths){const reference=safeBoothDownloadPath(value,this.dataDir,protectedPaths),key=this.pathKey(reference);if(downloads.has(key))throw new Error('备份的 BOOTH 下载白名单重复。');downloads.add(key);}}
+    const downloads=new Set<string>();if(backup.downloadPaths!==undefined){if(backup.version!==2||!Array.isArray(backup.downloadPaths)||backup.downloadPaths.length>100000)throw new Error('备份的下载白名单无效。');for(const value of backup.downloadPaths){const reference=safeBoothDownloadPath(value,this.dataDir,protectedPaths),key=this.pathKey(reference);if(downloads.has(key))throw new Error('备份的下载白名单重复。');downloads.add(key);}}
     const usedDownloads=new Set<string>();
     const idMap=new Map<string,string>(),used=new Set<string>(),paths=new Set<string>();
     const records:AssetRecord[]=backup.assets.map((entry:any)=>{
       if(typeof entry?.path!=='string'||!path.isAbsolute(entry.path)||!kinds.includes(entry.kind))throw new Error('备份包含无效的素材记录。');
-      if(!backupScopes.some(root=>isWithin(entry.path,root))){const key=this.pathKey(entry.path);if(entry.group!=='BOOTH 下载'||!['archive','unitypackage','file'].includes(entry.kind)||!downloads.has(key))throw new Error('备份包含无效的素材记录。');safeBoothDownloadPath(entry.path,this.dataDir,protectedPaths);usedDownloads.add(key);}
+      if(!backupScopes.some(root=>isWithin(entry.path,root))){const key=this.pathKey(entry.path);if(!downloadGroup(entry.group)||!['archive','unitypackage','file'].includes(entry.kind)||!downloads.has(key))throw new Error('备份包含无效的素材记录。');safeBoothDownloadPath(entry.path,this.dataDir,protectedPaths);usedDownloads.add(key);}
       let reference=path.resolve(entry.path),id=stableId(entry.id)?entry.id:assetId(reference);const atPath=this.paths.get(this.pathKey(reference));if(atPath)id=atPath;
       const existing=this.raw.get(id);if(existing&&existing.path!==reference&&(!sourcePathActive(existing.path,nextRoots,nextDetachedRoots)||!absent(existing.path)))reference=existing.path;
       if(used.has(id)||paths.has(this.pathKey(reference)))throw new Error('备份存在重复的素材身份或路径。');used.add(id);paths.add(this.pathKey(reference));if(typeof entry.id==='string')idMap.set(entry.id,id);idMap.set(assetId(entry.path),id);
@@ -342,7 +346,7 @@ export class Store {
       if(existing&&reference===existing.path&&reference!==path.resolve(entry.path))for(const key of ['path','name','group','kind','size','mtimeMs','localCategory','localAvatars','localEvidence','compatibilityComplete','hintUrls','localNameHints','fileIdentity','wrapper','missing'] as const)(record as any)[key]=clone(existing[key]);
       for(const container of [record.manual,record.online,record,...(record.online.candidates??[])])for(const key of ['coverFile','previewFile'] as const){const value=(container as any)[key];if(value)safeCoverPath(this.dataDir,value)}return record;
     });
-    if(downloads.size!==usedDownloads.size)throw new Error('备份下载白名单必须对应已登记的 BOOTH 下载文件。');
+    if(downloads.size!==usedDownloads.size)throw new Error('备份下载白名单必须对应已登记的下载文件。');
     for(const record of records)if(record.manual.relatedIds)record.manual.relatedIds=record.manual.relatedIds.map(id=>idMap.get(id)??id);
     for(const link of incomingCloud.links)if(link.localId)link.localId=idMap.get(link.localId)??link.localId;const mergedCloud=mergeCloudCatalogData(this.cloudData(),incomingCloud);
     const incomingCollections:LibraryCollection[]=[];for(const entry of Array.isArray(backup.collections)?backup.collections:[]){if(!stableId(entry?.id)||typeof entry.name!=='string'||!entry.name.trim()||entry.name.length>100||!['manual','smart'].includes(entry.kind))throw new Error('备份集合格式无效。');incomingCollections.push({id:entry.id,name:entry.name,kind:entry.kind,createdAt:typeof entry.createdAt==='string'?entry.createdAt:new Date().toISOString(),updatedAt:typeof entry.updatedAt==='string'?entry.updatedAt:new Date().toISOString(),...(entry.kind==='manual'?{assetIds:cleanStrings(entry.assetIds,100000).map(id=>idMap.get(id)??id).filter(id=>used.has(id)||this.raw.has(id))}:{query:cleanQuery(entry.query)})});}

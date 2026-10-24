@@ -12,11 +12,11 @@
 
 [用户协议与功能使用说明](docs/USER_AGREEMENT.zh-CN.md) · [隐私说明](docs/PRIVACY.zh-CN.md)（账号页面读取的验证范围见本次发布说明）
 
-**本轮版本：1.4.0-preview.13。** 优化启动时的网页解析依赖加载，以及没有云端资料时的列表刷新。新增解压运行 ZIP，省去单文件每次展开程序的步骤；[说明与测量方法](docs/PERFORMANCE.zh-CN.md) · [本版说明](docs/RELEASE_1.4.0-preview.13.zh-CN.md)。preview.12 的应用内网页 AI 继续保留，真实账号完整流程仍待验收。
+**本轮版本：1.4.0-preview.14。** 百度分享支持勾选多个文件依次下载，完成后局部入库并直接更新图库；同商品材质、适配和源文件放入新下载目录，原素材保持原样。闲鱼链接待核对提示和数量更明确。[操作图文指南](docs/DOWNLOADS.zh-CN.md) · [本版说明](docs/RELEASE_1.4.0-preview.14.zh-CN.md)。
 
 ## 下载与开始使用
 
-**[1.4.0-preview.13 对应版本与下载](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.13)**：选择 `x64.exe` 可直接运行；选择 `x64-Folder.zip` 则先完整解压，再运行其中的 `VRC素材库.exe`，以后直接从该目录启动。解压目录运行目前需要从发布页手动更新；单文件版保留原有更新方式。`Source.zip` 仅用于开发。公开预览不进入稳定版自动更新通道。
+**[1.4.0-preview.14 对应版本与下载](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.14)**：选择 `x64.exe` 可直接运行；选择 `x64-Folder.zip` 则先完整解压，再运行其中的 `VRC素材库.exe`，以后直接从该目录启动。解压目录运行目前需要从发布页手动更新；单文件版保留原有更新方式。`Source.zip` 仅用于开发。公开预览不进入稳定版自动更新通道。
 
 旧版官方附件继续停止提供。 版本记录、Git 历史及其原许可保留；GitHub 根据标签提供的历史 Source code 快照仍可访问。撤下下载不等于撤销旧版授权，详见 [许可变更说明](docs/LICENSING.md)。
 

@@ -14,6 +14,12 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.14',date:'2026-10-25',channel:'preview',title:'勾选下载、完成即入库与同商品归组',sections:[
+    {kind:'added',items:['百度分享列表可勾选多个文件、全选和下载所选，每批最多100个，依次下载；支持取消后续队列。','百度下载完成只登记本次文件，直接更新素材库，无需全局扫描；入库失败可重试，已完成文件保留。']},
+    {kind:'improved',items:['BOOTH明确商品ID、百度同分享的保守文件族分别归组；材质、源文件和角色适配包可放入同一新目录并合并展示。同名另建目录，不覆盖已有文件，不移动历史素材。','下载记录保持文件查看、工程导入范围、人工标注、重启、备份与迁移；文件和目录身份变化时停止操作。']},
+    {kind:'fixed',items:['闲鱼链接缺日期或提取码冲突时明确提示查看待核对，显示待核对数量；空页面不覆盖其他已打开页面的有效检测结果。']},
+    {kind:'notes',items:['只影响本应用新下载，不自动解压或导入工程；百度分享不作为BOOTH商品确认。','真实账号交付全链路仍待验收，关闭平台窗口后的独立后台发现未完成。公开预览需手动下载，新增文案暂为中文。']}
+  ]},
   {version:'1.4.0-preview.13',date:'2026-10-24',channel:'preview',title:'启动与刷新开销优化',sections:[
     {kind:'improved',items:['完整网页解析器延后到首次实际解析时加载，保留原解析结果；没有云端文件时，列表刷新跳过无意义的本地全库关联。']},
     {kind:'added',items:['发布附件新增解压运行 ZIP。完整解压后直接启动其中的程序，省去单文件启动时展开程序的步骤。']},

@@ -1,6 +1,6 @@
 # VRChat 本地素材管理器：改模体验与一键装配改进报告
 
-初始设计日期：2026-10-24，设计基线 preview.3，首期实现 preview.4。**本次核对版本：1.4.0-preview.12**。历史公开基线 preview.9 的应用源码提交为 `ec42543d16a6e4619f57e8742773a49b55cfbaad`；下文固定提交的核心功能链接保留这一历史依据。preview.10 新增交付链接结构、时间和状态修复；preview.11 新增本地封面整理与写入保护；preview.12 新增应用内网页 AI 衔接，具体范围见[本版说明](RELEASE_1.4.0-preview.12.zh-CN.md)，最终发布提交及验收结果以对应附件为准。
+初始设计日期：2026-10-24，设计基线 preview.3，首期实现 preview.4。**本次核对版本：1.4.0-preview.14**。历史公开基线 preview.9 的应用源码提交为 `ec42543d16a6e4619f57e8742773a49b55cfbaad`；下文固定提交的核心功能链接保留这一历史依据。preview.10 新增交付链接结构、时间和状态修复；preview.11 新增本地封面整理与写入保护；preview.12 新增应用内网页 AI 衔接，该轮范围见[preview.12说明](RELEASE_1.4.0-preview.12.zh-CN.md)，本轮下载局部入库及归组见[preview.14说明](RELEASE_1.4.0-preview.14.zh-CN.md)，最终发布提交及验收结果以对应附件为准。
 
 preview.11 只在已授权同目录范围配对同名包图，旧图片的人工资料、集合和关联引用继续保留；同时加固资料库／备份与素材的目录分离及保存边界。用户报告的实际磁盘名称／位置变化尚未定位，目前只复现有条件的硬链覆盖与目录边界缺口，不能据此宣称此次改名／移动已修复。详见[扫描与封面指南](SCANNING_AND_COVERS.zh-CN.md)。本轮不新增真实账号、商业角色、MA／SDK 或 AI 效果验收，也不改变后文 P1／P2 状态。
 
@@ -20,7 +20,7 @@ preview.11 只在已授权同目录范围配对同名包图，旧图片的人工
 | 导入前检查与重复提醒 | 已实现基础检查：SDK／MA／NDMF 公开包文件与声明分开，Unitypackage 按同工程历史内容 SHA-256 去重，执行时复核 | 本地适配仍可为未知；未检测全部着色器或编译兼容性；历史全局最多 100 笔，不覆盖所有手动导入；普通复制与 Unitypackage 的覆盖规则不同 |
 | MA 装配与菜单联动 | 已实现：可选角色与 Prefab，符合明确条件时自动继续，直接子级末尾放置；保留作者已有 MA 菜单，否则可创建显隐开关；同组 Undo 与失败回滚 | 真实 MA／SDK／商业预制件端到端仍待验收；不自动关闭旧衣服，不实现套装互斥或身体形态映射；不会自动保存场景 |
 | 分步结果与用户检查记录 | 已实现：文件导入、角色装配、菜单、人工效果检查分开显示；重启保存、记录筛选和逐批展开 | 回执成功不等于 SDK 构建、动作、身体遮挡或游戏同步成功；人工勾选只代表用户记录 |
-| 报告、教程、截图与程序交付 | 已交付 preview.4 本地首期，并在 preview.5 起汇入 GitHub 公开预览；本轮版本为 preview.12，保留此前历史发布证据，最终交付以对应附件为准 | 交付文件完整不等于长期规划全部完成；本轮修复和合成验证不新增真实账号、角色或 MA／SDK 兼容性证明 |
+| 报告、教程、截图与程序交付 | 已交付 preview.4 本地首期，并在 preview.5 起汇入 GitHub 公开预览；本轮版本为 preview.14，保留此前历史发布证据，最终交付以对应附件为准 | 交付文件完整不等于长期规划全部完成；本轮修复和合成验证不新增真实账号、角色或 MA／SDK 兼容性证明 |
 
 实现依据：[工作台页面](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/renderer/avatar-workbench.tsx#L13)、[工程准备检查](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/main/project-readiness.ts#L5)、[导入及历史](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/main/project-import.ts#L76)、[Unity MA 助手](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/assets/unity/VRCALMASetup.cs#L400)、[分步显示](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/renderer/import-progress.tsx#L10)。操作入口见[工作台图文教程](AVATAR_WORKBENCH.zh-CN.md)。
 
@@ -195,3 +195,7 @@ MA 官方区分可兼容装配的衣装和预先设置好菜单、形态同步�
 实际打包后的启动、持久化和资源检查结果见随包《验收记录》。原素材与用户真实工程未用于写入测试。角色衣柜、体型映射、最终构建预算、跨重启卸载、跨角色适配和穿模修复仍未标记完成。
 
 [工作台逐步说明与实机截图](AVATAR_WORKBENCH.zh-CN.md)
+
+## preview.14 下载增量
+
+勾选多个百度分享文件依次下载；完成一项即局部入库，图库更新不扫描全局。只对新下载按明确BOOTH商品ID或同分享文件族归组，材质与角色适配可同目录显示。同名不覆盖，人工信息保留，失败分开显示并可重试。链接日期未知仍待核对，增加提示和数量。见[下载指南](DOWNLOADS.zh-CN.md)和[本版说明](RELEASE_1.4.0-preview.14.zh-CN.md)。不新增真实账号全链路验收，不完成独立后台发现、P1／P2或商业角色兼容性承诺。

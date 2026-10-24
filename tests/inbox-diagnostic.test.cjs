@@ -18,3 +18,27 @@ test('calendar-relative labels are marked approximate so a stale label cannot re
  const absolute=api.interpretInboxSnapshot('xianyu',snapshot({supported:true,rows:[{key:'absolute',kind:'message',time:'2026-10-24 16:00',text:'https://pan.baidu.com/s/1SyntheticCalendar'}]}),'foreground',context);
  assert.equal(absolute.observations[0].sourceTimeApproximate,undefined);
 });
+
+test('an undated detected share points to the time-review list instead of an apparently empty pending list',()=>{
+ const r=api.interpretInboxSnapshot('xianyu',snapshot({supported:true,rows:[{key:'message-0',kind:'message',time:'17:00',text:'https://pan.baidu.com/s/1SyntheticReview?pwd=Ab12'}]}),'foreground',context);
+ assert.equal(r.state,'ready');assert.equal(r.observations.length,1);assert.equal(r.observations[0].sourceAt,undefined);
+ assert.match(r.message,/已识别.*链接/);assert.match(r.message,/时间／提取码待核对/);assert(!r.message.includes('1SyntheticReview'));assert(!r.message.includes('Ab12'));
+});
+
+test('a detected share with conflicting codes points to review and never exposes the codes in diagnostics',()=>{
+ const r=api.interpretInboxSnapshot('xianyu',snapshot({supported:true,rows:[{key:'message-0',kind:'message',time:'2026-10-24 16:00',text:'https://pan.baidu.com/s/1SyntheticConflict?pwd=Ab12 提取码: Cd34'}]}),'foreground',context);
+ assert.equal(r.state,'ready');assert.equal(r.observations.length,1);assert.match(r.message,/提取码.*冲突/);assert.match(r.message,/时间／提取码待核对/);
+ for(const privatePart of ['1SyntheticConflict','Ab12','Cd34'])assert(!r.message.includes(privatePart));
+});
+
+test('a recognized but old share explains the selected time window without reintroducing it',()=>{
+ const r=api.interpretInboxSnapshot('xianyu',snapshot({supported:true,rows:[{key:'old-message',kind:'message',time:'2026-10-20 16:00',text:'https://pan.baidu.com/s/1SyntheticOld'}]}),'foreground',context);
+ assert.equal(r.state,'ready');assert.deepEqual(r.observations,[]);assert.match(r.message,/早于.*6.*小时/);assert(!r.message.includes('1SyntheticOld'));
+});
+
+test('a second owned empty chat cannot replace the review hint of an already verified detected share',async()=>{
+ const found=snapshot({supported:true,rows:[{key:'message-0',kind:'message',text:'https://pan.baidu.com/s/1SyntheticReview'}]}),empty=snapshot({supported:true,diagnostic:'empty'});
+ const page=value=>({isDestroyed:()=>false,getURL:()=>value.url,executeJavaScript:async()=>value});
+ const r=await api.readOwnedInbox('xianyu',[page(found),page(empty)],'foreground',new AbortController().signal,context,()=>true);
+ assert.equal(r.state,'ready');assert.equal(r.observations.length,1);assert.match(r.message,/时间／提取码待核对/);assert(!r.message.includes('未发现'));
+});

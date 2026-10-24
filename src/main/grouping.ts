@@ -1,15 +1,33 @@
 import path from 'node:path';
 import {AssetRecord,AvatarEvidence,ManualInfo,LocalMember} from '../shared/contracts';
 import {inferAvatars,isAvatarName,normalizeName} from './hints';
-import {boothProductId,extractBoothIds,creatorClue,canonicalCreator,fileVersion,packageClue} from './matching';
+import {boothProductId,extractBoothIds,creatorClue,canonicalCreator,fileVersion,packageClue,canonicalSourceKey} from './matching';
 import {validateWrapper,wrapperPathKey,wrapperCompatible,wrapperDisplayName} from './wrappers';
+import {MANAGED_DOWNLOAD_DIRECTORY,downloadFamily} from './download-folders';
 
 const unique=(values:string[])=>[...new Set(values)];
 const compact=(value:string)=>value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
 const itemId=boothProductId;
 // A user-requested review keeps the old identity until a replacement is chosen.
 // A manually chosen replacement remains the binding even when its page fails.
-const identityUrl=(record:AssetRecord)=>record.manual.sourceUrl||(record.online.status==='matched'||record.online.rematchRequested?record.online.url:undefined);
+const identityUrl=(record:AssetRecord):string|undefined=>{
+  if(record.manual.sourceUrl)return record.manual.sourceUrl;
+  const online=record.online;
+  if(online.status==='matched'||online.rematchRequested)return online.url;
+  // An explicit observed BOOTH download is already identified even while its
+  // title and cover are queued. Search guesses and rejected sources are not.
+  if(online.status!=='pending'||!online.confirmedSource||online.matchEvidence?.method!=='booth-download'||record.manual.matchingMode==='manual'||!online.url||!itemId(online.url))return;
+  const url=new URL(online.url);if(!/^\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?items\/[1-9]\d{0,11}\/?$/i.test(url.pathname))return;
+  return online.rejectedUrls?.some(value=>canonicalSourceKey(value)===canonicalSourceKey(online.url!))?undefined:online.url;
+};
+
+/** Only app-created download groups have this extra material/variant relation.
+ * Ordinary source directories keep the previous conservative name rules. */
+function managedFamily(record:AssetRecord):string|undefined {
+  if(!['BOOTH 下载','百度网盘下载'].includes(record.group)||!['archive','unitypackage'].includes(record.kind)||!MANAGED_DOWNLOAD_DIRECTORY.test(path.basename(path.dirname(record.path)))||record.manual.hidden||record.manual.matchingMode==='manual'||record.online.rematchRequested)return;
+  const family=productName(downloadFamily(record.name));
+  return family&&!/^(?:新建文件夹|new folder|downloads?|素材|衣装|服装|pack|assets|all|fullset|mat(?: tex)?|tex|textures?|materials?|psd|mdp)$/i.test(family)?family:undefined;
+}
 
 /** Conservative product identity: versions and avatar variants of one download. */
 export function productName(value:string):string {
@@ -42,6 +60,8 @@ function canMerge(a:AssetRecord,b:AssetRecord,wrappers:Map<string,AssetRecord[]>
   const aa=itemId(identityUrl(a)),ba=itemId(identityUrl(b));
   if(aa&&ba)return aa===ba;
   if(path.dirname(a.path).toLowerCase()!==path.dirname(b.path).toLowerCase())return false;
+  const af=managedFamily(a),bf=managedFamily(b);
+  if(af&&af===bf&&a.group===b.group){const au=identityUrl(a),bu=identityUrl(b);return !(au&&bu&&canonicalSourceKey(au)!==canonicalSourceKey(bu));}
   const an=productName(wrapperDisplayName(a)),bn=productName(wrapperDisplayName(b));
   if(!an||an!==bn)return false;
   // Generic names do not establish a product, especially across old imports.
@@ -79,7 +99,8 @@ function aggregate(records:AssetRecord[]):AssetRecord {
 export function projectionKeys(record:AssetRecord):string[] {
   const booth=itemId(identityUrl(record));
   const wrapper=validateWrapper(record.wrapper,record.path);
-  return [`name:${path.dirname(record.path).toLowerCase()}:${productName(wrapperDisplayName(record))}`,...(booth?[`booth:${booth}`]:[]),`wrapper-path:${wrapperPathKey(record.path)}`,...(wrapper?.chain.slice(1).map(entry=>`wrapper-path:${wrapperPathKey(entry)}`)??[])];
+  const family=managedFamily(record);
+  return [`name:${path.dirname(record.path).toLowerCase()}:${productName(wrapperDisplayName(record))}`,...(booth?[`booth:${booth}`]:[]),...(family?[`download-family:${record.group}:${path.dirname(record.path).toLowerCase()}:${family}`]:[]),`wrapper-path:${wrapperPathKey(record.path)}`,...(wrapper?.chain.slice(1).map(entry=>`wrapper-path:${wrapperPathKey(entry)}`)??[])];
 }
 
 export function projectAssets(records:AssetRecord[]):AssetRecord[] {

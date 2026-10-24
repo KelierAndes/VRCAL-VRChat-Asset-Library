@@ -34,7 +34,7 @@ import {ProductPreview} from './preview';
 import {BoothWorkspace,prepareBoothSessionMigration} from './booth-workspace';
 import {matchingCatalog} from './matching-catalog';
 import {assetLocation} from './asset-location';
-import {importBoothDownload} from './booth-import';
+import {importBoothDownload,importCompletedDownload} from './booth-import';
 import {canonicalSourceKey,searchClue,extractBoothIds} from './matching';
 import {isOrganizationalAsset} from './organization';
 import {inspectProjectMaterials,clearProjectMaterialCache} from './project-materials';
@@ -109,8 +109,8 @@ function getRawAsset(id:unknown):AssetRecord{if(typeof id!=='string')throw new E
 function matchingAsset(id:string):AssetRecord|null {return matchingCatalog(store).get(id)}
 function protectedRoots(){const settings=store?.settings();return [...new Set([DEFAULT_ROOT,...(settings?.roots??initialRoots),...(settings?.detachedRoots??[])])]}
 async function prepareCookieMigration(directory:string,roots:string[]):Promise<BrowserCookieSnapshot[]>{const booth=await prepareBoothSessionMigration(directory,roots),baidu=await prepareBaiduSessionMigration(directory,roots),market=await prepareXianyuSessionMigration(directory,roots);const ai=await prepareAiWebSessionMigration(directory,roots);return [...[booth,baidu,market].filter((v):v is BrowserCookieSnapshot=>!!v),...ai]}
-function boothReadRoots(asset:AssetRecord):string[]{const roots=new Set<string>();for(const id of asset.members?.map(member=>member.id)||[asset.id]){const raw=store.getRaw(id);if(raw?.group==='BOOTH 下载')try{roots.add(path.dirname(safeBoothDownloadPath(raw.path,dataDir,protectedRoots())))}catch{/* Invalid references do not widen the read scope. */}}return [...roots]}
-async function refreshDownloadAvailability(){const current=store;let updated=false;for(const asset of current.all()){if(closing||migrating||recycleOperation||current!==store)break;if(asset.group!=='BOOTH 下载')continue;try{const file=safeBoothDownloadPath(asset.path,dataDir,protectedRoots()),stat=await fsp.lstat(file);if(!closing&&!migrating&&!recycleOperation&&current===store)updated=current.updateAvailability(asset.id,!stat.isFile()||stat.isSymbolicLink(),asset)||updated}catch(error:any){if(['ENOENT','ENOTDIR'].includes(error.code)&&!closing&&!migrating&&!recycleOperation&&current===store)updated=current.updateAvailability(asset.id,true,asset)||updated}}if(updated)changed()}
+function boothReadRoots(asset:AssetRecord):string[]{const roots=new Set<string>();for(const id of asset.members?.map(member=>member.id)||[asset.id]){const raw=store.getRaw(id);if(raw&&['BOOTH 下载','百度网盘下载'].includes(raw.group))try{roots.add(path.dirname(safeBoothDownloadPath(raw.path,dataDir,protectedRoots())))}catch{/* Invalid references do not widen the read scope. */}}return [...roots]}
+async function refreshDownloadAvailability(){const current=store;let updated=false;for(const asset of current.all()){if(closing||migrating||recycleOperation||current!==store)break;if(!['BOOTH 下载','百度网盘下载'].includes(asset.group))continue;try{const file=safeBoothDownloadPath(asset.path,dataDir,protectedRoots()),stat=await fsp.lstat(file);if(!closing&&!migrating&&!recycleOperation&&current===store)updated=current.updateAvailability(asset.id,!stat.isFile()||stat.isSymbolicLink(),asset)||updated}catch(error:any){if(['ENOENT','ENOTDIR'].includes(error.code)&&!closing&&!migrating&&!recycleOperation&&current===store)updated=current.updateAvailability(asset.id,true,asset)||updated}}if(updated)changed()}
 function rememberLocation(selected:string,backupDir?:string,roots=protectedRoots()){
  const config={dataDir:selected,backupDir};
  if(testProfile){if(process.env.VRC_LIBRARY_LOCATION_FILE)writeLocation(locationFile,config,roots);return}
@@ -140,7 +140,12 @@ function setupServices(){
  inboxAccess=new InboxAccess({settings:()=>boundInbox.state().settings,consent:()=>boundInbox.consent(),save:(settings,consent)=>boundInbox.configure(settings,consent),available:()=>!closing&&!migrating&&inbox===boundInbox,confirm:async background=>{const result=await dialog.showMessageBox(window!,{type:'question',...inboxConsentNotice(background),buttons:['取消','同意并开启'],defaultId:0,cancelId:0,noLink:true});return result.response===1}});
  cloud=new CloudCatalog({read:()=>store.cloudData(),write:data=>store.saveCloudData(data),locals:()=>matchingCatalog(store).all()});
  baiduDownloads?.stop();baidu?.close();baidu=new BaiduWorkspace({onDownload:(event,item,contents)=>baiduDownloads?.accept(event,item,contents)??false,allowDownloadNavigation:(id,url)=>baiduDownloads?.allowNavigation(id,url)??false,onSessionInvalidated:()=>baiduDownloads?.stop(),onShutdown:()=>baiduDownloads?.shutdown(),parent:()=>window,dataDir,roots:protectedRoots,canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,getTheme:()=>store.settings().theme||'nasa',getLanguage:()=>store.settings().language,onChanged:changed,onCapture:capture=>{if(closing||migrating)throw new Error('资料库正在关闭或迁移。');cloud.capture(capture as CloudCapture);changed()}});
- baiduDownloads=new BaiduDownloads({dataDir,roots:protectedRoots,session:()=>baidu.downloadSession(),canNetwork:()=>!closing&&!migrating&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,changed});
+ const downloadStore=store;
+ const downloads=new BaiduDownloads({dataDir,roots:protectedRoots,session:()=>baidu.downloadSession(),canNetwork:()=>!closing&&!migrating&&store===downloadStore&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK,changed,onTaskStarted:id=>{if(baiduDownloads===downloads&&inbox===boundInbox&&inboxDownloadId)boundInbox.attachTask(inboxDownloadId,id)},onDownloaded:async file=>{
+  if(closing||migrating||recycleOperation||store!==downloadStore)throw new Error('资料库正在关闭或更改；下载文件保留，可稍后重试入库。');
+  const imported=await importCompletedDownload(downloadStore,file,path.dirname(file),'baidu');changed();
+  if(store===downloadStore&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue([imported.assetId]);return imported;
+ }});baiduDownloads=downloads;
   projectImports=new ProjectImports({dataDir,roots:()=>store.settings().roots,getAsset:id=>store.get(id)??publicPlugins.getAsset(id),readRoots:asset=>publicPlugins.getAsset(asset.id)?[asset.path]:boothReadRoots(asset),selectedEditor:()=>store.settings().unityEditorPath,
     ...(testProfile&&process.env.VRC_LIBRARY_NO_EDITOR_LAUNCH?{findEditor:async()=>undefined}:{}),onChange:changed,onComplete:job=>{
       const project=store.get(job.projectId);if(project&&project.path===job.projectPath&&store.get(job.assetId)){store.updateManual([project.id],{relatedIds:[...new Set([...(project.manual.relatedIds??[]),job.assetId])]});clearProjectMaterialCache(project.path);changed()}
@@ -254,7 +259,7 @@ async function recycleMaterials(input:unknown,scope:'card'|'file'='card'):Promis
   activeScanner.cancel();await activeScanner.waitIdle();
   if(!stillCurrent())throw new Error('资料库状态已变化，请重新选择素材。');
   const records=activeStore.recycleRecords();originalScope=scopeKey();
-  const allowedDownloadFiles:string[]=[];for(const record of records)if(record.group==='BOOTH 下载')try{allowedDownloadFiles.push(safeBoothDownloadPath(record.path,dataDir,protectedRoots()))}catch{/* Invalid download references never widen the delete scope. */}
+  const allowedDownloadFiles:string[]=[];for(const record of records)if(['BOOTH 下载','百度网盘下载'].includes(record.group))try{allowedDownloadFiles.push(safeBoothDownloadPath(record.path,dataDir,protectedRoots()))}catch{/* Invalid download references never widen the delete scope. */}
   const plan=await prepareAssetRecycle({selectedIds:selected,assets:records,roots:settings.roots,protectedPaths:[DEFAULT_ROOT,...(settings.detachedRoots??[])],dataDir,allowedDownloadFiles,allowedSourceRootAssets:(settings.directSources??[]).filter(file=>path.resolve(file).toLowerCase()!==path.resolve(DEFAULT_ROOT).toLowerCase()),knownProjectPaths:records.filter(record=>record.kind==='unity-project').map(record=>record.path)});
   const language=uiLanguage(),detail=[translate('以下路径将移入系统回收站。文件夹包含的文件也会一并处理；隐藏不会执行此操作。',language),...plan.targets.map(target=>target.path),translate('可在 Windows 回收站还原文件，然后刷新素材。不会永久删除，也不会删除 Unity 工程。',language)].join('\n\n');
   if(detail.length>24000)throw new Error('待确认路径过多，请分批选择后删除。');
@@ -329,7 +334,10 @@ function registerHandlers(){
   if(current===inbox&&generation===inboxReadGeneration&&!closing&&!migrating)invalidateInboxDownload();
  });
  handle('openBaiduShareFolder',(id:string)=>baiduDownloads.folder(id));handle('backBaiduShare',()=>baiduDownloads.parent());
- handle('downloadBaiduFile',async(id:string)=>{const binding=inboxDownloadId,current=inbox,generation=inboxReadGeneration,before=new Set(baiduDownloads.state().tasks.map(task=>task.id));await baiduDownloads.download(id);if(binding&&current===inbox&&generation===inboxReadGeneration)for(const task of baiduDownloads.state().tasks)if(!before.has(task.id))current.attachTask(binding,task.id)});
+ handle('downloadBaiduFile',(id:string)=>baiduDownloads.download(id));
+ handle('downloadBaiduFiles',(ids:unknown)=>baiduDownloads.downloadMany(ids));
+ handle('cancelBaiduDownloadBatch',()=>baiduDownloads.cancelBatch());
+ handle('retryBaiduDownloadImport',(id:string)=>baiduDownloads.retryImport(id));
  handle('controlBaiduDownload',(id:string,action:'pause'|'resume'|'cancel')=>baiduDownloads.control(id,action));
  handle('revealBaiduDownload',(id:string)=>shell.showItemInFolder(baiduDownloads.reveal(id)));
  handle('chooseBaiduDownloadDir',async()=>{const result=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'选择百度网盘下载保存文件夹',defaultPath:baiduDownloads.state().downloadDir||path.dirname(dataDir),properties:['openDirectory','createDirectory']},uiLanguage()));if(result.canceled)return false;const target=assertUserStorage(await fsp.realpath(result.filePaths[0]),protectedRoots(),testProfile);baiduDownloads.setDirectory(target);return true});

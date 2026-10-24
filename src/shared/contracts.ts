@@ -115,6 +115,9 @@ export interface LibraryAPI {
   backBaiduShare():Promise<void>;
   chooseBaiduDownloadDir():Promise<boolean>;
   downloadBaiduFile(id:string):Promise<void>;
+  downloadBaiduFiles(ids:string[]):Promise<void>;
+  cancelBaiduDownloadBatch():Promise<void>;
+  retryBaiduDownloadImport(id:string):Promise<void>;
   controlBaiduDownload(id:string,action:'pause'|'resume'|'cancel'):Promise<void>;
   revealBaiduDownload(id:string):Promise<void>;
   openBaidu(directoryPath?:string):Promise<void>;
