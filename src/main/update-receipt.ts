@@ -13,6 +13,7 @@ function localPath(value:unknown):string {
 }
 function equalPath(a:string,b:string):boolean {return process.platform==='win32'?a.toLowerCase()===b.toLowerCase():a===b}
 function sameFile(a:fs.Stats,b:fs.Stats):boolean {return a.dev===b.dev&&a.ino===b.ino&&a.size===b.size&&a.mtimeMs===b.mtimeMs}
+function sameOwnedFile(a:fs.BigIntStats,b:fs.BigIntStats):boolean {return a.isFile()&&b.isFile()&&!b.isSymbolicLink()&&a.dev===b.dev&&a.ino===b.ino&&a.birthtimeNs===b.birthtimeNs}
 async function readSmallJson(file:string):Promise<any> {
  const before=await fsp.lstat(file);
  if(!before.isFile()||before.isSymbolicLink()||before.nlink!==1||before.size>131072)throw new Error(INVALID);
@@ -50,19 +51,25 @@ export async function acknowledgeUpdateStartup(dataDir:string,roots:string[],app
  await verifyTarget(target,plan.size,plan.sha256);
  const receipt=assertSafeWrite(path.join(stage,'startup-ready.json'),data,guarded),pending=assertSafeWrite(path.join(stage,'startup-ready-'+randomUUID()+'.tmp'),data,guarded);
  const payload=JSON.stringify({schema:1,token,target,sha256:plan.sha256,size:plan.size,version:plan.version,pid:process.pid,parentPid:process.ppid,startupReady:true,at:new Date().toISOString()});
+ let owned:fs.BigIntStats|undefined;
+ const verifyPending=async()=>{assertSafeWrite(pending,data,guarded);const current=await fsp.lstat(pending,{bigint:true});if(!owned||current.nlink!==1n||!sameOwnedFile(owned,current))throw new Error(INVALID)};
  try{
-  const file=await fsp.open(pending,'wx');try{await file.writeFile(payload,'utf8');await file.sync()}finally{await file.close()}
-  assertSafeWrite(receipt,data,guarded);assertSafeWrite(pending,data,guarded);
+  const file=await fsp.open(pending,'wx');try{owned=await file.stat({bigint:true});if(!owned.isFile()||owned.nlink!==1n)throw new Error(INVALID);await file.writeFile(payload,'utf8');await file.sync()}finally{await file.close()}
+  assertSafeWrite(receipt,data,guarded);await verifyPending();
   // Prefer exclusive publication; exFAT and similar filesystems need an atomic rename instead.
   try{await fsp.link(pending,receipt)}catch(error:any){
    if(!['ENOTSUP','EOPNOTSUPP','ENOSYS','EPERM','EINVAL'].includes(error.code))throw error;
    assertSafeWrite(receipt,data,guarded);
    try{await fsp.lstat(receipt);throw new Error(INVALID)}catch(existing:any){if(existing.code!=='ENOENT')throw existing}
-   assertSafeWrite(pending,data,guarded);assertSafeWrite(receipt,data,guarded);
+   await verifyPending();assertSafeWrite(receipt,data,guarded);
    // Only the fixed receipt inside this operation's validated UUID stage can be published.
    // The temporary file is complete, flushed and closed before it becomes visible here.
    await fsp.rename(pending,receipt);
   }
- }finally{try{assertSafeWrite(pending,data,guarded);await fsp.unlink(pending)}catch(error:any){if(error.code!=='ENOENT')throw error}}
+ }finally{
+  // Successful exclusive publication temporarily gives this owned file two names.
+  // Validate its parent and inode here without permitting general hardlinked-file writes.
+  if(owned)try{assertSafeWrite(path.dirname(pending),data,guarded);const current=await fsp.lstat(pending,{bigint:true});if(sameOwnedFile(owned,current))await fsp.unlink(pending)}catch(error:any){if(error.code!=='ENOENT')throw error}
+ }
  return true;
 }

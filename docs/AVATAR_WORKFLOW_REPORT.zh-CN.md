@@ -1,6 +1,8 @@
 # VRChat 本地素材管理器：改模体验与一键装配改进报告
 
-初始设计日期：2026-10-24，设计基线 preview.3，首期实现 preview.4。**本次核对版本：1.4.0-preview.10**。前一轮公开基线 preview.9 的应用源码提交为 `ec42543d16a6e4619f57e8742773a49b55cfbaad`；下文固定提交的核心功能链接保留这一历史依据。preview.10 新增交付链接结构、时间和状态修复，具体范围见[本版说明](RELEASE_1.4.0-preview.10.zh-CN.md)，最终发布提交及验收结果以对应附件为准。
+初始设计日期：2026-10-24，设计基线 preview.3，首期实现 preview.4。**本次核对版本：1.4.0-preview.11**。历史公开基线 preview.9 的应用源码提交为 `ec42543d16a6e4619f57e8742773a49b55cfbaad`；下文固定提交的核心功能链接保留这一历史依据。preview.10 新增交付链接结构、时间和状态修复；preview.11 新增本地封面整理与写入保护，具体范围见[本版说明](RELEASE_1.4.0-preview.11.zh-CN.md)，最终发布提交及验收结果以对应附件为准。
+
+preview.11 只在已授权同目录范围配对同名包图，旧图片的人工资料、集合和关联引用继续保留；同时加固资料库／备份与素材的目录分离及保存边界。用户报告的实际磁盘名称／位置变化尚未定位，目前只复现有条件的硬链覆盖与目录边界缺口，不能据此宣称此次改名／移动已修复。详见[扫描与封面指南](SCANNING_AND_COVERS.zh-CN.md)。本轮不新增真实账号、商业角色、MA／SDK 或 AI 效果验收，也不改变后文 P1／P2 状态。
 
 ## 当前结论：首期流程已实现，整份路线图尚未完成
 
@@ -18,7 +20,7 @@
 | 导入前检查与重复提醒 | 已实现基础检查：SDK／MA／NDMF 公开包文件与声明分开，Unitypackage 按同工程历史内容 SHA-256 去重，执行时复核 | 本地适配仍可为未知；未检测全部着色器或编译兼容性；历史全局最多 100 笔，不覆盖所有手动导入；普通复制与 Unitypackage 的覆盖规则不同 |
 | MA 装配与菜单联动 | 已实现：可选角色与 Prefab，符合明确条件时自动继续，直接子级末尾放置；保留作者已有 MA 菜单，否则可创建显隐开关；同组 Undo 与失败回滚 | 真实 MA／SDK／商业预制件端到端仍待验收；不自动关闭旧衣服，不实现套装互斥或身体形态映射；不会自动保存场景 |
 | 分步结果与用户检查记录 | 已实现：文件导入、角色装配、菜单、人工效果检查分开显示；重启保存、记录筛选和逐批展开 | 回执成功不等于 SDK 构建、动作、身体遮挡或游戏同步成功；人工勾选只代表用户记录 |
-| 报告、教程、截图与程序交付 | 已交付 preview.4 本地首期，并在 preview.5 起汇入 GitHub 公开预览；本轮版本为 preview.10，保留 preview.9 的历史发布证据 | 交付文件完整不等于长期规划全部完成；本轮修复和合成验证不新增真实账号、角色或 MA／SDK 兼容性证明 |
+| 报告、教程、截图与程序交付 | 已交付 preview.4 本地首期，并在 preview.5 起汇入 GitHub 公开预览；本轮版本为 preview.11，保留此前历史发布证据，最终交付以对应附件为准 | 交付文件完整不等于长期规划全部完成；本轮修复和合成验证不新增真实账号、角色或 MA／SDK 兼容性证明 |
 
 实现依据：[工作台页面](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/renderer/avatar-workbench.tsx#L13)、[工程准备检查](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/main/project-readiness.ts#L5)、[导入及历史](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/main/project-import.ts#L76)、[Unity MA 助手](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/assets/unity/VRCALMASetup.cs#L400)、[分步显示](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/renderer/import-progress.tsx#L10)。操作入口见[工作台图文教程](AVATAR_WORKBENCH.zh-CN.md)。
 
@@ -60,6 +62,7 @@
 - **真实 Unity 编辑器与真实 MA 必须分开**：历史 62 项断言在真实 Unity 2022.3 的合成工程执行，但 MA 公共 API 是测试替身，记录的 `realMARuntime` 为 false；不能据此声称真实 MA／SDK 闭环已经通过。
 - **公开交付**：[preview.9 Release](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.9)及其验收附件有源码提交、6 个附件摘要、打包与下载检查；历史报告和其原验收口径保留。
 - **preview.10 修复证据**：官网公开 `0.0.179` 脚本核对及六组隔离合成 Chromium 链路通过，涉及正文／摘要边界、引用／草稿、时间、保存与显示；手动检查固定当前会话，后台定时独立。没有新增真实账号交付、商业素材或 Unity 工程验收，真实服务和角色效果仍按上面的未验收状态记录。来源与历史账号检查见[读取器说明](LINK_INBOX_READERS.zh-CN.md)。
+- **preview.11 证据边界**：本地封面与写入保护的最终自动化、打包、CI 和发布结果见该版本验收附件，不沿用前版数字；已复现的有条件硬链覆盖和目录边界缺口不能证明用户此次磁盘改名／移动原因。
 
 ## 研究方法与证据边界
 

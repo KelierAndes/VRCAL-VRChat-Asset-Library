@@ -1,7 +1,7 @@
 // Offline renderer for the deliberately small Markdown subset used by these guides.
 const fs=require('node:fs'),path=require('node:path');
 const folder=path.resolve(process.argv[2]||path.join(__dirname,'../docs'));
-const files=process.argv.length>3?process.argv.slice(3):['AVATAR_WORKFLOW_REPORT.zh-CN','AVATAR_WORKBENCH.zh-CN','MODEL_PREVIEW.zh-CN','LINK_INBOX_READERS.zh-CN','RELEASE_1.4.0-preview.10.zh-CN'];
+const files=process.argv.length>3?process.argv.slice(3):['AVATAR_WORKFLOW_REPORT.zh-CN','AVATAR_WORKBENCH.zh-CN','MODEL_PREVIEW.zh-CN','SCANNING_AND_COVERS.zh-CN','RELEASE_1.4.0-preview.11.zh-CN'];
 const version=require('../package.json').version;
 const escape=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function inline(raw){let text=escape(raw),tokens=[];const keep=html=>'\u0001'+(tokens.push(html)-1)+'\u0002';

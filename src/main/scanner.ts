@@ -11,6 +11,7 @@ import {readArchive} from './archive-reader';
 import {isOrganizationalFolderName,isOrganizationalAsset} from './organization';
 import {discoverWrapper,wrapperPathKey,isGenericWrapperName} from './wrappers';
 import {isSourceBucketName,sourcePathKey} from './source-roots';
+import {pairScanCovers} from './scan-covers';
 
 const ARCHIVES=new Set(['.zip','.rar','.7z']);
 const FILES=new Set(['.unitypackage','.fbx','.blend','.vrm','.obj','.psd','.spp','.png','.jpg','.jpeg','.webp','.gif','.bmp','.wav','.mp3','.anim']);
@@ -20,6 +21,9 @@ const PREVIEW=/^(?:preview(?:image)?|cover|thumbnail|サムネイル|封面|预�
 const DOC=/(?:read[ _-]?me|説明|说明|booth|网址|url|credit|license|利用規約)/i;
 const LIMIT=2000;
 const pause=()=>new Promise<void>(resolve=>setImmediate(resolve));
+const isPackage=(name:string)=>/\.(?:zip|rar|7z|unitypackage)$/i.test(name);
+const isImage=(name:string)=>/\.(?:png|jpe?g|webp|gif|bmp)$/i.test(name);
+const packagesFirst=<T extends {name:string}>(entries:T[])=>entries.sort((a,b)=>Number(isPackage(b.name))-Number(isPackage(a.name)));
 type Metadata={size:number;urls:string[];preview?:string;localEvidence:AvatarEvidence[];compatibilityComplete:boolean;localNameHints:string[]};
 const EVIDENCE_FILE=/\.(?:zip|rar|7z|unitypackage|fbx|blend|vrm|obj|prefab|mat|anim|controller|png|jpe?g|webp|psd|spp)$/i;
 
@@ -30,6 +34,10 @@ export class Scanner {
   private active:Promise<unknown>|null=null;
   private archiveCache=new Map<string,{size:number;mtimeMs:number;listing:FileListing}>();
   private bucketCache=new Map<string,boolean>();
+  private coverPreviews=new Map<string,string>();
+  private coverOwners=new Map<string,{source:string;owners:string[]}>();
+  private coveredPackages=new Set<string>();
+  private processedCompanions=new Set<string>();
   constructor(private store:Store,private onProgress?:(progress:ScanProgress)=>void,private canStart:()=>boolean=()=>true){}
   progress():ScanProgress{return {...this.state,errors:[...this.state.errors]}}
   cancel():void {this.cancelled=true;this.scanAbort.abort()}
@@ -38,7 +46,7 @@ export class Scanner {
   scan():Promise<void>{
     if(!this.canStart())return Promise.reject(new Error('正在处理回收站操作，请稍候。'));
     if(this.active)return this.active as Promise<void>;
-    this.cancelled=false;this.bucketCache.clear();this.scanAbort=new AbortController();this.state={running:true,found:0,current:'',errors:[]};this.emit();
+    this.cancelled=false;this.bucketCache.clear();this.resetCovers();this.scanAbort=new AbortController();this.state={running:true,found:0,current:'',errors:[]};this.emit();
     const work=this.run().finally(()=>{this.state.running=false;this.state.current=this.cancelled?'扫描已取消':'';this.state.finishedAt=new Date().toISOString();this.active=null;this.emit()});
     this.active=work;return work;
   }
@@ -48,7 +56,7 @@ export class Scanner {
     if(this.active)return Promise.reject(new Error('正在扫描或读取素材，请完成后再添加。'));
     if(!Array.isArray(raw)||!raw.length||raw.length>100)return Promise.reject(new Error('每次请选择 1 至 100 个素材文件或文件夹。'));
     let paths:string[];try{paths=normalizeSourceRoots(raw,100)}catch(error){return Promise.reject(error)}
-    this.cancelled=false;this.bucketCache.clear();this.scanAbort=new AbortController();this.state={running:true,found:0,current:'',errors:[],mode:'manual'};this.emit();
+    this.cancelled=false;this.bucketCache.clear();this.resetCovers();this.scanAbort=new AbortController();this.state={running:true,found:0,current:'',errors:[],mode:'manual'};this.emit();
     const work=this.addSelected(paths).finally(()=>{this.state.running=false;this.state.current=this.cancelled?'扫描已取消':'';this.state.finishedAt=new Date().toISOString();this.active=null;this.emit()});
     this.active=work;return work;
   }
@@ -70,12 +78,46 @@ export class Scanner {
     if(selected.length&&!this.cancelled){
       const settings=this.store.settings(),normalRoots=new Set(settings.roots.filter(root=>directories.has(sourcePathKey(root))&&!(settings.directSources??[]).some(direct=>sourcePathKey(direct)===sourcePathKey(root))).map(sourcePathKey));
       this.store.saveSettings({roots:normalizeSourceRoots([...settings.roots,...selected]),directSources:normalizeSourceRoots([...(settings.directSources??[]),...selected.filter(source=>!normalRoots.has(sourcePathKey(source)))])});
-      for(const source of selected){if(this.cancelled)break;if(normalRoots.has(sourcePathKey(source))){await this.run([source],seen);continue}const excluded:string[]=[];await this.add(source,path.basename(path.dirname(source)),seen,excluded,await this.project(source));if(!this.cancelled){await this.preserveContainedRows(source,seen,excluded);this.store.markScanMissing(source,seen,excluded)}}
+      await this.registerCovers(selected.filter(source=>!directories.has(sourcePathKey(source))));
+      for(const {source} of packagesFirst(selected.map(source=>({source,name:path.basename(source)})))){if(this.cancelled)break;if(normalRoots.has(sourcePathKey(source))){await this.run([source],seen);continue}const excluded:string[]=[];await this.addListed(source,path.basename(path.dirname(source)),seen,excluded,await this.project(source));if(!this.cancelled){await this.finishCompanions(source,path.basename(path.dirname(source)),seen,excluded);await this.preserveContainedRows(source,seen,excluded);this.store.markScanMissing(source,seen,excluded)}}
     }
     const ids=[...new Set([...seen].map(id=>this.store.get(id)?.id).filter((id):id is string=>!!id))];
     return {added:ids.filter(id=>!before.has(id)).length,updated:ids.filter(id=>before.has(id)).length,ids,errors:[...this.state.errors],cancelled:this.cancelled};
   }
   private error(location:string,error:unknown):void {if(this.state.errors.length<100)this.state.errors.push(`${location}：${error instanceof Error?error.message:String(error)}`);this.emit()}
+  private resetCovers():void {this.coverPreviews.clear();this.coverOwners.clear();this.coveredPackages.clear();this.processedCompanions.clear()}
+  /** Pair only supplied paths. Explicit file selections never enumerate siblings. */
+  private async registerCovers(files:string[]):Promise<void>{
+    const directories=new Map<string,{directory:string;names:string[]}>();
+    for(const source of files){if(!this.store.isPathActive(source))continue;const directory=path.dirname(source),key=sourcePathKey(directory),group=directories.get(key)??{directory,names:[]};group.names.push(path.basename(source));directories.set(key,group)}
+    for(const {directory,names} of directories.values()){
+      if(this.cancelled)return;const candidates=pairScanCovers(names),eligible=new Set(names);
+      for(const name of new Set([...candidates.previews.keys(),...candidates.companions])){
+        if(this.cancelled)return;const source=path.join(directory,name);
+        try{await noLinks(source);const stat=await fsp.lstat(source);if(!stat.isFile()||stat.isSymbolicLink()||isImage(name)&&stat.size>25*1024*1024)eligible.delete(name)}catch{eligible.delete(name)}
+      }
+      const pairs=pairScanCovers([...eligible]);
+      for(const [name,cover] of pairs.previews)this.coverPreviews.set(sourcePathKey(path.join(directory,name)),path.join(directory,cover));
+      for(const [name,owners] of pairs.owners){const source=path.join(directory,name);this.coverOwners.set(sourcePathKey(source),{source,owners:owners.map(owner=>sourcePathKey(path.join(directory,owner)))})}
+    }
+  }
+  private async scanEntries(directory:string):Promise<fs.Dirent[]>{
+    const entries=await fsp.readdir(directory,{withFileTypes:true});
+    await this.registerCovers(entries.filter(entry=>entry.isFile()&&!entry.isSymbolicLink()&&!CACHES.has(entry.name.toLowerCase())&&!SOFTWARE.test(entry.name)).map(entry=>path.join(directory,entry.name)));
+    return packagesFirst(entries);
+  }
+  private suppressCompanion(source:string,seen:Set<string>):boolean {
+    const key=sourcePathKey(source),pair=this.coverOwners.get(key);
+    if(this.cancelled||!this.store.isPathActive(source)||!pair||!pair.owners.some(owner=>this.coveredPackages.has(owner)&&this.store.isPathActive(owner)))return false;
+    const result=this.store.markScanCover(source);this.processedCompanions.add(key);if(result.id)seen.add(result.id);return !result.standalone;
+  }
+  private async addListed(source:string,group:string,seen:Set<string>,excluded:string[],project=false):Promise<void>{
+    if(this.cancelled)return;if(this.suppressCompanion(source,seen))return;
+    await this.add(source,group,seen,excluded,project,this.coverPreviews.get(sourcePathKey(source)));
+  }
+  private async finishCompanions(root:string,group:string,seen:Set<string>,excluded:string[]):Promise<void>{
+    for(const [key,pair] of this.coverOwners){if(this.cancelled)return;if(this.processedCompanions.has(key)||!isWithin(pair.source,root)||!pair.owners.some(owner=>this.coveredPackages.has(owner)))continue;await this.addListed(pair.source,group,seen,excluded)}
+  }
   private async project(directory:string,ignoreInactive=false):Promise<boolean>{
     const flags=await Promise.all(['Assets','Packages','ProjectSettings'].map(async name=>{const source=path.join(directory,name);if(!ignoreInactive&&!this.store.isPathActive(source))return false;try{const stat=await fsp.lstat(source);return stat.isDirectory()&&!stat.isSymbolicLink()}catch{return false}}));return flags.every(Boolean);
   }
@@ -143,7 +185,7 @@ export class Scanner {
     };
     await visit(directory,0);return {size,urls:[...urls].slice(0,20),preview,localEvidence:[...evidence.values()],compatibilityComplete:complete&&evidence.size>0,localNameHints:[...nameHints]};
   }
-  private async add(source:string,group:string,seen:Set<string>,excluded:string[],project=false):Promise<void>{
+  private async add(source:string,group:string,seen:Set<string>,excluded:string[],project=false,preview?:string):Promise<void>{
     if(this.cancelled||!this.store.isPathActive(source))return;
     this.state.current=source;
     try{
@@ -162,16 +204,18 @@ export class Scanner {
       }
       if(this.cancelled)return;
       let previewFile:string|undefined;
+      if(preview&&stat.isFile()&&isPackage(name))details.preview=preview;
       if(stat.isFile()&&/\.(png|jpe?g|webp|gif|bmp)$/i.test(name)&&stat.size<=25*1024*1024)details.preview=source;
       if(details.preview)try{previewFile=await copyCover(details.preview,this.store.dataDir,this.store.settings().roots)}catch{/* previews never make a source unreadable */}
       if(this.cancelled)return;
       const record=this.store.upsertScan({path:source,name,group,kind,size:stat.isDirectory()?0:details.size,mtimeMs:stat.mtimeMs,localCategory:project?'工程':inferLocalCategory(name,details.localNameHints),localAvatars:[...new Set(details.localEvidence.map(entry=>entry.avatar))],localEvidence:details.localEvidence,compatibilityComplete:details.compatibilityComplete,hintUrls:details.urls,localNameHints:details.localNameHints,fileIdentity,previewFile,wrapper});
+      if(previewFile&&preview&&stat.isFile()&&isPackage(name))this.coveredPackages.add(sourcePathKey(source));
       seen.add(record.id);this.state.found++;this.emit();await pause();
     }catch(error){excluded.push(source);this.error(source,error)}
   }
   private async container(directory:string,group:string,seen:Set<string>,excluded:string[],depth=0,budget={remaining:5000}):Promise<void>{
     if(this.cancelled)return;this.store.markScanContainer(directory);if(depth>32||budget.remaining--<=0){excluded.push(directory);return}
-    try{for(const entry of await fsp.readdir(directory,{withFileTypes:true})){
+    try{for(const entry of await this.scanEntries(directory)){
       if(this.cancelled)return;if(budget.remaining--<=0){excluded.push(directory);break}const source=path.join(directory,entry.name),extension=path.extname(entry.name).toLowerCase();
       if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
       if(entry.isDirectory()){
@@ -180,29 +224,29 @@ export class Scanner {
         if(isOrganizationalFolderName(entry.name)||/^(?:textures?|貼圖|贴图|纹理)$/i.test(entry.name)||await this.sourceContainer(source)){await this.container(source,group,seen,excluded,depth+1,budget);continue}
         if(/^(?:模型|通用$|优化$|轉模$|转模$|转膜$)/.test(entry.name)||isAvatarName(entry.name)){await this.container(source,entry.name,seen,excluded,depth+1,budget);continue}
         const nested=await this.discoverProjects(source,excluded);
-        if(nested.projects.length){for(const project of nested.projects)await this.add(project,group,seen,excluded,true);for(const archive of nested.archives)await this.add(archive,group,seen,excluded)}
+        if(nested.projects.length){for(const project of nested.projects)await this.add(project,group,seen,excluded,true);for(const archive of nested.archives)await this.addListed(archive,group,seen,excluded)}
         else await this.add(source,group,seen,excluded);
-      }else if(entry.isFile()&&(ARCHIVES.has(extension)||FILES.has(extension)&&!['.psd','.png','.jpg','.jpeg','.webp','.gif','.bmp'].includes(extension)))await this.add(source,group,seen,excluded);
+      }else if(entry.isFile()&&(ARCHIVES.has(extension)||FILES.has(extension)&&extension!=='.psd'))await this.addListed(source,group,seen,excluded);
     }}catch(error){excluded.push(directory);this.error(directory,error)}
   }
   private async projectTree(directory:string,group:string,seen:Set<string>,excluded:string[],depth=0):Promise<void>{
     if(this.cancelled)return;if(depth>32){excluded.push(directory);return}
     if(await this.project(directory)){await this.add(directory,group,seen,excluded,true);return}
     try{
-      for(const entry of await fsp.readdir(directory,{withFileTypes:true})){
+      for(const entry of await this.scanEntries(directory)){
         if(this.cancelled)return;const source=path.join(directory,entry.name);
         if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
         if(entry.isDirectory())await this.projectTree(source,group,seen,excluded,depth+1);
-        else if(entry.isFile()&&(ARCHIVES.has(path.extname(entry.name).toLowerCase())||path.extname(entry.name).toLowerCase()==='.unitypackage'))await this.add(source,group,seen,excluded);
+        else if(entry.isFile()&&isPackage(entry.name))await this.addListed(source,group,seen,excluded);
       }
     }catch(error){excluded.push(directory);this.error(directory,error)}
   }
   private async group(directory:string,group:string,seen:Set<string>,excluded:string[]):Promise<void>{
-    try{for(const entry of await fsp.readdir(directory,{withFileTypes:true})){
+    try{for(const entry of await this.scanEntries(directory)){
       if(this.cancelled)return;const source=path.join(directory,entry.name),extension=path.extname(entry.name).toLowerCase();
       if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
       if(entry.isDirectory())await this.add(source,group,seen,excluded,await this.project(source));
-      else if(entry.isFile()&&(ARCHIVES.has(extension)||FILES.has(extension)))await this.add(source,group,seen,excluded);
+      else if(entry.isFile()&&(ARCHIVES.has(extension)||FILES.has(extension)))await this.addListed(source,group,seen,excluded);
     }}catch(error){excluded.push(directory);this.error(directory,error)}
   }
   private async discoverProjects(directory:string,excluded:string[],depth=0,budget={remaining:5000}):Promise<{projects:string[];archives:string[]}>{
@@ -211,7 +255,7 @@ export class Scanner {
     if(depth>24||budget.remaining--<=0){excluded.push(directory);return result}
     if(await this.project(directory)){result.projects.push(directory);return result}
     try{
-      const entries=await fsp.readdir(directory,{withFileTypes:true});
+      const entries=await this.scanEntries(directory);
       for(const entry of entries){
         if(this.cancelled)return result;const source=path.join(directory,entry.name);
         // A downloaded package's internal Assets hierarchy stays aggregated.
@@ -230,14 +274,15 @@ export class Scanner {
     const settings=this.store.settings(),roots=[...new Map(settings.roots.filter(root=>!selectedRoots||selectedRoots.some(selected=>isWithin(root,selected))).map(root=>[sourcePathKey(root),root])).values()],detachedRoots=settings.detachedRoots??[];
     const direct=new Set((settings.directSources??[]).map(sourcePathKey));
     const outerRoots=roots.filter(root=>direct.has(sourcePathKey(root))||!roots.some(other=>other!==root&&this.store.isPathActive(other)&&isWithin(root,other)&&!detachedRoots.some(detached=>isWithin(detached,other)&&isWithin(root,detached)&&!this.store.isPathActive(detached))));
-    for(const root of outerRoots){
+    await this.registerCovers(outerRoots.filter(root=>direct.has(sourcePathKey(root))));
+    for(const {source:root} of packagesFirst(outerRoots.map(source=>({source,name:path.basename(source)})))){
       if(this.cancelled)break;if(!this.store.isPathActive(root))continue;const seen=new Set<string>(),excluded:string[]=[];
       try{
         await noLinks(root);const stat=await fsp.lstat(root);if(stat.isSymbolicLink()||!stat.isDirectory()&&!(stat.isFile()&&direct.has(sourcePathKey(root))))throw new Error('素材根目录不是普通文件夹，目录链接不会扫描。');
-        if(direct.has(sourcePathKey(root)))await this.add(root,path.basename(path.dirname(root)),seen,excluded,await this.project(root));
+        if(direct.has(sourcePathKey(root)))await this.addListed(root,path.basename(path.dirname(root)),seen,excluded,await this.project(root));
         else if(await this.project(root))await this.add(root,path.basename(root),seen,excluded,true);
         else if(isOrganizationalFolderName(path.basename(root))||isSourceBucketName(path.basename(root))&&await this.sourceContainer(root))await this.container(root,path.basename(root),seen,excluded);
-        else for(const entry of await fsp.readdir(root,{withFileTypes:true})){
+        else for(const entry of await this.scanEntries(root)){
           if(this.cancelled)break;const source=path.join(root,entry.name),extension=path.extname(entry.name).toLowerCase();
           if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
           if(entry.isDirectory()){
@@ -247,12 +292,12 @@ export class Scanner {
             else if(/^(?:模型|通用$|优化$|轉模$|转模$|转膜$)/.test(entry.name)||isAvatarName(entry.name))await this.group(source,entry.name,seen,excluded);
             else {
               const discovered=await this.discoverProjects(source,excluded);
-              if(discovered.projects.length){for(const project of discovered.projects)await this.add(project,entry.name,seen,excluded,true);for(const archive of discovered.archives)await this.add(archive,entry.name,seen,excluded)}
+              if(discovered.projects.length){for(const project of discovered.projects)await this.add(project,entry.name,seen,excluded,true);for(const archive of discovered.archives)await this.addListed(archive,entry.name,seen,excluded)}
               else await this.add(source,path.basename(root),seen,excluded);
             }
-          }else if(entry.isFile()&&(ARCHIVES.has(extension)||FILES.has(extension)))await this.add(source,path.basename(root),seen,excluded);
+          }else if(entry.isFile()&&(ARCHIVES.has(extension)||FILES.has(extension)))await this.addListed(source,path.basename(root),seen,excluded);
         }
-        if(!this.cancelled){await this.preserveContainedRows(root,seen,excluded);this.store.markScanMissing(root,seen,excluded)}for(const id of seen)visited?.add(id);
+        if(!this.cancelled){await this.finishCompanions(root,path.basename(root),seen,excluded);await this.preserveContainedRows(root,seen,excluded);this.store.markScanMissing(root,seen,excluded)}for(const id of seen)visited?.add(id);
       }catch(error:any){if(direct.has(sourcePathKey(root))&&['ENOENT','ENOTDIR'].includes(error.code))this.store.markScanMissing(root,seen,[]);this.error(root,error)}
     }
   }

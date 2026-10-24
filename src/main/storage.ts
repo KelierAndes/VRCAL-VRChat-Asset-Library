@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import {assertSafeWrite,isWithin} from './safety';
+import {assertSafeWrite,isWithin,writeOwnedAtomic} from './safety';
 export interface LocationConfig {dataDir?:string;backupDir?:string}
 export interface BrowserCookieSnapshot {profile:'booth-session'|'baidu-session'|'xianyu-session';sha256:string}
 const COOKIE_MIGRATION_FAILED='登录状态无法完整保存，资料库迁移已停止；原位置和登录资料仍保留。';
@@ -15,8 +15,7 @@ export function assertUserStorage(target:string,roots:string[],allowC=false):str
  return resolved;
 }
 export function writeLocation(file:string,config:LocationConfig,roots:string[]):void {
- const target=assertSafeWrite(file,path.dirname(file),roots,true),temporary=assertSafeWrite(target+'.tmp',path.dirname(file),roots,true);
- fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(temporary,JSON.stringify(config,null,2));fs.renameSync(temporary,target);
+ writeOwnedAtomic(file,JSON.stringify(config,null,2),path.dirname(file),roots,true);
 }
 /** Keep a shared pointer as well as the portable pointer, so replacing the program folder retains the library. */
 export function rememberLibraryLocation(localFile:string,sharedFile:string,config:LocationConfig,roots:string[]):void {

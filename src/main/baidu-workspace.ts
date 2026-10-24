@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import {isIP} from 'node:net';
 import {lookup} from 'node:dns/promises';
 import {pathToFileURL} from 'node:url';
-import {assertSafeWrite} from './safety';
+import {assertSafeWrite,writeOwnedAtomic} from './safety';
 import {isPublicAddress} from './online';
 import {normalizeTheme,THEME_BACKGROUNDS,type AppLanguage,type AppTheme} from '../shared/contracts';
 import {normalizeLanguage} from '../shared/i18n';
@@ -73,7 +73,7 @@ export class BaiduWorkspace {
  private readonly crawler:BaiduCrawler;
  constructor(private readonly deps:BaiduWorkspaceDependencies){
   const file=()=>assertSafeWrite(path.join(deps.dataDir,'baidu-directory-task.json'),deps.dataDir,deps.roots());
-  this.crawler=new BaiduCrawler({identity:()=>this.identity(),readDirectory:(path,accept,check)=>this.readDirectory(path,accept,check),commit:async capture=>{if(!this.deps.canNetwork())throw new Error('baidu-offline');if(!this.deps.onCapture)throw new Error('baidu-save-failed');await this.deps.onCapture(capture);this.proofKey=capture.accountKey},load:()=>{const target=file();if(!fs.existsSync(target))return;const stat=fs.lstatSync(target);if(!stat.isFile()||stat.size>12*1024*1024)throw new Error();return JSON.parse(fs.readFileSync(target,'utf8'))},save:task=>{const target=file(),temporary=assertSafeWrite(target+'.tmp',deps.dataDir,deps.roots());fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(temporary,JSON.stringify(task));fs.renameSync(temporary,target)},onChanged:()=>this.notify()});
+  this.crawler=new BaiduCrawler({identity:()=>this.identity(),readDirectory:(path,accept,check)=>this.readDirectory(path,accept,check),commit:async capture=>{if(!this.deps.canNetwork())throw new Error('baidu-offline');if(!this.deps.onCapture)throw new Error('baidu-save-failed');await this.deps.onCapture(capture);this.proofKey=capture.accountKey},load:()=>{const target=file();if(!fs.existsSync(target))return;const stat=fs.lstatSync(target);if(!stat.isFile()||stat.size>12*1024*1024)throw new Error();return JSON.parse(fs.readFileSync(target,'utf8'))},save:task=>{writeOwnedAtomic(file(),JSON.stringify(task),deps.dataDir,deps.roots())},onChanged:()=>this.notify()});
  }
  async scan(action:'start'|'pause'|'resume'|'stop'|'retry'):Promise<void>{
   if(action==='pause'){this.crawler.pause();return}if(action==='stop'){this.crawler.stop();return}

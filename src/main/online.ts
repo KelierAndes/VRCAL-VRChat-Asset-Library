@@ -5,7 +5,7 @@ import { isIP } from 'node:net';
 import { lookup } from 'node:dns/promises';
 import * as cheerio from 'cheerio';
 import type { AssetRecord, Category, OnlineInfo, ProductCandidate, QueueProgress, TransferProgress, TransferSummary, SpeedSample, MatchEvidence } from '../shared/contracts';
-import { assertSafeWrite } from './safety';
+import { assertSafeWrite, writeOwnedAtomic } from './safety';
 import { inferAvatars, inferProductCategory,officialProductCategory } from './hints';
 import { TransferMeter } from './transfer';
 import { searchClue, searchClues,searchQueries,filenameIdentityConflict, candidateScore, extractBoothIds, boothProductId, canonicalSourceKey, canonicalCreator, MATCH_RULE_VERSION } from './matching';
@@ -292,11 +292,9 @@ export class EnrichmentQueue {
     this.save();this.emit();
   }
   private save():void {
-    assertSafeWrite(this.statePath,this.deps.dataDir,this.deps.roots());fs.mkdirSync(path.dirname(this.statePath),{recursive:true});
-    const temp=this.statePath+'.tmp';assertSafeWrite(temp,this.deps.dataDir,this.deps.roots());
     const active=[...this.contexts.values()].filter(c=>!(c.controller.signal.reason instanceof QueueSuperseded)).map(c=>c.task),pendingIds=new Set(this.tasks.map(t=>t.id));
     const tasks=[...this.tasks,...active.filter(t=>!pendingIds.has(t.id))];
-    fs.writeFileSync(temp,JSON.stringify({version:2,tasks,activeTasks:active,paused:this.paused,completed:this.completed,recentTransfers:this.recentTransfers,recentDownloads:this.recentTransfers,speedHistory:this.speedHistory,downloadedBytes:this.downloadedBytes,peakDownloadBps:this.peakDownloadBps,hosts:Object.fromEntries(this.hosts)}),{encoding:'utf8',mode:0o600});fs.renameSync(temp,this.statePath);this.lastSave=Date.now();
+    writeOwnedAtomic(this.statePath,JSON.stringify({version:2,tasks,activeTasks:active,paused:this.paused,completed:this.completed,recentTransfers:this.recentTransfers,recentDownloads:this.recentTransfers,speedHistory:this.speedHistory,downloadedBytes:this.downloadedBytes,peakDownloadBps:this.peakDownloadBps,hosts:Object.fromEntries(this.hosts)}),this.deps.dataDir,this.deps.roots());this.lastSave=Date.now();
   }
   private update(ctx:TaskContext,patch:Partial<OnlineInfo>):void {this.check(ctx);
     if(ctx.task.rematch&&this.deps.get(ctx.task.id)?.online.rematchRequested&&!ctx.task.url){patch={...patch,status:'review'};for(const key of ['url','confirmedSource','matchEvidence','metadataSourceUrl'] as const)delete patch[key];}
@@ -527,9 +525,7 @@ export class EnrichmentQueue {
   }
   private cachePath(file:string):string {const target=path.join(this.deps.dataDir,'cache',file);assertSafeWrite(target,this.deps.dataDir,this.deps.roots());return target;}
   private atomicCache(target:string,data:string|Buffer):void {
-    fs.mkdirSync(path.dirname(target),{recursive:true});assertSafeWrite(target,this.deps.dataDir,this.deps.roots());
-    const temp=target+'.'+randomUUID()+'.tmp';assertSafeWrite(temp,this.deps.dataDir,this.deps.roots());
-    try{fs.writeFileSync(temp,data);fs.renameSync(temp,target);}finally{if(fs.existsSync(temp))fs.unlinkSync(temp);}
+    writeOwnedAtomic(target,data,this.deps.dataDir,this.deps.roots());
   }
   private async html(ctx:TaskContext,rawUrl:string,kind:TransferProgress['kind']='page'):Promise<{html:string;url:string}> {
     this.check(ctx);const url=publicHttpsUrl(rawUrl).href,target=this.cachePath('page-'+hash(url)+'.json');

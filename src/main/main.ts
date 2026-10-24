@@ -27,6 +27,7 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {Store,safeBoothDownloadPath} from './store';
 import {Scanner} from './scanner';
+import {assertSourceSeparation} from './source-roots';
 import {assertSafeWrite,safeCoverPath,copyCover} from './safety';
 import {EnrichmentQueue,publicHttpsUrl} from './online';
 import {ProductPreview} from './preview';
@@ -476,7 +477,7 @@ function registerHandlers(){
  handle('chooseRoot',async()=>{
   if(scanner.progress().running)throw new Error('请先停止扫描，再修改素材目录。');
   const result=await dialog.showOpenDialog(window!,localizeDialogOptions({title:'添加素材目录',defaultPath:DEFAULT_ROOT,properties:['openDirectory']},uiLanguage()));if(result.canceled)return false;
-  const root=await fsp.realpath(result.filePaths[0]);assertNotRecycling();if(contained(root,dataDir)||store.settings().backupDir&&contained(root,store.settings().backupDir!))throw new Error('此母目录包含资料库或备份位置。请先在设置中将资料库和备份迁移到母目录之外，再添加；原素材不需要移动。');
+  const root=await fsp.realpath(result.filePaths[0]);assertNotRecycling();assertSourceSeparation(dataDir,[root],store.settings().backupDir);
   const roots=store.settings().roots;if(roots.some(x=>contained(x,root))&&store.isPathActive(root))throw new Error('此文件夹已包含在素材范围内，无需再次添加。');
   const nextRoots=[...roots.filter(value=>!contained(root,value)),root];store.saveSettings({roots:nextRoots});changed();setTimeout(()=>void performScan().catch(error=>emit({type:'scan',progress:{running:false,found:0,current:'',errors:[error.message]}})),0);return true;
  });

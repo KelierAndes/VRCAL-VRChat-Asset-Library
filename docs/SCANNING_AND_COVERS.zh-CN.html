@@ -1,0 +1,54 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>扫描、素材目录与本地封面指南</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.11 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">素材目录和应用资料库有什么区别</a><a href="#section-3">哪些包和图片可以配对</a><a href="#section-4">扫描目录与手动添加有什么不同</a><a href="#section-5">封面优先级和导入范围</a><a href="#section-6">升级后为何要刷新一次</a><a href="#section-7">如果实际磁盘名称或位置发生变化</a></nav><main><h1 id="section-1">扫描、素材目录与本地封面指南</h1>
+<p>适用版本：<strong>1.4.0-preview.11</strong>。先分清原素材放在哪里，再选择扫描范围；封面只是应用中的展示，不需要移动原包或图片。</p>
+<h2 id="section-2">素材目录和应用资料库有什么区别</h2>
+<div class="table-scroll"><table><thead><tr><th>位置</th><th>保存什么</th><th>示例</th></tr></thead><tbody>
+<tr><td>素材目录</td><td>你下载的 ZIP、RAR、7z、Unitypackage、模型、图片和商品文件夹</td><td><code>D:\VRC素材</code></td></tr>
+<tr><td>应用资料库</td><td>索引、人工标题和标签、来源、集合、封面缓存、设置和应用会话数据</td><td><code>D:\VRCAL资料库\VRChatAssetLibrary</code></td></tr>
+<tr><td>备份位置</td><td>可恢复的应用资料库备份；普通备份不含原素材或登录凭证</td><td><code>D:\VRCAL备份</code></td></tr>
+</tbody></table></div>
+<p>素材与资料库／备份必须分别存放，不能使用相同位置，也不能互相包含。既不能把资料库或备份放在素材扫描目录下，也不能把素材目录放进资料库或备份中。选择整个磁盘作为素材来源也会扩大重叠范围，应选择实际保存素材的目录。</p>
+<p>应用首次询问资料库保存位置时，按界面选择保存位置；重新连接已有资料库时，选择原 <code>VRChatAssetLibrary</code> 文件夹的上级目录。更换素材扫描路径与重新连接应用资料库是不同操作。不要通过清空资料库处理封面或目录重叠问题。</p>
+<p>扫描读取已授权的素材范围，标注和封面缓存写在应用资料库。主动导入、确认 MA 装配和明确确认移入回收站属于各自的写入操作，与普通扫描分开。</p>
+<h2 id="section-3">哪些包和图片可以配对</h2>
+<p>包格式支持 <strong>ZIP、RAR、7z、Unitypackage</strong>；图片支持 <strong>PNG、JPG、JPEG、WebP、GIF、BMP</strong>。两者必须在同一个已授权目录，图片应为普通本地文件且不超过 25 MB；目录链接和不符合读取范围的来源不参与配对。</p>
+<div class="table-scroll"><table><thead><tr><th>同一目录中的文件</th><th>结果</th></tr></thead><tbody>
+<tr><td><code>鸭鸭.rar</code>、<code>鸭鸭.png</code></td><td>同名图片可作包的本地封面</td></tr>
+<tr><td><code>鸭鸭.zip</code>、<code>鸭鸭.zip.jpg</code></td><td>图片名包含完整包文件名，也可配对</td></tr>
+<tr><td><code>鸭鸭.7z</code>、<code>鸭鸭_cover.png</code> 或 <code>鸭鸭-封面.jpg</code></td><td>明确分隔的封面后缀可配对</td></tr>
+<tr><td><code>鸭鸭_v2_Airi.rar</code>、<code>鸭鸭_v2_Airi.png</code></td><td>完整保留版本和适配名后配对</td></tr>
+<tr><td><code>鸭鸭_v1_Moe.rar</code>、<code>鸭鸭_v2_Airi.png</code></td><td>不删除版本或适配名来强行配对</td></tr>
+<tr><td><code>鸭鸭.rar</code>、<code>cover.png</code> 或 <code>body_normal.png</code></td><td>不把通用封面名或普通贴图猜作该包封面</td></tr>
+<tr><td><code>A\鸭鸭.rar</code>、<code>B\鸭鸭.png</code></td><td>不跨目录配对</td></tr>
+</tbody></table></div>
+<p>名称比较使用 Unicode NFKC 和大小写归一；若归一后存在不同原始包名冲突，拒绝猜测。例如同目录有 <code>Dress.zip</code> 和 <code>dress.rar</code> 时，不能仅凭归一后的名字决定图片归属。不会改写实际文件名。</p>
+<p>可识别的末尾封面后缀包括 <code>cover</code>、<code>preview</code>、<code>previewimage</code>、<code>thumbnail</code>、<code>封面</code>、<code>预览</code>、<code>サムネイル</code>，前面必须有空格、下划线、连字符或点。精确同名优先于封面后缀；同等匹配程度的多张图片依次优先 PNG、JPG、JPEG、WebP、GIF、BMP。仅名称相似、不同版本或不同角色的图片不会套用。</p>
+<p>商品文件夹、Unity 工程、辅助材质树仍按原有目录边界识别。本地封面配对不表示会将商品文件夹里的所有图片拆成单独素材；未与包配对的独立图片、贴图也不会仅因扩展名相同而被一概隐藏。</p>
+<h2 id="section-4">扫描目录与手动添加有什么不同</h2>
+<p>添加素材文件夹并刷新时，可以在该已授权目录范围内发现同目录包和图片。扫描不为封面跨到父目录或其他目录。</p>
+<p>手动添加一个包或一张图片时，<strong>不枚举父目录查找邻居</strong>。例如只添加 <code>鸭鸭.rar</code>，旁边未授权的 <code>鸭鸭.png</code> 不会被顺带读取。同次明确选中包与图片时，可以在这两个已授权文件之间配对。</p>
+<p>完整 <strong>刷新素材</strong> 时，如果同目录的包和图片两个精确文件路径都已经分别登记为手动文件来源，也可在这个已授权集合内配对；不要求当初必须同一次添加。只登记包文件、未登记图片时，刷新仍不会为它扩读父目录。移除来源或取消的扫描不会因此取得额外读取授权。</p>
+<h2 id="section-5">封面优先级和导入范围</h2>
+<p>图库依次采用 <strong>人工设置的封面 → 已关联商品封面 → 本地预览图</strong>。新配对的图片属于本地预览，不覆盖人工选择，不确认 BOOTH 等商品来源，也不证明购买或适配。</p>
+<p>应用只把读取到的封面缓存到资料库，原图和包留在原位置。不将图片塞入压缩包，不把图片加入包的 Unity 导入成员。需要导入的原素材仍按具体导入操作单独预览和确认。</p>
+<h2 id="section-6">升级后为何要刷新一次</h2>
+<p>旧版本可能已经给 <code>鸭鸭.rar</code> 和 <code>鸭鸭.png</code> 各建了一张卡片。升级到 preview.11 后点击一次 <strong>刷新素材</strong>，可在本次成功配对和读取封面的范围内整理这些旧记录。</p>
+<ul>
+<li>新发现的配对图片不单独建卡。</li>
+<li>旧配对图片没有人工资料、没有集合或关联引用时，退出商品列表与匹配队列。原记录编号及备份仍保留，不删除原图，也不占用户的「已隐藏素材」列表。</li>
+<li>旧图片已有人工标题、备注、标签、分类、手动封面、收藏、来源或排除等信息，或被集合、关联记录引用时，继续保留卡片，避免藏起用户资料。</li>
+<li>没有成功配对的独立图片和贴图继续按原有扫描规则处理；文件名含版本、角色或用途差异时，不为减少卡片强行合并。</li>
+</ul>
+<p>有人工资料的图片仍然可见属于保护行为。无需清空标注、重新确认商品或删除原图来消除它。若封面没有显示，先检查是否已有更高优先级封面、包图是否同目录同名、两个路径是否均在授权范围，以及图片格式与大小。</p>
+<h2 id="section-7">如果实际磁盘名称或位置发生变化</h2>
+<p>扫描不应改变原文件的名称或位置。本轮截图中的包与封面拆成两张卡片已纳入回归，合成源文件的名称、路径、大小、修改时间和哈希也已核对。普通扫描直接改名或移动的情况仍未复现，不将实际磁盘变化归为仅界面排序，也不把本次封面修复当作其最终结论。</p>
+<p>本轮针对已复现条件加固素材与资料库／备份的双向目录边界，使用独占随机临时文件、文件身份核对和多硬链拒绝，并补强队列、位置记录与百度任务保存。这些修复不等于已证明用户此次磁盘变化已经解决。</p>
+<p>若再次发生，请保留以下线索：</p>
+<ol>
+<li>应用版本、执行时间与当时操作，例如刷新、手动添加、修改保存位置或下载。</li>
+<li>资源管理器中的变化前后完整路径和文件名，以及脱敏截图；区分实际磁盘路径和应用显示标题。</li>
+<li>应用资料库、备份和素材来源的路径关系。不要上传凭证、付费素材、私人分享链接或整份资料库。</li>
+</ol>
+<p>先保留现状和备份，避免反复扫描、改名或搬动文件覆盖线索；目录重叠提示也不需要靠删除文件解决。反馈入口见项目 <a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/issues/new/choose">Issues</a>，涉及隐私或安全的信息按<a href="../SECURITY.md">安全报告说明</a>私下提供。</p>
+<p><a href="RELEASE_1.4.0-preview.11.zh-CN.html">preview.11 更新说明</a> · <a href="USER_AGREEMENT.zh-CN.md">用户协议与使用说明</a> · <a href="PRIVACY.zh-CN.md">隐私说明</a> · <a href="WORK_PLAN_20261024.zh-CN.html">总计划</a></p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

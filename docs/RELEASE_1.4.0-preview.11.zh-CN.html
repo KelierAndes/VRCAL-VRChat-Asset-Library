@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VRChat本地素材管理器 v1.4.0-preview.11</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.11 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">同名图片如何成为封面</a><a href="#section-3">旧图片记录怎样处理</a><a href="#section-4">素材与应用资料库要分开</a><a href="#section-5">升级与反馈</a></nav><main><h1 id="section-1">VRChat本地素材管理器 v1.4.0-preview.11</h1>
+<p>本轮让同目录的同名图片成为素材包的本地封面，减少包和封面各占一张卡片的情况；同时加固应用资料库、备份和任务记录的写入边界。</p>
+<p><strong>文件名称与位置保持原样。</strong> 本轮已用合成素材核对重复扫描前后的名称、路径、大小、修改时间和内容哈希不变，并修正有条件的硬链覆盖与目录边界缺口。普通扫描直接改名或移动原文件的情况尚未复现；封面修复和这些加固不能作为实际磁盘变化已经定位或解决的证明，也不能据此把反馈解释为仅界面排序。</p>
+<h2 id="section-2">同名图片如何成为封面</h2>
+<p>在同一已授权目录内，ZIP、RAR、7z、Unitypackage 可以使用精确同名的 PNG、JPG、JPEG、WebP、GIF、BMP 作本地封面。例如 <code>鸭鸭.rar</code> 与 <code>鸭鸭.png</code> 配对；<code>鸭鸭.rar.png</code> 也可对应完整包文件名。</p>
+<p>名称比较支持 Unicode NFKC 与大小写归一，但归一后出现不同包名冲突时拒绝猜测。版本和适配名属于名称的一部分：<code>鸭鸭_v2_Airi.png</code> 不会套到 <code>鸭鸭_v1_Moe.rar</code>。明确以空格、下划线、连字符或点分隔的封面后缀也可识别，例如 <code>鸭鸭_cover.png</code>、<code>鸭鸭-封面.jpg</code>；不会仅凭目录里有一张通用 <code>cover.png</code> 就分给所有包。</p>
+<p>手动添加单个文件不查父目录；同次明确选择包与图片可配。完整「刷新素材」时，如果同目录的包和图片两个精确文件路径都已分别登记为手动文件来源，也可在这个已授权集合内配对，不要求当初必须同一次添加。配对不跨目录，也不扩大原扫描授权。</p>
+<p>人工封面优先于商品封面，商品封面优先于本地预览。新规则只补充本地预览，不确认商品来源，也不把图片加入 Unity 导入成员。独立图片和贴图仍按原有目录识别规则保留。详细示例见<a href="SCANNING_AND_COVERS.zh-CN.html">扫描与封面指南</a>。</p>
+<h2 id="section-3">旧图片记录怎样处理</h2>
+<p>升级后点击一次 <strong>刷新素材</strong>。成功作为包封面的新配对图片不再单独建卡；旧的无人工资料配对图片退出商品列表与匹配队列，但原记录编号和备份仍保留，也不会挤进用户的「已隐藏素材」列表。原包和图片留在原处，不合并文件、不删除图片、不改包内容。</p>
+<p>有人工标题、备注、标签、收藏、手动封面、分类、来源、排除等信息，或被集合、关联记录引用的旧图片，继续保留卡片，避免藏起已有资料。旧图仍然可见时，先检查这些记录，不需要为减少一张卡片而清除自己的标注。</p>
+<h2 id="section-4">素材与应用资料库要分开</h2>
+<p>素材目录是你保存包、模型和图片的位置；应用资料库保存索引、标注、封面缓存、设置和会话数据，备份保存可恢复的资料库记录。素材目录与资料库／备份位置不能相同，也不能互相包含；将素材目录放进资料库或把备份放进扫描目录都会被拒绝。</p>
+<p>保存过程使用独占创建的随机临时文件，并核对文件身份，拒绝多硬链文件，失败清理也只处理本次拥有的临时文件。队列、资料库位置记录与百度任务保存同步加固。这是针对已复现条件的保护，不能推导为所有文件系统竞态都已消除。</p>
+<p>如果遇到目录重叠提示，先保留原素材和资料库，核对设置中两类路径。不要为通过检查删除其中一份，也不要把资料库整体登记为素材目录。<a href="SCANNING_AND_COVERS.zh-CN.html">指南</a>有独立目录示例。</p>
+<h2 id="section-5">升级与反馈</h2>
+<ol>
+<li>先备份资料库，退出旧程序，再运行 <code>VRC-Asset-Library-1.4.0-preview.11-x64.exe</code>。程序、对应源码与验收记录见 <a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.11">Releases 对应版本</a>。公开预览需手动下载，不进入稳定版内置更新通道。</li>
+<li>继续使用原资料库；若询问保存位置，选择原 <code>VRChatAssetLibrary</code> 文件夹的上级目录，避免创建另一个空库。</li>
+<li>点击一次 <strong>刷新素材</strong>，检查包封面、旧图片的人工资料及独立图片。无需重新确认已有商品来源。</li>
+<li>若实际磁盘文件名或位置再次变化，先保留变化前后完整路径、当时版本、执行的操作和脱敏截图。不要用反复扫描、重新命名或搬动文件覆盖这些线索；反馈时不上传付费素材、账号凭证或整份个人资料库。</li>
+</ol>
+<p>本轮最终自动化、打包、CI、源码与附件摘要结果以对应验收记录为准，这里不沿用旧版通过数字。合成夹具证明所述条件下的行为，不代表已定位用户此次磁盘变化。</p>
+<p>角色＋衣服静态组合预览、BOOTH 下载关联、网页 AI 与改模工作台继续保留。真实闲鱼新交付全链路、平台窗口关闭后的独立后台、真实 MA／SDK／商业角色和真实 AI 效果仍未完成验收；P1 的角色身份、衣柜、冲突与持久恢复，以及 P2 的辅助适配和有限穿模修复继续保留。新增文字暂为中文，本轮不改变协议或功能同意版本，也不新增读取用途。</p>
+<p><a href="SCANNING_AND_COVERS.zh-CN.html">扫描与封面指南</a> · <a href="WORK_PLAN_20261024.zh-CN.html">总计划</a> · <a href="AVATAR_WORKFLOW_REPORT.zh-CN.html">改模报告</a> · <a href="PRIVACY.zh-CN.md">隐私说明</a></p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

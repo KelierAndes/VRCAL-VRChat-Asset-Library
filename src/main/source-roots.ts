@@ -1,5 +1,13 @@
 import path from 'node:path';
+import fs from 'node:fs';
 import {isWithin} from './safety';
+
+/** Application-managed files and source scopes must never contain one another. */
+export function assertSourceSeparation(dataDir:string,roots:string[],backupDir?:string):void {
+  const aliases=(value:string)=>{const resolved=path.resolve(value);try{return [resolved,fs.realpathSync.native(resolved)]}catch{return [resolved]}};
+  const managed=[...aliases(dataDir),...(backupDir?aliases(backupDir):[])];
+  for(const root of roots)for(const source of aliases(root))if(managed.some(target=>isWithin(source,target)||isWithin(target,source)))throw new Error('素材目录受到保护，不能与资料库或备份位置互相包含。请将它们放在彼此独立的目录。');
+}
 
 export function sourcePathKey(value:string):string {const resolved=path.resolve(value);return process.platform==='win32'?resolved.toLowerCase():resolved}
 /** Root scopes are metadata; validating them never enumerates source contents. */

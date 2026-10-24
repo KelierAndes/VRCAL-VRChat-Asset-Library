@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.11',date:'2026-10-24',channel:'preview',title:'同名本地封面与资料库写入保护',sections:[
+    {kind:'fixed',items:['同一已授权目录中的 ZIP、RAR、7z、Unitypackage 可使用精确同名本地图片作封面，保留版本和适配名；新配对图片不再单独建卡，独立图片与贴图继续保留。','刷新素材后，旧的无人工信息配对图片退出商品列表和匹配队列，保留原记录编号与备份，不占用户隐藏列表；有人工标注、来源、排除、集合或关联引用的旧图保留卡片。']},
+    {kind:'improved',items:['素材目录与应用资料库、备份位置双向禁止重叠；保存改用独占随机临时文件并拒绝多硬链，补强队列、位置记录和百度任务保存。','新增扫描与封面指南：手动添加单个文件不查父目录；明确选择包与图片可配对，完整刷新也可在已分别登记的同目录文件来源内配对。人工封面、商品封面、本地预览的优先级保持不变。']},
+    {kind:'notes',items:['用户反馈实际磁盘位置或名称有变化；目前只复现有条件的硬链覆盖与目录边界缺口，尚未定位这次普通扫描改名或移动的原因，不能宣称已经修复该实际变化。','本版最终验收与发布校验以对应记录为准，不沿用旧版数字。真实账号交付、真实 MA／SDK／商业角色和 AI 效果仍待验收；新增文字暂为中文，同意版本不变。']}
+  ]},
   {version:'1.4.0-preview.10',date:'2026-10-24',channel:'preview',title:'闲鱼交付链接读取与状态提示',sections:[
     {kind:'fixed',items:['按官网公开非 ARIA 结构读取当前打开会话的正文，排除引用内容；后台仅检查已加载的近期未读摘要，排除草稿。','手动检查固定读取当前会话，不受后台开关影响；账号未确认、区域未支持、未选会话和未发现链接分开提示。']},
     {kind:'improved',items:['分钟前等相对时间按显示区间最早时刻估算；今天／昨天也标“约”并冻结日期推定。同账号同链接不随轮询刷新年龄，后续完整精确时间可以升级。','只有时分、无法核实日期的消息继续待核对，不冒充近期交付；账号和网址双重检查、取消与加密保存继续保留。']},
