@@ -18,8 +18,9 @@ export interface UpdaterDependencies {
  /** Host-process boundary injection; production always launches the bundled, hidden PowerShell helper. */
  launchHelper?:(scriptPath:string,manifestPath:string)=>Promise<void>;
 }
-function version(value:unknown):string {if(typeof value!=='string'||!/^v?(?:0|[1-9]\d{0,5})\.(?:0|[1-9]\d{0,5})\.(?:0|[1-9]\d{0,5})$/.test(value))throw new Error('更新版本号无效。');return value.replace(/^v/,'')}
-function newer(latest:string,current:string):boolean {const a=latest.split('.').map(Number),b=current.split('.').map(Number);for(let i=0;i<3;i++)if(a[i]!==b[i])return a[i]>b[i];return false}
+function version(value:unknown,allowLocal=false):string {if(typeof value!=='string'||!/^v?(?:0|[1-9]\d{0,5})\.(?:0|[1-9]\d{0,5})\.(?:0|[1-9]\d{0,5})$/.test(allowLocal?value.replace(/-(?:preview|local)\.(?:0|[1-9]\d{0,5})$/,''):value))throw new Error('更新版本号无效。');return value.replace(/^v/,'')}
+// Remote releases are stable-only. At an equal numeric version, stable supersedes a local preview.
+function newer(latest:string,current:string):boolean {const [core,suffix]=current.split('-'),a=latest.split('.').map(Number),b=core.split('.').map(Number);for(let i=0;i<3;i++)if(a[i]!==b[i])return a[i]>b[i];return suffix!==undefined}
 function identity(file:string):Identity {const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.nlink>1)throw new Error('更新目标不是独立的普通文件。');return {dev:stat.dev,ino:stat.ino,size:stat.size,mtimeMs:stat.mtimeMs}}
 function sameIdentity(a:Identity,b:Identity):boolean {return a.dev===b.dev&&a.ino===b.ino&&a.size===b.size&&a.mtimeMs===b.mtimeMs}
 function https(raw:string):URL {const url=new URL(raw);if(url.protocol!=='https:'||url.username||url.password||url.port&&url.port!=='443'||url.hostname.endsWith('.'))throw new Error('更新网址无效。');return url}
@@ -92,7 +93,7 @@ export class AppUpdater {
    this.network();const response=await this.request(ENDPOINT,controller),reader=response.body?.getReader();if(!reader)throw new Error('官方更新资料为空。');const chunks:Buffer[]=[];let length=0;
    try{while(true){const {done,value}=await reader.read();if(done)break;length+=value.length;if(length>MAX_JSON)throw new Error('官方更新资料超过大小限制。');chunks.push(Buffer.from(value))}}finally{await reader.cancel().catch(()=>{});reader.releaseLock()}
    if(controller.signal.aborted)throw controller.signal.reason;const release=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(!release||release.draft!==false||release.prerelease!==false)throw new Error('官方更新资料无效。');const latest=version(release.tag_name),releaseUrl=officialRelease(release.html_url,release.tag_name),releaseNotes=typeof release.body==='string'?release.body.slice(0,60000):'';
-   if(!newer(latest,version(this.deps.version))){this.publish({status:'up-to-date',latestVersion:latest,releaseUrl,releaseNotes,checkedAt:new Date().toISOString(),message:'已是最新版本。'});return this.state()}
+   if(!newer(latest,version(this.deps.version,true))){this.publish({status:'up-to-date',latestVersion:latest,releaseUrl,releaseNotes,checkedAt:new Date().toISOString(),message:'已是最新版本。'});return this.state()}
    const name='VRC-Asset-Library-'+latest+'-x64.exe',matches=Array.isArray(release.assets)?release.assets.filter((item:any)=>item&&item.name===name):[];if(matches.length!==1)throw new Error('官方发布中没有唯一可用的 Windows 更新文件。');const item=matches[0];if(item.state!=='uploaded'||!Number.isSafeInteger(item.size)||item.size<512||item.size>MAX_ASSET||typeof item.digest!=='string'||!/^sha256:[a-f0-9]{64}$/i.test(item.digest))throw new Error('官方更新文件缺少有效的大小或 SHA-256 校验。');
    this.asset={version:latest,url:officialAsset(item.browser_download_url,release.tag_name,name),size:item.size,sha256:item.digest.slice(7).toLowerCase()};
    this.publish({status:this.supported()?'available':'unsupported',latestVersion:latest,releaseUrl,releaseNotes,totalBytes:item.size,checkedAt:new Date().toISOString(),message:this.supported()?'发现新版本，可下载并校验。':'发现新版本；当前运行方式请使用官方发布页手动更新。'});

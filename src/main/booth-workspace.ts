@@ -1,7 +1,7 @@
 import {BrowserWindow,WebContentsView,ipcMain,session,safeStorage} from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {isIP} from 'node:net';
 import {lookup} from 'node:dns/promises';
 import {pathToFileURL} from 'node:url';
@@ -12,6 +12,9 @@ import type {BoothTab,BoothDownload,BoothState,AppTheme,AppLanguage} from '../sh
 import {normalizeLanguage,translate} from '../shared/i18n';
 import {NATIVE_MESSAGES} from '../shared/messages-native';
 import {snapshotBrowserCookies} from './browser-cookie-migration';
+import {readOwnedInbox,evaluateInboxPage} from './link-inbox-reader';
+import {inboxBoothLibraryItemUrl} from './link-inbox-store';
+import type {InboxReadContext,InboxReadResult} from './link-inbox-monitor';
 
 export interface BoothWorkspaceDependencies {
  parent:()=>BrowserWindow|null;dataDir:string;roots:()=>string[];getDownloadDir:()=>string|undefined;canNetwork:()=>boolean;
@@ -68,6 +71,34 @@ interface StoredDownload extends BoothDownload {file?:string}
 interface Entry {window:BrowserWindow;view:WebContentsView;channel:string;toolbarUrl:string;assetId?:string;title:string;tab:BoothTab|'search';query:string;status:string;statusValues?:Record<string,string|number>;loading:boolean;loaded:boolean;lastLoadedUrl?:string;httpError:boolean;busy:boolean;applied?:string;closed:boolean}
 interface BrowserState {title:string;tab:string;query:string;url:string;status:string;loading:boolean;canApply:boolean;canGoBack:boolean;canGoForward:boolean;applied:boolean;downloadDir?:string;sessionSaved:boolean;activeDownloads:number;theme:AppTheme;language:AppLanguage;messages:Record<string,string>}
 export class BoothWorkspace {
+ async readInbox(mode:'foreground'|'background',signal:AbortSignal,context:InboxReadContext={now:Date.now(),hours:24}):Promise<InboxReadResult>{
+  if(signal.aborted||this.clearing||this.stopping||!this.deps.canNetwork())return {state:'paused',message:'账号检查已暂停。',observations:[]};
+  return readOwnedInbox('booth',[...this.owned],mode,signal,context,()=>!this.clearing&&!this.stopping&&this.deps.canNetwork());
+ }
+ async openDiscovery(url:string):Promise<void> {
+  const target=boothBrowserUrl(url);if(target.hostname!=='booth.pm'||!(target.pathname.startsWith("/ja/search/")||target.pathname.startsWith("/ja/items/")))throw new Error('商品网址无效。');
+  await this.open({tab:'search',query:'VRChat'});if(this.entry&&!this.entry.closed)await this.navigate(this.entry,target.href);
+ }
+ async openInboxPurchase(url:string):Promise<void>{
+  const target=new URL(url);if(target.origin!=='https://accounts.booth.pm'||!/^\/(?:library|orders)\//.test(target.pathname)||target.search||target.hash)throw new Error('已购条目地址无效。');
+  await this.open({tab:'library'});if(this.entry&&!this.entry.closed)await this.navigate(this.entry,target.href);
+ }
+ async openInboxLibraryItem(item:string,accountKey:string):Promise<void>{
+  inboxBoothLibraryItemUrl(item);if(!/^[a-f0-9]{64}$/.test(accountKey))throw new Error('BOOTH 账号记录无效。');
+  await this.open({tab:'library'});const entry=this.entry;if(!entry||entry.closed)throw new Error('BOOTH 窗口已关闭。');
+  if(!entry.loaded||entry.loading)await new Promise<void>((resolve,reject)=>{
+   const contents=entry.view.webContents,cleanup=()=>{clearTimeout(timer);contents.removeListener('did-finish-load',finish);contents.removeListener('destroyed',closed)},finish=()=>{cleanup();resolve()},closed=()=>{cleanup();reject(new Error('BOOTH 窗口已关闭。'))},timer=setTimeout(()=>{cleanup();reject(new Error('BOOTH 资料库尚未加载完成，请稍后重试。'))},15000);
+   contents.once('did-finish-load',finish);contents.once('destroyed',closed);
+  });
+  const active=()=>this.entry===entry&&!entry.closed&&!this.clearing&&!this.stopping&&this.deps.canNetwork();
+  if(!active())throw new Error('BOOTH 账号检查已暂停。');
+  const checked=await readOwnedInbox('booth',[entry.view.webContents],'foreground',new AbortController().signal,{now:Date.now(),hours:24},active);
+  const owned=checked.observations.some(o=>o.boothLibraryItem===item&&createHash('sha256').update('booth\0'+o.accountKey).digest('hex')===accountKey);
+  if(!active()||!owned)throw new Error('当前账号的已加载资料库中没有此条目，请确认登录账号与条目位置。');
+  const found=await evaluateInboxPage(entry.view.webContents,`(()=>{if(location.origin!=='https://accounts.booth.pm'||location.pathname!=='/library')return false;const item=${JSON.stringify(item)};for(const image of Array.from(document.querySelectorAll('main .l-library-item-thumbnail')).slice(0,100)){const card=image.closest('div.flex.gap-8.border-b.border-border300.pb-16');if(!card)continue;const matches=Array.from(card.querySelectorAll('a[href]')).some(a=>{try{const u=new URL(a.href);return u.protocol==='https:'&&/(?:^|\\.)booth\\.pm$/.test(u.hostname)&&new RegExp('^/(?:[a-z]{2}(?:-[a-z]{2})?/)?items/'+item+'/?$').test(u.pathname)}catch{return false}});if(matches){card.scrollIntoView({block:'center',behavior:'instant'});return true}}return false})()`,new AbortController().signal);
+  if(!active()||found!==true)throw new Error('资料库页面已变化，请重试。');
+  this.status('已定位资料库条目；请选择官网下载按钮中的具体文件。');
+ }
  private remoteSession?:Electron.Session;private entry?:Entry;private owned=new Set<Electron.WebContents>();private popups=new Set<BrowserWindow>();
  private downloads:StoredDownload[]=[];private activeItems=new Map<string,Electron.DownloadItem>();private dns=new Map<string,{at:number;promise:Promise<void>}>();
  private cookieTimer?:ReturnType<typeof setTimeout>;private restoringCookies=false;private clearing=false;private stopping=false;private cookieWrite=Promise.resolve();private initializing?:Promise<void>;private inFlightImports=new Set<Promise<void>>();
@@ -85,11 +116,12 @@ export class BoothWorkspace {
  async retryImport(id:string):Promise<{assetId?:string}> {const record=this.downloads.find(value=>value.id===id);if(!record||record.state!=='completed')throw new Error('请选择已完成的下载。');if(record.assetId)return {assetId:record.assetId};const file=this.downloadPath(id);if(!file)throw new Error('下载文件不存在。');await this.importDownload(record,file);return {assetId:record.assetId}}
  networkChanged():void {if(!this.deps.canNetwork()){for(const [id,item] of this.activeItems){const record=this.downloads.find(value=>value.id===id);if(record)record.error='联网已关闭；请回 BOOTH 重新点击下载。';item.cancel()}for(const contents of this.owned)if(!contents.isDestroyed())contents.stop()}this.notify()}
  async open(options:BoothOpenOptions):Promise<void> {
+  if(this.clearing)throw new Error('正在清除账号登录状态，请稍候。');
   if(!this.deps.canNetwork())throw new Error('请先开启联网，再打开 BOOTH。');
   if(!options||!['login','favorites','gifts','library','search'].includes(options.tab))throw new Error('BOOTH 页面无效。');
   const title=options.assetId?this.deps.validateAsset(options.assetId).title:'BOOTH 账户与资料库';
   const target=options.tab==='search'?boothSearchUrl(options.query||'',options.forceKeyword===true):BOOTH_ACCOUNT_URLS[options.tab];
-  this.stopping=false;await this.initialize();this.installSessionHooks();
+  this.stopping=false;await this.initialize();if(this.clearing||this.stopping||!this.deps.canNetwork())return;this.installSessionHooks();
   if(this.entry&&!this.entry.closed){const entry=this.entry;entry.assetId=options.assetId;entry.title=title;entry.tab=options.tab;entry.query=options.query||'';entry.applied=undefined;entry.window.setTitle(options.assetId?this.t('为素材选择 BOOTH 商品')+' · '+title:this.t('BOOTH 账户与资料库'));this.emit();if(!process.env.VRC_LIBRARY_TEST_HIDDEN)entry.window.show();await this.navigate(entry,target);return}
   const channel='vrc-booth:'+randomUUID(),toolbarPath=path.resolve(__dirname,'../../../assets/booth-workspace.html');
   const window=new BrowserWindow({width:1200,height:900,minWidth:820,minHeight:560,title:options.assetId?this.t('为素材选择 BOOTH 商品')+' · '+title:this.t('BOOTH 账户与资料库'),parent:this.deps.parent()??undefined,show:false,autoHideMenuBar:true,backgroundColor:THEME_BACKGROUNDS[this.theme()],webPreferences:{preload:path.join(__dirname,'booth-workspace-preload.js'),additionalArguments:['--vrc-booth-channel='+channel,'--vrc-theme='+this.theme(),'--vrc-language='+this.language()],partition:'vrc-booth-toolbar-'+randomUUID(),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true,webviewTag:false,devTools:false}});
@@ -121,8 +153,9 @@ export class BoothWorkspace {
  private t(source:string,values:Record<string,string|number>={}):string {return translate(source,this.language(),values)}
  async shutdown():Promise<void> {this.stopping=true;this.close();this.removeSessionHooks();for(const [id,item] of this.activeItems){const record=this.downloads.find(value=>value.id===id);if(record){record.state='interrupted';record.downloadBps=0;record.error='应用已关闭；请回 BOOTH 重新点击下载。'}item.cancel()}this.activeItems.clear();await Promise.allSettled([...this.inFlightImports]);this.saveHistory();await this.flushCookies();await this.remoteSession?.cookies.flushStore();this.remoteSession?.flushStorageData()}
  async clearSession():Promise<void> {
-  this.clearing=true;if(this.cookieTimer)clearTimeout(this.cookieTimer);this.cookieTimer=undefined;
-  try{await this.shutdown();await this.cookieWrite;await this.remoteSession?.closeAllConnections();await this.remoteSession?.clearStorageData();await this.remoteSession?.clearCache();const file=this.file('booth-session-cookies.bin');if(fs.existsSync(file))fs.unlinkSync(file);this.notify()}finally{this.clearing=false}
+  if(this.clearing)throw new Error('正在清除账号登录状态，请稍候。');
+  this.clearing=true;this.stopping=true;this.close();if(this.cookieTimer)clearTimeout(this.cookieTimer);this.cookieTimer=undefined;
+  try{await this.initialize();await this.shutdown();await this.cookieWrite;await this.remoteSession!.closeAllConnections();await this.remoteSession!.clearStorageData();await this.remoteSession!.clearCache();await this.remoteSession!.cookies.flushStore();this.remoteSession!.flushStorageData();const file=this.file('booth-session-cookies.bin');if(fs.existsSync(file))fs.unlinkSync(file);this.notify()}finally{this.clearing=false}
  }
  private remotePreferences():Electron.WebPreferences {return {session:this.remoteSession,contextIsolation:true,nodeIntegration:false,nodeIntegrationInSubFrames:false,sandbox:true,webSecurity:true,webviewTag:false,allowRunningInsecureContent:false,disableDialogs:true,devTools:false}}
  private async initialize():Promise<void> {if(this.initializing)return this.initializing;this.initializing=this.initializeSession();return this.initializing}

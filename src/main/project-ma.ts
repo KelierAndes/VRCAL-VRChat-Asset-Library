@@ -8,12 +8,12 @@ import {noLinks,projectWrite,smallFile,validateProject,type ProjectAccess} from 
 /** Separate from file import completion: an MA failure never changes the imported files. */
 export interface MaRequest {
  schema:1;id:string;sha256:string;projectPath:string;sourceName:string;
- assemble?:boolean;mode:'copy'|'unitypackage';prefabPaths:string[];sourcePackageName:string;
+ assemble?:boolean;menuWithAssembly?:boolean;mode:'copy'|'unitypackage';prefabPaths:string[];sourcePackageName:string;
 }
 export interface MaResult {
  schema:1;id:string;sha256:string;
  state:'waiting-import'|'waiting-selection'|'applied'|'skipped'|'error';
- message:string;avatarName?:string;prefabPath?:string;menuName?:string;assembly?:boolean;hierarchyPath?:string;
+ message:string;avatarName?:string;prefabPath?:string;menuName?:string;assembly?:boolean;hierarchyPath?:string;menuMode?:'preserved'|'created';
 }
 const names=['VRCALMASetup.cs','VRCALMASetup.Editor.asmdef'] as const;
 const idPattern=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -49,7 +49,7 @@ async function allowed(project:ProjectAccess,file:string):Promise<string>{
 export async function installMaHelper(projectPath:string,helperSourceDirectory:string):Promise<void>{return installOwnedHelper(projectPath,'VRCALMASetup',helperSourceDirectory)}
 
 function checkedRequest(project:ProjectAccess,value:MaRequest):MaRequest {
- if(!value||value.assemble!==undefined&&typeof value.assemble!=='boolean'||value.schema!==1||!validIdentity(value)||typeof value.projectPath!=='string'||!path.isAbsolute(value.projectPath)
+ if(!value||value.assemble!==undefined&&typeof value.assemble!=='boolean'||value.menuWithAssembly!==undefined&&typeof value.menuWithAssembly!=='boolean'||value.menuWithAssembly&&!value.assemble||value.schema!==1||!validIdentity(value)||typeof value.projectPath!=='string'||!path.isAbsolute(value.projectPath)
   ||path.resolve(value.projectPath).toLowerCase()!==project.root.toLowerCase()
   ||!['copy','unitypackage'].includes(value.mode)||typeof value.sourceName!=='string'||value.sourceName.length>1000
   ||!Array.isArray(value.prefabPaths)||value.prefabPaths.length>1000||!value.prefabPaths.every(validPrefab)
@@ -57,7 +57,7 @@ function checkedRequest(project:ProjectAccess,value:MaRequest):MaRequest {
    ||value.sourcePackageName!==path.basename(value.sourcePackageName)||/[\\/:\0]/.test(value.sourcePackageName)))throw new Error('MA 请求的身份、工程或 Prefab 路径无效。');
  // Drop unrecognized keys; never forward arbitrary caller-controlled objects into the editor helper.
  return {schema:1,id:value.id,sha256:value.sha256,projectPath:value.projectPath,sourceName:value.sourceName,
-  mode:value.mode,prefabPaths:[...value.prefabPaths],sourcePackageName:value.sourcePackageName,...(value.assemble!==undefined?{assemble:value.assemble}:{})};
+  mode:value.mode,prefabPaths:[...value.prefabPaths],sourcePackageName:value.sourcePackageName,...(value.assemble!==undefined?{assemble:value.assemble}:{}),...(value.menuWithAssembly!==undefined?{menuWithAssembly:value.menuWithAssembly}:{})};
 }
 
 /** Publish once after explicit opt-in. Copy callers pass the actual copied Assets/*.prefab paths. */
@@ -91,9 +91,11 @@ export async function readMaResult(projectPath:string,identity:{id:string;sha256
   ||!states.has(value.state)||typeof value.message!=='string'||value.message.length>4000
   ||value.assembly!==undefined&&typeof value.assembly!=='boolean'||value.hierarchyPath!==undefined&&(typeof value.hierarchyPath!=='string'||value.hierarchyPath.length>4000)
   ||['avatarName','menuName'].some(key=>value[key]!=null&&(typeof value[key]!=='string'||value[key].length>1000))
+  ||value.menuMode!=null&&value.menuMode!==''&&!['preserved','created'].includes(value.menuMode)
   ||value.prefabPath!=null&&value.prefabPath!==''&&!validPrefab(value.prefabPath))return undefined;
  const result:MaResult={schema:1,id:value.id,sha256:value.sha256,state:value.state,message:value.message};
  if(typeof value.assembly==='boolean')result.assembly=value.assembly;
+ if(value.menuMode==='preserved'||value.menuMode==='created')result.menuMode=value.menuMode;
  for(const key of ['avatarName','prefabPath','menuName','hierarchyPath'] as const)if(typeof value[key]==='string'&&value[key].length>0)result[key]=value[key];
  return result;
 }

@@ -8,6 +8,9 @@ import {assertSafeWrite,isWithin} from './safety';
 import {isPublicAddress,captureMarketplaceProduct} from './online';
 import {normalizeLanguage,localizedMessages,translate,localizeDialogOptions} from '../shared/i18n';
 import {snapshotBrowserCookies} from './browser-cookie-migration';
+import {XIANyu_SEARCH_CAPTURE,parseXianyuDiscovery,discoveryUrl,discoveryItem} from './discovery-parser';
+import {readOwnedInbox} from './link-inbox-reader';
+import type {InboxReadContext,InboxReadResult} from './link-inbox-monitor';
 import {normalizeTheme,THEME_BACKGROUNDS} from '../shared/contracts';
 import type {AppTheme,AppLanguage} from '../shared/contracts';
 
@@ -50,6 +53,11 @@ export function prepareXianyuSessionMigration(dataDir:string,roots:string[]){ret
 
 interface Entry {window:BrowserWindow;view:WebContentsView;channel:string;toolbarUrl:string;assetId:string;title:string;image?:XianyuImage;draft:string;result:string;status:string;officialVisible:boolean;toolbarHeight:number;closed:boolean;busy:boolean;pageReady:boolean;httpError:boolean;loadedItem?:string}
 export class XianyuWorkspace {
+ async readInbox(mode:'foreground'|'background',signal:AbortSignal,context:InboxReadContext={now:Date.now(),hours:24}):Promise<InboxReadResult>{
+  if(signal.aborted||this.clearing||this.stopping||!this.canNetwork())return {state:'paused',message:'账号检查已暂停；请确认联网及闲鱼功能开关。',observations:[]};
+  return readOwnedInbox('xianyu',[...this.owned],mode,signal,context,()=>!this.clearing&&!this.stopping&&this.canNetwork());
+ }
+ private clearing=false;
  private entry?:Entry;private remoteSession?:Electron.Session;private initializing?:Promise<void>;private stopping=false;private owned=new Set<Electron.WebContents>();private popups=new Set<BrowserWindow>();private dns=new Map<string,Promise<void>>();private cookieWrite=Promise.resolve();private generation=0;
  constructor(private readonly deps:XianyuWorkspaceDependencies){}
  private file(name:string):string {return assertSafeWrite(path.join(this.deps.dataDir,name),this.deps.dataDir,this.deps.roots())}
@@ -58,7 +66,7 @@ export class XianyuWorkspace {
  private theme():AppTheme {return normalizeTheme(this.deps.getTheme?.())}
  private isEnabled():boolean {return this.deps.isEnabled?.()===true}
  private canNetwork():boolean {return this.isEnabled()&&this.deps.canNetwork()}
- private assertEnabled():void {if(!this.isEnabled())throw new Error('闲鱼辅助搜索未开启，请先在设置中开启并确认使用提醒。')}
+ private assertEnabled():void {if(this.clearing)throw new Error('正在清除账号登录状态，请稍候。');if(!this.isEnabled())throw new Error('闲鱼辅助搜索未开启，请先在设置中开启并确认使用提醒。')}
  async open(assetId:string):Promise<void> {
   this.assertEnabled();
   if(typeof assetId!=='string')throw new Error('素材无效。');const material=this.deps.validateAsset(assetId),generation=++this.generation;this.stopping=false;await this.initialize();if(generation!==this.generation||this.stopping)return;
@@ -74,6 +82,12 @@ export class XianyuWorkspace {
   window.once('closed',()=>this.dispose(entry));try{await window.loadFile(toolbarPath);if(entry.closed)return;this.emit();if(!process.env.VRC_LIBRARY_TEST_HIDDEN)window.show()}catch(error){this.dispose(entry);throw error}
  }
  async search(assetId:string,query:string):Promise<void>{this.assertEnabled();if(!this.canNetwork())throw new Error('请先开启联网补全。');await this.open(assetId);const e=this.entry;if(e&&!e.closed&&e.assetId===assetId)await this.command(e,{command:'searchXianyu',query})}
+ async openMessages():Promise<void>{
+  this.assertEnabled();if(!this.canNetwork())throw new Error('请先开启联网。');const generation=++this.generation;this.stopping=false;await this.initialize();if(generation!==this.generation||this.stopping||this.clearing||!this.canNetwork())return;
+  const window=new BrowserWindow({width:1180,height:900,minWidth:760,minHeight:600,title:'闲鱼消息 · 待下载链接',parent:this.deps.parent()??undefined,show:false,autoHideMenuBar:true,webPreferences:this.remotePreferences()});
+  window.setMenu(null);this.popups.add(window);this.owned.add(window.webContents);this.protectContents(window.webContents);window.once('closed',()=>{this.popups.delete(window);this.owned.delete(window.webContents)});
+  try{await window.loadURL('https://www.goofish.com/im');if(!window.isDestroyed()&&!process.env.VRC_LIBRARY_TEST_HIDDEN)window.show()}catch{if(!window.isDestroyed())window.destroy();throw new Error('闲鱼消息页暂时无法打开，请检查网络或代理。')}
+ }
  private async command(entry:Entry,input:unknown):Promise<unknown> {
   const data=input&&typeof input==='object'?input as Record<string,unknown>:{},command=typeof input==='string'?input:data.command;
   if(typeof command!=='string'||!['state','searchXianyu','applyMarketplace','close','choose','paste','save','currentCover','extract','draft','result','searchBooth','openOfficial','local','reload','layout'].includes(command))throw new Error('辅助窗口操作无效。');
@@ -103,9 +117,37 @@ export class XianyuWorkspace {
  private layout(e:Entry):void {if(e.closed)return;const [width,height]=e.window.getContentSize(),zoom=e.window.webContents.getZoomFactor?.()??1,top=Math.min(Math.ceil(e.toolbarHeight*zoom),Math.max(64,height-120));e.view.setBounds(e.officialVisible?{x:0,y:top,width,height:Math.max(0,height-top)}:{x:width,y:height,width:0,height:0})}
  refreshTheme():void {if(this.entry){this.entry.window.setBackgroundColor(THEME_BACKGROUNDS[this.theme()]);this.entry.window.setTitle(this.t('闲鱼尝试补全')+' · '+this.entry.title);this.emit()}}
  networkChanged():void {if(!this.canNetwork()){for(const contents of this.owned)if(!contents.isDestroyed())contents.stop();void this.remoteSession?.closeAllConnections();this.status('联网已关闭或暂停；图片和名称草稿保留在本机。')}if(!this.isEnabled()){this.close();return}this.emit()}
- close():void {this.generation++;if(this.entry)this.dispose(this.entry);for(const popup of [...this.popups])if(!popup.isDestroyed())popup.destroy();this.popups.clear()}
+ close():void {for(const win of this.discoveryWindows)if(!win.isDestroyed())win.destroy();this.discoveryWindows.clear();this.generation++;if(this.entry)this.dispose(this.entry);for(const popup of [...this.popups])if(!popup.isDestroyed())popup.destroy();this.popups.clear()}
  private dispose(e:Entry):void {if(e.closed)return;e.closed=true;ipcMain.removeHandler(e.channel);this.owned.delete(e.view.webContents);if(!e.view.webContents.isDestroyed())e.view.webContents.close();e.image=undefined;if(!e.window.isDestroyed())e.window.destroy();if(this.entry===e)this.entry=undefined}
  async shutdown():Promise<void> {this.stopping=true;++this.generation;this.close();await this.initializing;await this.flushCookies();await this.remoteSession?.cookies.flushStore();this.remoteSession?.flushStorageData()}
+ async clearSession():Promise<void>{
+  if(this.clearing)throw new Error('正在清除账号登录状态，请稍候。');this.clearing=true;this.stopping=true;this.close();
+  try{await this.initialize();await this.cookieWrite;await this.remoteSession!.closeAllConnections();await this.remoteSession!.clearStorageData();await this.remoteSession!.clearCache();await this.remoteSession!.cookies.flushStore();this.remoteSession!.flushStorageData();const file=this.file('xianyu-session-cookies.bin');if(fs.existsSync(file))fs.unlinkSync(file)}finally{this.clearing=false}
+ }
+ private discoveryWindows=new Set<BrowserWindow>();
+ async searchProducts(query:string,signal:AbortSignal):Promise<import('../shared/contracts').ProductCandidate[]> {
+  this.assertEnabled();if(!this.canNetwork())throw new Error('联网已暂停。');signal.throwIfAborted();this.stopping=false;await this.initialize();signal.throwIfAborted();
+  const win=new BrowserWindow({show:false,width:1200,height:900,webPreferences:{...this.remotePreferences(),backgroundThrottling:false}});
+  this.discoveryWindows.add(win);win.setMenu(null);win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+  win.webContents.on('will-frame-navigate',event=>{try{xianyuBrowserUrl(event.url)}catch{event.preventDefault()}});
+  const close=()=>{if(!win.isDestroyed())win.destroy()},timer=setTimeout(close,25000);signal.addEventListener('abort',close,{once:true});
+  try{
+   await win.loadURL(discoveryUrl('xianyu',query));
+   for(let i=0;i<8;i++){
+    signal.throwIfAborted();if(!this.canNetwork()||win.isDestroyed())throw new Error('闲鱼搜索已暂停。');
+    const data=await win.webContents.executeJavaScript(XIANyu_SEARCH_CAPTURE);
+    if(data?.blocked||data?.login||data?.items?.length&&(i===7||data.items.every((p:{coverUrl?:string})=>p.coverUrl)))return parseXianyuDiscovery(data);
+    if(data?.items?.length)await win.webContents.executeJavaScript(`document.querySelectorAll('a[href*="/item?"]')[${Math.min(11,(i%3)*4)}]?.scrollIntoView({block:'center'})`);
+    await new Promise(resolve=>setTimeout(resolve,750));
+   }
+   throw new Error('闲鱼没有返回可读取的商品卡片。请打开站内搜索完成登录或验证后重试。');
+  }finally{clearTimeout(timer);signal.removeEventListener('abort',close);this.discoveryWindows.delete(win);close()}
+ }
+ async openDiscovery(url:string):Promise<void>{
+  this.assertEnabled();this.stopping=false;const u=xianyuBrowserUrl(url);if(u.hostname!=='www.goofish.com'||!(u.pathname==='/search'||discoveryItem(url,'xianyu')))throw new Error('闲鱼搜索网址无效。');
+  await this.initialize();if(!this.canNetwork())throw new Error('联网已暂停。');const win=new BrowserWindow({title:'闲鱼 · 找素材',width:1100,height:850,autoHideMenuBar:true,webPreferences:this.remotePreferences()});
+  this.discoveryWindows.add(win);this.protectContents(win.webContents);win.once('closed',()=>this.discoveryWindows.delete(win));await win.loadURL(u.href);
+ }
  private remotePreferences():Electron.WebPreferences {return {session:this.remoteSession,contextIsolation:true,nodeIntegration:false,nodeIntegrationInSubFrames:false,sandbox:true,webSecurity:true,webviewTag:false,allowRunningInsecureContent:false,disableDialogs:true,devTools:false}}
  private initialize():Promise<void> {return this.initializing??=(async()=>{const folder=this.file('xianyu-session');fs.mkdirSync(folder,{recursive:true});const remote=this.remoteSession=session.fromPath(folder,{cache:true});remote.setPermissionCheckHandler(()=>false);remote.setPermissionRequestHandler((_c,_p,callback)=>callback(false));remote.setDevicePermissionHandler(()=>false);remote.on('will-download',event=>{event.preventDefault();this.status('辅助窗口不下载文件；请使用图片副本和手机闲鱼 App。')});remote.webRequest.onBeforeRequest((details,callback)=>{
    if(this.stopping||!this.canNetwork()||!xianyuRequestAllowed(details.url,details.method,details.resourceType)){callback({cancel:true});return}if(details.url==='about:blank'||details.url.startsWith('data:')){callback({cancel:false});return}let host:string;try{host=https(details.url.startsWith('blob:')?details.url.slice(5):details.url).hostname}catch{callback({cancel:true});return}void this.publicHost(host).then(()=>callback({cancel:this.stopping||!this.canNetwork()})).catch(()=>callback({cancel:true}));

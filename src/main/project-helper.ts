@@ -24,7 +24,7 @@ export async function installOwnedHelper(projectPath:string,kind:Kind,bundle:str
   const editor=await projectWrite(project,path.join(project.assets,kind,'Editor')),files:{file:string;content:string;previous:string|undefined}[]=[];
   for(const name of [kind+'.cs',kind+'.Editor.asmdef']){
    const source=path.join(bundle,name);await noLinks(source);const content=await smallFile(source,1024*1024),file=await projectWrite(project,path.join(editor,name)),old=await read(file);
-   const legacy:string[]=[];if(name.endsWith('.cs'))for(const version of ['v1','v2']){const bytes=await read(path.join(bundle,'legacy',kind+'.'+version+'.cs.txt'));if(bytes!==undefined)legacy.push(bytes)}
+   const legacy:string[]=[];if(name.endsWith('.cs'))for(const version of ['v1','v2','v3']){const bytes=await read(path.join(bundle,'legacy',kind+'.'+version+'.cs.txt'));if(bytes!==undefined)legacy.push(bytes)}
    if(old!==undefined&&old!==content&&!legacy.includes(old))throw new Error('工程已有不同的助手文件，已保留原文件，请先核对。');
    files.push({file,content,previous:old});
   }

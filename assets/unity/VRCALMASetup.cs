@@ -23,13 +23,13 @@ namespace VRCAL.LocalAssets
             public int schema;
             public string id, sha256, projectPath, sourceName, mode, sourcePackageName;
             public string[] prefabPaths;
-            public bool assemble;
+            public bool assemble, menuWithAssembly;
         }
         [Serializable] private sealed class Receipt
         {
             public int schema = 1;
             public string id, sha256, state, message, avatarName, prefabPath, menuName;
-            public string hierarchyPath;
+            public string hierarchyPath, menuMode;
             public bool assembly;
             public string[] importedAssetPaths;
             public bool importedPathsComplete;
@@ -135,7 +135,7 @@ namespace VRCAL.LocalAssets
         {
             try
             {
-                return request != null && request.schema == 1 && request.id != null && IdPattern.IsMatch(request.id)
+                return request != null && (!request.menuWithAssembly || request.assemble) && request.schema == 1 && request.id != null && IdPattern.IsMatch(request.id)
                     && request.sha256 != null && HashPattern.IsMatch(request.sha256)
                     && !String.IsNullOrEmpty(request.projectPath) && Path.IsPathRooted(request.projectPath)
                     && String.Equals(Path.GetFullPath(request.projectPath), Project, StringComparison.OrdinalIgnoreCase)
@@ -200,13 +200,13 @@ namespace VRCAL.LocalAssets
             if (receipt != null && !SameIdentity(request, receipt)) throw new IOException("MA receipt identity conflicts with the request. No changes were made.");
             return receipt;
         }
-        private static void WriteReceipt(Request request, string state, string message, GameObject avatar = null, string prefab = null, string menu = null, GameObject instance = null)
+        private static void WriteReceipt(Request request, string state, string message, GameObject avatar = null, string prefab = null, string menu = null, GameObject instance = null, string menuMode = null)
         {
             AtomicWrite(MetadataPath("MAResults", request.id), new Receipt
             {
                 id = request.id, sha256 = request.sha256, state = state, message = message,
                 avatarName = avatar == null ? null : avatar.name, prefabPath = prefab, menuName = menu,
-                assembly = request.assemble,
+                assembly = request.assemble, menuMode = menuMode,
                 hierarchyPath = instance == null || avatar == null ? null : avatar.name + "/" + instance.name
             });
         }
@@ -335,7 +335,7 @@ namespace VRCAL.LocalAssets
 
         private static bool CanAutoAssemble(Request request)
         {
-            if (!request.assemble || !Imported(request) || !String.IsNullOrEmpty(AssemblyDependencyStatus()) || AvatarChoices().Length != 1) return false;
+            if (!request.assemble || !Imported(request) || !String.IsNullOrEmpty(AssemblyDependencyStatus()) || AvatarChoices().Length != 1 || request.menuWithAssembly && !String.IsNullOrEmpty(DependencyStatus())) return false;
             PrefabBatch batch = ImportedPrefabBatch(request);
             return batch.known && batch.complete && batch.paths.Length == 1 && PrefabChoices(request).Length == 1;
         }
@@ -343,6 +343,7 @@ namespace VRCAL.LocalAssets
         private static string AssemblySelectionStatus(Request request)
         {
             string missing = AssemblyDependencyStatus();
+            if (String.IsNullOrEmpty(missing) && request.menuWithAssembly) missing = DependencyStatus();
             if (!String.IsNullOrEmpty(missing)) return missing;
             GameObject[] avatars = AvatarChoices();
             if (avatars.Length == 0) return "Waiting for a VRChat avatar in an open scene. Open the intended avatar scene, then refresh.";
@@ -403,6 +404,7 @@ namespace VRCAL.LocalAssets
             if (!Imported(request)) throw new InvalidOperationException("The matching package import has not completed.");
             string dependency = AssemblyDependencyStatus();
             if (!String.IsNullOrEmpty(dependency)) throw new InvalidOperationException(dependency);
+            if (request.menuWithAssembly && !String.IsNullOrEmpty(DependencyStatus())) throw new InvalidOperationException(DependencyStatus());
             if (!IsSceneAvatar(avatar)) throw new InvalidOperationException("Choose a VRChat avatar root in an open scene.");
             string prefabPath = AssetDatabase.GetAssetPath(prefab);
             if (prefab == null || !EditorUtility.IsPersistent(prefab) || !ValidPrefabPath(prefabPath)
@@ -436,6 +438,20 @@ namespace VRCAL.LocalAssets
                     if (!String.IsNullOrEmpty(binding)) throw new InvalidOperationException("MA Setup Outfit did not establish a valid binding. " + binding);
                 }
                 if (instance.transform.parent != avatar.transform) throw new InvalidOperationException("MA changed the Prefab root parent unexpectedly. Assembly was rolled back.");
+                string configuredMenu = null;
+                if (request.menuWithAssembly)
+                {
+                    if (HasPreset(prefab)) configuredMenu = "preserved";
+                    else
+                    {
+                        // A sibling control keeps the switch usable when the outfit root is disabled.
+                        GameObject menuGroup = new GameObject("VRCAL Menu " + request.id);
+                        Undo.RegisterCreatedObjectUndo(menuGroup, "Assemble imported Prefab with MA");
+                        menuGroup.transform.SetParent(avatar.transform, false);
+                        CreateToggle(menuGroup, instance, request, prefab.name, instance.activeSelf);
+                        configuredMenu = "created";
+                    }
+                }
                 Undo.RecordObject(instance.transform, "Place imported Prefab last");
                 instance.transform.SetAsLastSibling();
                 Undo.FlushUndoRecordObjects();
@@ -443,7 +459,7 @@ namespace VRCAL.LocalAssets
                 WriteReceipt(request, "applied", preserved
                     ? "Prefab assembled as the avatar's last direct child with its existing verified MA binding. Scene changes are unsaved; one Undo removes the assembly."
                     : "MA Setup Outfit completed and its binding resolves to the selected avatar. Prefab is the avatar's last direct child. Scene changes are unsaved; one Undo removes the assembly. Check fit and clipping yourself.",
-                    avatar, prefabPath, null, instance);
+                    avatar, prefabPath, configuredMenu == "created" ? prefab.name : configuredMenu == "preserved" ? "作者已有菜单" : null, instance, configuredMenu);
                 Selection.activeGameObject = instance;
             }
             catch (Exception exception)
@@ -813,6 +829,11 @@ namespace VRCAL.LocalAssets
                 Receipt receipt = CurrentReceipt(request);
                 EditorGUILayout.HelpBox(Ui(receipt == null ? "Waiting for request status." : receipt.message), MessageType.Info);
                 string dependencies = request.assemble ? AssemblyDependencyStatus() : DependencyStatus();
+                if (request.menuWithAssembly)
+                {
+                    if (String.IsNullOrEmpty(dependencies)) dependencies = DependencyStatus();
+                    EditorGUILayout.HelpBox("本次同时接入游戏内菜单：保留作者已有 MA 菜单；没有时创建显隐开关。装配与菜单可以一次撤销。旧衣服与身体形态不会自动更改。", MessageType.Info);
+                }
                 if (!String.IsNullOrEmpty(dependencies)) EditorGUILayout.HelpBox(Ui(dependencies), MessageType.Warning);
                 GameObject[] avatars = AvatarChoices();
                 int avatarIndex = Array.IndexOf(avatars, avatar) + 1;

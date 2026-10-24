@@ -1,3 +1,5 @@
+import {readProjectReadiness} from './project-readiness';
+import {cleanImportReview,type ImportCheck,type ImportReviewPatch} from '../shared/avatar-workbench';
 import {snapshotAssets,compareAssets,recentAssets,cleanProjectChanges} from './project-changes';
 import {cleanImportedPaths,importLocations,resolveImportLocation} from './project-locations';
 import {installOwnedHelper} from './project-helper';
@@ -29,7 +31,7 @@ export class ProjectImports {
  private refreshing?:Promise<void>;private locating=new Map<string,Promise<void>>();
  private plans=new Map<string,Plan>();private history:ProjectImportJob[]=[];private active?:Promise<ProjectImportJob>;private persistTail:Promise<void>=Promise.resolve();private recoverCopies=new Set<string>();private recoverUnity=new Set<string>();
  constructor(private readonly deps:ProjectImportDependencies){
-  try{const journal=this.journal();const s=fs.lstatSync(journal);if(!s.isFile()||s.size>32*1024*1024)throw new Error('导入记录文件无效。');const data=JSON.parse(fs.readFileSync(journal,'utf8'));if(!Array.isArray(data))throw new Error('导入记录文件无效。');this.history=data.filter((j:any)=>j&&idPattern.test(j.id)&&typeof j.assetId==='string'&&typeof j.projectId==='string'&&typeof j.projectPath==='string'&&path.isAbsolute(j.projectPath)&&typeof j.sourceName==='string'&&typeof j.sourcePath==='string'&&path.isAbsolute(j.sourcePath)&&['copy','unitypackage'].includes(j.mode)&&['copying','waiting-unity','importing','completed','cancelled','failed'].includes(j.state)).slice(0,100);for(const job of this.history){if(job.state==='copying')this.recoverCopies.add(job.id);else if(job.mode==='unitypackage'&&!terminal(job.state))this.recoverUnity.add(job.id);job.projectChanges=cleanProjectChanges(job.projectChanges)}}catch(error:any){if(error.code!=='ENOENT')throw error}
+  try{const journal=this.journal();const s=fs.lstatSync(journal);if(!s.isFile()||s.size>32*1024*1024)throw new Error('导入记录文件无效。');const data=JSON.parse(fs.readFileSync(journal,'utf8'));if(!Array.isArray(data))throw new Error('导入记录文件无效。');this.history=data.filter((j:any)=>j&&idPattern.test(j.id)&&typeof j.assetId==='string'&&typeof j.projectId==='string'&&typeof j.projectPath==='string'&&path.isAbsolute(j.projectPath)&&typeof j.sourceName==='string'&&typeof j.sourcePath==='string'&&path.isAbsolute(j.sourcePath)&&['copy','unitypackage'].includes(j.mode)&&['copying','waiting-unity','importing','completed','cancelled','failed'].includes(j.state)).slice(0,100);for(const job of this.history){if(job.state==='copying')this.recoverCopies.add(job.id);else if(job.mode==='unitypackage'&&!terminal(job.state))this.recoverUnity.add(job.id);job.projectChanges=cleanProjectChanges(job.projectChanges);job.review=cleanImportReview(job.review)}}catch(error:any){if(error.code!=='ENOENT')throw error}
  }
  get busy():boolean{return !!this.active}
  async waitIdle():Promise<void>{await this.active?.catch(()=>{});await this.persistTail}
@@ -40,6 +42,13 @@ export class ProjectImports {
  }
  private get(id:unknown,project=false):AssetRecord{if(typeof id!=='string')throw new Error('素材或工程选择无效。');const asset=this.deps.getAsset(id);if(!asset||asset.missing||project!==(asset.kind==='unity-project'))throw new Error(project?'请选择已登记的 Unity 工程。':'请选择可用的本地素材。');return asset}
  private async sourceAllowed(asset:AssetRecord,file:string):Promise<void>{const scopes=[...this.deps.roots(),...(this.deps.readRoots?.(asset)??[])];if(!path.isAbsolute(file)||!scopes.some(root=>isWithin(file,root)))throw new Error('素材不在已登记的本地范围内。');await noLinks(file)}
+ async readiness(projectId:string){return readProjectReadiness(await validateProject(this.get(projectId,true),this.deps.roots()),projectId)}
+ private duplicate(project:ProjectAccess,signature:string,mode:ImportSourceChoice['mode']){return mode==='unitypackage'?this.history.find(j=>j.state==='completed'&&j.mode===mode&&path.resolve(j.projectPath).toLowerCase()===project.root.toLowerCase()&&j.sha256===signature):undefined}
+ async review(id:string,patch:ImportReviewPatch):Promise<void>{
+  if(typeof id!=='string'||!idPattern.test(id)||!patch||typeof patch!=='object'||Array.isArray(patch)||!Object.keys(patch).length||Object.keys(patch).some(k=>!['appearance','movement','menu'].includes(k)||typeof (patch as any)[k]!=='boolean'))throw new Error('检查记录无效。');
+  await this.refreshJobs();const job=this.history.find(j=>j.id===id);if(!job||job.state!=='completed')throw new Error('请在文件导入完成后记录检查结果。');
+  this.get(job.projectId,true);job.review={...cleanImportReview(job.review),...patch,updatedAt:new Date().toISOString()};await this.persist();
+ }
  private async editor(version:string):Promise<UnityEditor|undefined>{return this.deps.findEditor?this.deps.findEditor(version):findUnityEditor(version,this.deps.selectedEditor?.())}
  async sources(assetId:string):Promise<ImportSourceChoice[]>{
   const asset=this.get(assetId),choices=new Map<string,ImportSourceChoice>();
@@ -55,7 +64,7 @@ export class ProjectImports {
   return [...choices.values()].sort((a,b)=>Number(b.mode==='unitypackage')-Number(a.mode==='unitypackage')||a.name.localeCompare(b.name,'zh-CN'));
  }
  async preview(assetId:string,projectId:string,choiceId:string,options:ProjectImportOptions={}):Promise<ProjectImportPreview>{
-  if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(key=>!['maSetup','maAssemble'].includes(key))||['maSetup','maAssemble'].some(key=>(options as any)[key]!==undefined&&typeof (options as any)[key]!=='boolean')||options.maSetup&&options.maAssemble)throw new Error('MA 配置选项无效。');const maSetup=options.maSetup===true,maAssemble=options.maAssemble===true,wantsMA=maSetup||maAssemble;
+  if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(key=>!['maSetup','maAssemble','maMenuWithAssembly','allowRepeat'].includes(key))||['maSetup','maAssemble','maMenuWithAssembly','allowRepeat'].some(key=>(options as any)[key]!==undefined&&typeof (options as any)[key]!=='boolean')||options.maSetup&&options.maAssemble||options.maMenuWithAssembly&&!options.maAssemble)throw new Error('MA 配置选项无效。');const maSetup=options.maSetup===true,maAssemble=options.maAssemble===true,wantsMA=maSetup||maAssemble;
   if(typeof choiceId!=='string')throw new Error('请选择本地素材文件。');const asset=this.get(assetId),project=await validateProject(this.get(projectId,true),this.deps.roots());
   const source=(await this.sources(assetId)).find(c=>c.id===choiceId);if(!source)throw new Error('本地素材文件选择已失效，请重新选择。');
   if(isWithin(source.path,project.root)||isWithin(project.root,source.path))throw new Error('原素材与目标工程路径重叠，不能复制或导入。');
@@ -67,7 +76,14 @@ export class ProjectImports {
    sha256=await fileHash(source.path);editor=await this.editor(project.version);if(!editor)warnings.push('未找到相同版本的 Unity；可手动打开此工程，再由助手接收导入。');
    warnings.push('素材包将在 Unity 原生窗口确认；首次导入会在此工程添加轻量导入助手。');
   }
-  const preview:ProjectImportPreview={token:randomUUID(),assetId:asset.id,projectId,sourceName:source.name,sourcePath:source.path,projectPath:project.root,mode:source.mode,fileCount:source.mode==='copy'?manifest.files.length:1,bytes:source.mode==='copy'?manifest.bytes:manifest.files.find(f=>f.source===source.path)!.size,ready:!conflicts.length&&(!wantsMA||hasPrefabs&&manageablePrefabs),maSetup,maAssemble,conflicts,warnings,projectVersion:project.version,editorPath:editor?.path,helperRequired:source.mode==='unitypackage'||wantsMA};
+  const existing=source.mode==='unitypackage'?(await this.productImportRecords(projectId)).find(j=>j.mode==='unitypackage'&&j.sha256===sha256):undefined;
+  const allowRepeat=options.allowRepeat===true&&source.mode==='unitypackage',duplicateBlocked=!!existing&&!allowRepeat,readiness=await readProjectReadiness(project,projectId);
+  const preflight:ImportCheck[]=[{id:'project',state:'pass',title:'目标工程',detail:project.root},{id:'guid',state:conflicts.length?'blocked':source.mode==='copy'?'pass':'unknown',title:'文件引用',detail:conflicts.length?'存在重复 GUID，禁止覆盖。':source.mode==='copy'?'已检查复制内容的 GUID。':'Unity 素材包的覆盖项由原生导入窗口核对。'},{id:'fit',state:'unknown',title:'角色适配',detail:'商品支持列表不等于本地包版本；请核对所选适配包。体型与穿模需要实际检查。'}];
+  if(existing)preflight.push({id:'duplicate',state:duplicateBlocked?'blocked':'warning',title:'此前已经导入',detail:source.mode==='unitypackage'?'此工程已有相同内容的素材包记录；文件改名也不会当作新包。':'此工程已有同一份未变化的复制内容，请先查看导入记录。'});
+  if(wantsMA){for(const [id,key] of [['nadena.dev.modular-avatar','ma'],['com.vrchat.avatars','sdk']] as const){const d=readiness.dependencies.find(d=>d.id===id)!;preflight.push({id:key,state:d.state==='files-found'?'pass':'warning',title:d.label,detail:d.state==='files-found'?`发现包文件 ${d.version}；Unity 编译与接口仍需验证。`:d.state==='declared'?'仅发现依赖声明，请在 Unity 确认已安装并编译。':'尚未确认此依赖，请在 Unity 或公开插件页核对。'})}
+   preflight.push({id:'menu',state:'pass',title:'菜单处理',detail:options.maMenuWithAssembly?'保留作者已有 MA 菜单；没有时创建显隐开关，与装配一起撤销。':maSetup?'仅配置菜单，骨骼装配另行检查。':'本次只装配；作者已有组件保持原样。'});
+  }
+  const preview:ProjectImportPreview={token:randomUUID(),assetId:asset.id,projectId,sourceName:source.name,sourcePath:source.path,projectPath:project.root,mode:source.mode,fileCount:source.mode==='copy'?manifest.files.length:1,bytes:source.mode==='copy'?manifest.bytes:manifest.files.find(f=>f.source===source.path)!.size,ready:!conflicts.length&&!duplicateBlocked&&(!wantsMA||hasPrefabs&&manageablePrefabs),maSetup,maAssemble,maMenuWithAssembly:options.maMenuWithAssembly===true,allowRepeat,duplicateJobId:existing?.id,preflight,conflicts,warnings,projectVersion:project.version,editorPath:editor?.path,helperRequired:source.mode==='unitypackage'||wantsMA};
   for(const [key,value] of this.plans)if(value.expires<Date.now())this.plans.delete(key);if(this.plans.size>=20)this.plans.delete(this.plans.keys().next().value!);
   this.plans.set(preview.token,{preview,source,manifest,project,expires:Date.now()+10*60*1000,sha256});return structuredClone(preview);
  }
@@ -80,12 +96,13 @@ export class ProjectImports {
   if(project.device!==plan.project.device||project.inode!==plan.project.inode||project.root!==plan.project.root)throw new Error('工程目录已变化，请重新预览。');
   await this.sourceAllowed(asset,plan.source.path);if(!(await this.sources(asset.id)).some(c=>c.id===plan.source.id)||(await sourceManifest(plan.source.path)).signature!==plan.manifest.signature)throw new Error('源文件已变化，请重新预览。');
   await this.refreshJobs();if(this.history.some(j=>j.projectId===plan.preview.projectId&&!terminal(j.state)))throw new Error('此工程已有等待中的导入，请先完成或取消。');
+  const duplicate=this.duplicate(project,plan.sha256??plan.manifest.signature,plan.source.mode);if(duplicate&&!(plan.source.mode==='unitypackage'&&plan.preview.allowRepeat))throw new Error('此素材已经导入到该工程，请查看记录或明确选择再次导入。');
   if(plan.source.mode==='copy'&&(await guidConflicts(plan.manifest,project)).length)throw new Error('工程已有相同 GUID，复制已停止。');
   if(plan.sha256&&await fileHash(plan.source.path)!==plan.sha256)throw new Error('源文件已变化，请重新预览。');
-  const p=plan.preview,job:ProjectImportJob={id:randomUUID(),assetId:p.assetId,projectId:p.projectId,sourceName:p.sourceName,sourcePath:p.sourcePath,projectPath:p.projectPath,mode:p.mode,state:p.mode==='copy'?'copying':'waiting-unity',createdAt:new Date().toISOString(),fileCount:p.fileCount,completedFiles:0,bytes:p.bytes,copiedBytes:0,sha256:plan.sha256??plan.manifest.signature};
+  const p=plan.preview,job:ProjectImportJob={id:randomUUID(),assetId:p.assetId,projectId:p.projectId,sourceName:p.sourceName,sourcePath:p.sourcePath,projectPath:p.projectPath,mode:p.mode,state:p.mode==='copy'?'copying':'waiting-unity',createdAt:new Date().toISOString(),fileCount:p.fileCount,completedFiles:0,bytes:p.bytes,copiedBytes:0,sha256:plan.sha256??plan.manifest.signature,...(duplicate?{repeatOf:duplicate.id}:{})};
   if(job.mode==='copy'){const location=copyLocation(project,asset.name,job.id,plan.manifest);job.destinationPath=location.destination;job.destinationContainer=location.container}
   if(job.mode==='copy')this.recordPaths(job,plan.manifest.files.filter(f=>!f.relative.endsWith('.meta')).map(f=>path.relative(project.root,path.join(job.destinationContainer!,f.relative)).split(path.sep).join('/')),true);
-  if(p.maSetup||p.maAssemble){const prefabPaths=p.mode==='copy'?plan.manifest.files.filter(f=>/\.prefab$/i.test(f.relative)).map(f=>path.relative(project.root,path.join(job.destinationContainer!,f.relative)).split(path.sep).join('/')):[];job.maSetup={state:'waiting-import',message:'等待文件导入完成后配置 MA 菜单。',prefabPaths,requestPublished:false,...(p.maAssemble?{assembly:true}:{})}}
+  if(p.maSetup||p.maAssemble){const prefabPaths=p.mode==='copy'?plan.manifest.files.filter(f=>/\.prefab$/i.test(f.relative)).map(f=>path.relative(project.root,path.join(job.destinationContainer!,f.relative)).split(path.sep).join('/')):[];job.maSetup={state:'waiting-import',message:'等待文件导入完成后配置 MA 菜单。',prefabPaths,requestPublished:false,...(p.maAssemble?{assembly:true,menuWithAssembly:p.maMenuWithAssembly===true}:{})}}
   this.history.unshift(job);let committed=false,published=false,temporaryRequest:string|undefined;
   try{
    await this.persist();
@@ -116,14 +133,14 @@ export class ProjectImports {
     const receipt=JSON.parse(await smallFile(path.join(container,'.vrcal-import.json'),65536));if(receipt.id!==job.id||receipt.sha256!==job.sha256||receipt.state!=='completed')throw new Error('MA 等待有效的文件复制回执。');
    }
    await installMaHelper(project.root,path.resolve(__dirname,'../../../assets/unity'));
-   await publishMaRequest(project.root,{schema:1,id:job.id,sha256:job.sha256!,projectPath:project.root,sourceName:job.sourceName,mode:job.mode,prefabPaths:paths,sourcePackageName:job.mode==='unitypackage'?path.basename(job.sourcePath):'',...(job.maSetup.assembly?{assemble:true}:{})});
+   await publishMaRequest(project.root,{schema:1,id:job.id,sha256:job.sha256!,projectPath:project.root,sourceName:job.sourceName,mode:job.mode,prefabPaths:paths,sourcePackageName:job.mode==='unitypackage'?path.basename(job.sourcePath):'',...(job.maSetup.assembly?{assemble:true,menuWithAssembly:job.maSetup.menuWithAssembly===true}:{})});
    job.maSetup.requestPublished=true;job.maSetup.state=job.mode==='copy'?'waiting-selection':'waiting-import';job.maSetup.message=job.maSetup.assembly?'等待 Unity 使用 MA 装配；多个候选时请先选择。':job.mode==='copy'?'请在 Unity 中选择角色和 Prefab，配置 MA 菜单。':'等待 Unity 导入完成后选择角色和 Prefab。';
   }catch(error){job.maSetup.state='error';job.maSetup.message=error instanceof Error?error.message:'MA 配置准备失败；已导入的文件保持原样。'}
  }
  private async refreshMa(job:ProjectImportJob):Promise<boolean>{
   if(!job.maSetup||!job.sha256)return false;const record=this.deps.getAsset(job.projectId);if(!record||record.kind!=='unity-project'||record.path!==job.projectPath)return false;
   const before=JSON.stringify(job.maSetup);
-  try{const result=await readMaResult(job.projectPath,{id:job.id,sha256:job.sha256});if(result){job.maSetup={...job.maSetup,state:result.state,message:result.message,avatarName:result.avatarName,prefabPath:result.prefabPath,menuName:result.menuName,hierarchyPath:result.hierarchyPath};if(job.maSetup.assembly&&result.state==='applied'&&result.assembly!==true){job.maSetup.state='error';job.maSetup.message='Unity 未确认 MA 装配结果，请检查助手版本及场景；不会自动重复装配。'}}
+  try{const result=await readMaResult(job.projectPath,{id:job.id,sha256:job.sha256});if(result){job.maSetup={...job.maSetup,state:result.state,message:result.message,avatarName:result.avatarName,prefabPath:result.prefabPath,menuName:result.menuName,hierarchyPath:result.hierarchyPath,menuMode:result.menuMode};if(job.maSetup.assembly&&result.state==='applied'&&result.assembly!==true){job.maSetup.state='error';job.maSetup.message='Unity 未确认 MA 装配结果，请检查助手版本及场景；不会自动重复装配。'}else if(job.maSetup.menuWithAssembly&&result.state==='applied'&&!result.menuMode){job.maSetup.state='error';job.maSetup.message='旧助手没有返回菜单结果，请更新助手并在 Unity 核对；不会自动重复装配。'}}
    else if(job.state==='completed'&&!job.maSetup.requestPublished&&job.maSetup.state!=='error')await this.prepareMa(job,await validateProject(record,this.deps.roots()));
    if(['failed','cancelled'].includes(job.state)&&job.maSetup.state==='waiting-import'){job.maSetup.state='skipped';job.maSetup.message='文件未完成导入，未配置 MA 菜单。'}
   }catch{/* An unavailable or foreign MA receipt never implies successful setup. */}

@@ -1,3 +1,6 @@
+import {PREVIEW_AI_MESSAGES} from './messages-preview-ai';
+import {PUBLIC_PLUGIN_MESSAGES} from './messages-public-plugins';
+import {LINK_INBOX_MESSAGES} from './messages-link-inbox';
 import {HIDDEN_REMATCH_MESSAGES} from './messages-hidden-rematch';
 import {BAIDU_DOWNLOAD_MESSAGES} from './messages-baidu-download';
 import {REVIEW_LOCAL_IMAGE_MESSAGES} from './messages-review-local-image';
@@ -15,6 +18,8 @@ import {PROJECT_MESSAGES} from './messages-project';
 // Offline UI copy. Keys are Chinese source text, values are [English, Japanese].
 // Domain enums, file names and user content keep their original values.
 export const UI_MESSAGES: Record<string, readonly [string, string]> = {
+  ...PUBLIC_PLUGIN_MESSAGES,
+  ...PREVIEW_AI_MESSAGES,...LINK_INBOX_MESSAGES,
   ...BAIDU_DOWNLOAD_MESSAGES,
   ...CONTEXT_MENU_MESSAGES,
   ...RECYCLE_MESSAGES,

@@ -162,7 +162,7 @@ export function detectedImageExtension(bytes:Buffer):string|undefined {
   return undefined;
 }
 
-interface TaskContext { task:Task; current:string; controller:AbortController; lastTransferId?:string;sourceUrl?:string }
+interface TaskContext { discovery?:boolean; task:Task; current:string; controller:AbortController; lastTransferId?:string;sourceUrl?:string }
 interface ActiveRequest { controller:AbortController; consumers:Set<TaskContext>; promise:Promise<Resource>; host?:string;transferId?:string }
 interface Resource {bytes:Buffer;url:string;mime:string}
 interface LiveTransfer {meter:TransferMeter;id:string;taskId:string;lastEmission:number}
@@ -198,6 +198,21 @@ export class EnrichmentQueue {
       if(saved.hosts&&typeof saved.hosts==='object')for(const [key,state] of Object.entries(saved.hosts)){if(typeof key==='string'&&state&&Number.isFinite(state.nextStart)&&Number.isFinite(state.cooldown))this.hosts.set(key,{nextStart:Math.min(Date.now()+24*60*60*1000,Math.max(0,state.nextStart)),cooldown:Math.min(Date.now()+24*60*60*1000,Math.max(0,state.cooldown))});}
     } catch { /* A new or damaged queue can be rebuilt from the library. */ }
   }
+  /** Public search operations share request spacing, host cooldowns, transfer UI and safe caches.
+   * They never become persisted asset jobs or change source bindings. */
+  async discoveryPage(url:string,signal:AbortSignal):Promise<{html:string;url:string}> {
+    const u=publicHttpsUrl(url);if(u.hostname!=='booth.pm'||!u.pathname.startsWith('/ja/search/'))throw new Error('仅支持 BOOTH 搜索页。');
+    return this.discoveryContext(signal,ctx=>this.html(ctx,u.href,'search'));
+  }
+  async discoveryCover(url:string,signal:AbortSignal):Promise<string> {
+    return this.discoveryContext(signal,ctx=>this.cover(ctx,url));
+  }
+  private async discoveryContext<T>(signal:AbortSignal,run:(ctx:TaskContext)=>Promise<T>):Promise<T> {
+    const controller=new AbortController(),abort=()=>controller.abort(new QueuePaused('搜索已停止。'));
+    signal.addEventListener('abort',abort,{once:true});if(signal.aborted)abort();
+    const ctx:TaskContext={discovery:true,task:{id:'discovery-'+randomUUID()},current:'找素材',controller};
+    try{return await run(ctx)}finally{signal.removeEventListener('abort',abort)}
+  }
   private validConcurrency(value:number):number {return Number.isFinite(value)?Math.min(6,Math.max(1,Math.round(value))):3;}
   private canonicalId(id:string):string {return this.deps.canonicalId?.(id)??id;}
   private normalizeTasks(tasks:Task[]):Task[] {
@@ -218,7 +233,7 @@ export class EnrichmentQueue {
     return {running:!this.paused&&!this.stopped&&(this.contexts.size>0||this.tasks.length>0),paused:this.paused,pending:this.tasks.length+this.contexts.size,completed:this.completed,current:[...this.contexts.values()].map(c=>c.current).join(' · '),message:this.message||undefined,transfer:this.transfer?{...this.transfer}:undefined,recentTransfers:this.recentTransfers.map(t=>({...t})),activeTransfers,speedHistory:this.speedHistory.map(s=>({...s})),downloadedBytes:this.downloadedBytes,peakDownloadBps:this.peakDownloadBps,totalDownloadBps,totalUploadBps:0,concurrency:this.concurrency,activeTasks:this.contexts.size};
   }
   private emit():void {this.deps.onProgress?.(this.progress);}
-  private check(ctx:TaskContext):void {if(ctx.controller.signal.aborted)throw ctx.controller.signal.reason||new QueuePaused();const current=this.deps.get(ctx.task.id);if(!current||current.online.rematchRequested&&!ctx.task.rematch&&!ctx.task.url&&!ctx.task.previews||current.manual.matchingMode==='manual'&&!(ctx.task.url&&ctx.task.manualRequest===true)){const error=new QueueSuperseded('此素材已转入手动归类或不再参与匹配');ctx.controller.abort(error);throw error;}if(this.paused||this.stopped)throw new QueuePaused();}
+  private check(ctx:TaskContext):void {if(ctx.controller.signal.aborted)throw ctx.controller.signal.reason||new QueuePaused();if(ctx.discovery){if(this.stopped)throw new QueuePaused("资料库正在关闭或迁移，请稍后重新搜索。");return;}const current=this.deps.get(ctx.task.id);if(!current||current.online.rematchRequested&&!ctx.task.rematch&&!ctx.task.url&&!ctx.task.previews||current.manual.matchingMode==='manual'&&!(ctx.task.url&&ctx.task.manualRequest===true)){const error=new QueueSuperseded('此素材已转入手动归类或不再参与匹配');ctx.controller.abort(error);throw error;}if(this.paused||this.stopped)throw new QueuePaused();}
   private stopHeartbeat():void {if(this.heartbeat)clearInterval(this.heartbeat);this.heartbeat=undefined;}
   private ensureHeartbeat():void {
     if(this.heartbeat||this.paused||this.stopped)return;

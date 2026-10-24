@@ -1,3 +1,4 @@
+import type {ProjectReadiness,ImportReviewPatch} from './avatar-workbench';
 import type {ProjectProductPage,ProjectProductRegistration} from './project-product-contracts';
 import type {ContextMenuPreferences} from './context-menu';
 import type {AssetRecycleResult} from './recycle-contracts';
@@ -62,13 +63,38 @@ export interface SourceUndoInfo {token:string;assetId:string;title:string;source
 export type BoothTab='login'|'favorites'|'gifts'|'library';
 export interface BoothDownload {id:string;name:string;state:'downloading'|'completed'|'interrupted'|'cancelled'|'failed';receivedBytes:number;totalBytes:number;downloadBps:number;startedAt:string;finishedAt?:string;assetId?:string;sourceUrl?:string;error?:string}
 export interface BoothState {downloadDir?:string;sessionSaved:boolean;downloads:BoothDownload[];active:boolean}
-export interface AppSettings extends ViewPreferences { reviewHeaderPinned:boolean; reviewShowLocalImage:boolean; contextMenu?:ContextMenuPreferences; language:AppLanguage;unityEditorPath?:string;detachedRoots?:string[]; directSources?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean;xianyuEnabled:boolean }
+export interface AppSettings extends ViewPreferences { workbenchProjectId?:string; reviewHeaderPinned:boolean; reviewShowLocalImage:boolean; contextMenu?:ContextMenuPreferences; language:AppLanguage;unityEditorPath?:string;detachedRoots?:string[]; directSources?:string[]; roots:string[]; onlineEnabled:boolean; dataDir:string;backupDir?:string;uiZoom?:number;downloadConcurrency?:number;boothDownloadDir?:string;xThemeIntroduced:boolean;xianyuEnabled:boolean }
 export interface UpdateState {status:'idle'|'checking'|'available'|'up-to-date'|'downloading'|'ready'|'installing'|'error'|'unsupported';currentVersion:string;latestVersion?:string;releaseUrl?:string;releaseNotes?:string;receivedBytes:number;totalBytes?:number;downloadBps?:number;message?:string;canInstall:boolean;checkedAt?:string}
 export interface Snapshot { stats:Stats; scan:ScanProgress; queue:QueueProgress; settings:AppSettings;proxy?:ProxyStatus;undoAvailable?:boolean;sourceUndo?:SourceUndoInfo;warnings?:string[] }
 export interface FileEntry { name:string; size:number; directory:boolean }
 export interface FileListing { entries:FileEntry[]; truncated:boolean; message?:string }
 export type LibraryEvent = {type:'change'}|{type:'scan';progress:ScanProgress}|{type:'queue';progress:QueueProgress};
 export interface LibraryAPI {
+  discoveryState():Promise<import('./discovery').DiscoveryState>;
+  startDiscovery(request:import('./discovery').DiscoveryRequest):Promise<import('./discovery').DiscoveryState>;
+  cancelDiscovery():Promise<import('./discovery').DiscoveryState>;
+  openDiscoveryProduct(url:string):Promise<void>;
+  openDiscoverySearch(platform:import('./discovery').DiscoveryPlatform):Promise<void>;
+  openModelPreview(id:string):Promise<void>;
+  aiState():Promise<import('./ai-contracts').AiPublicState>;
+  configureAI(value:import('./ai-contracts').AiSettingsUpdate):Promise<import('./ai-contracts').AiPublicState>;
+  openAIHelp(provider:import('./ai-contracts').AiProviderId):Promise<void>;
+  aiQueueState():Promise<import('./ai-contracts').AiClassificationQueueState>;
+  retryAIClassification(id?:string):Promise<void>;
+  aiClassification(id:string):Promise<import('./ai-contracts').AiClassificationRecord|null>;
+  classifyAsset(id:string):Promise<import('./ai-contracts').AiRunResult<import('./ai-contracts').AiClassificationRecord>>;
+  unityDiagnostics(projectId:string):Promise<import('./unity-diagnostics').UnityDiagnosticSnapshot>;
+  diagnoseUnity(projectId:string):Promise<import('./ai-contracts').AiRunResult<import('./ai-contracts').AiDiagnosticRecord>>;
+  pluginDownloadState():Promise<import('./public-plugins').PluginDownloadState>;
+  openPluginLink(id:string,kind:import('./public-plugins').PluginLinkKind):Promise<void>;
+  installPublicPlugin(id:string,projectId:string):Promise<ProjectImportJob>;
+  cancelPluginDownload():Promise<void>;
+  inboxState():Promise<import('./link-inbox').InboxState>;
+  configureInbox(settings:import('./link-inbox').InboxSettings):Promise<void>;
+  checkInbox():Promise<void>;openInboxAccount(platform:import('./link-inbox').InboxPlatform):Promise<void>;
+  clearInbox():Promise<boolean>;clearInboxAccount(platform:import('./link-inbox').InboxPlatform):Promise<boolean>;
+  markInbox(id:string,action:'read'|'dismiss'|'restore'):Promise<void>;
+  readInboxLink(id:string,code?:string):Promise<void>;
   startupStarInvite():Promise<import('./star-invite').StarInvite|null>;
   dismissStarInvite(count:number):Promise<void>;openStarProject(count:number):Promise<void>;
   baiduState():Promise<BaiduState>;
@@ -122,6 +148,9 @@ export interface LibraryAPI {
   retryProjectMA(jobId:string):Promise<void>;
   updateProjectMAHelper(projectId:string):Promise<void>;
   projectImportJobs(projectId?:string):Promise<ProjectImportJob[]>;
+  projectReadiness(projectId:string):Promise<ProjectReadiness>;
+  reviewProjectImport(jobId:string,patch:ImportReviewPatch):Promise<void>;
+  selectWorkbenchProject(projectId:string):Promise<void>;
   findProjectImportLocations(jobId:string):Promise<void>;
   cancelProjectImport(id:string):Promise<boolean>;openProjectEditor(id:string):Promise<void>;
   chooseProject():Promise<AssetRecord|null>;chooseUnityEditor(projectId:string):Promise<boolean>;
