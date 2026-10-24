@@ -88,8 +88,12 @@ test('stop awaits every request and final save, then a new queue restores every 
 
 test('changing concurrency adds workers immediately and reducing it lets active work finish safely',async t=>{
   const items=Array.from({length:6},(_,i)=>asset('a'+i,'Dress'+i,String(1234500+i),'https://shop'+i+'.example.org/product'));let active=0,max=0,started=0,afterDrop=[];
-  const {queue}=setup(t,items,async(url,{signal})=>{active++;started++;max=Math.max(max,active);if(started>3)afterDrop.push(active);try{await delayFetch(60,signal);return html(product(url));}finally{active--; }},{concurrency:1});
-  await queue.enqueue();await until(()=>started===1);queue.setConcurrency(3);await until(()=>started===3);queue.setConcurrency(1);await idle(queue);
+  // Hold the initial transfers until the pool is reduced. A fixed 60 ms response
+  // could finish during slow disk writes, skipping the transient started===3 state.
+  let release;const held=new Promise(resolve=>release=resolve);
+  const {queue}=setup(t,items,async url=>{active++;started++;max=Math.max(max,active);if(started>3)afterDrop.push(active);try{if(started<=3)await held;return html(product(url));}finally{active--; }},{concurrency:1});
+  try {await queue.enqueue();await until(()=>started===1);queue.setConcurrency(3);await until(()=>started===3);queue.setConcurrency(1);}finally{release();}
+  await idle(queue);
   assert.equal(max,3);assert.deepEqual(afterDrop,[1,1,1]);assert.equal(queue.progress.concurrency,1);assert.equal(queue.progress.completed,6);
 });
 

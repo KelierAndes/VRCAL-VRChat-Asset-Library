@@ -47,6 +47,30 @@ class Download extends EventEmitter {
 function start(workspace,download,contents=workspace.entry.view.webContents){let denied=false;workspace.remoteSession.emit('will-download',{preventDefault:()=>{denied=true}},download,contents);return denied}
 const settled=()=>new Promise(resolve=>setImmediate(resolve));
 
+test('inbox account checks inspect only owned URLs and do not create sessions or read unverified purchase pages',async t=>{
+ const f=fixture(t),signal=new AbortController().signal;
+ assert.equal((await f.workspace.readInbox('background',signal)).state,'unsupported');assert.equal(f.workspace.remoteSession,undefined);
+ await f.workspace.open({tab:'login'});await settled();assert.equal((await f.workspace.readInbox('foreground',signal)).state,'login');
+ await f.workspace.entry.view.webContents.loadURL('https://accounts.booth.pm/library');
+ f.workspace.entry.view.webContents.executeJavaScript=()=>{throw new Error('unverified account body must not be read')};
+ assert.equal((await f.workspace.readInbox('foreground',signal)).state,'unsupported');f.setOnline(false);assert.equal((await f.workspace.readInbox('foreground',signal)).state,'paused');
+});
+
+test('clearing an unopened BOOTH login loads and empties its persisted session without browsing',async t=>{
+ const f=fixture(t),folder=path.join(f.dataDir,'booth-session'),remote=new Session(folder);
+ await remote.cookies.set({url:'https://accounts.booth.pm/',name:'synthetic',value:'PRIVATE_TEST',path:'/'});sessions.set(folder,remote);
+ f.setOnline(false);await f.workspace.clearSession();
+ assert.deepEqual(await remote.cookies.get({}),[]);assert.equal(remote.cacheCleared,true);assert.equal(f.workspace.entry,undefined);
+});
+
+test('clearing a BOOTH login during initialization prevents a pending account window from reopening',async t=>{
+ const f=fixture(t);let finish;f.workspace.restoreCookies=()=>new Promise(resolve=>finish=resolve);
+ const opened=f.workspace.open({tab:'library'}),cleared=f.workspace.clearSession();
+ const reopened=f.workspace.open({tab:'login'}).then(()=>({accepted:true}),error=>({error}));finish();await Promise.all([opened,cleared]);
+ const result=await reopened;assert.match(result.error?.message||'window reopened',/清除/);
+ assert.equal(f.workspace.entry,undefined);assert.deepEqual(await f.workspace.remoteSession.cookies.get({}),[]);
+});
+
 test('migration snapshots an unopened BOOTH profile and restores both cookie lifetimes without navigation',async t=>{
  const {prepareBoothSessionMigration}=require('../dist/main/main/booth-workspace');assert.equal(typeof prepareBoothSessionMigration,'function');const f=fixture(t),folder=path.join(f.dataDir,'booth-session'),remote=new Session(folder),expiry=Math.floor(Date.now()/1000)+3600;
  fs.mkdirSync(path.join(folder,'Network'),{recursive:true});fs.writeFileSync(path.join(folder,'Network','Cookies'),'OLD PERSISTENT COOKIE DATABASE');sessions.set(folder,remote);await remote.cookies.set({url:'https://accounts.booth.pm/',name:'persistent',value:'PERSISTENT_PRIVATE',path:'/',expirationDate:expiry});

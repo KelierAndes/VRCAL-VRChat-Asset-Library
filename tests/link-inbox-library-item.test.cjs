@@ -1,0 +1,9 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os');
+const {LinkInboxStore}=require('../dist/main/main/link-inbox-store');const {INBOX_POLICY_VERSION}=require('../dist/main/shared/inbox-policy');
+test('explicit owned library selections survive restart, deduplicate and never become direct downloads',t=>{
+ const dataDir=fs.mkdtempSync(path.join(os.tmpdir(),'vrc-library-item-'));t.after(()=>fs.rmSync(dataDir,{recursive:true,force:true}));const now=Date.now(),cipher={encrypt:s=>Buffer.from(s),decrypt:b=>b.toString()},make=()=>new LinkInboxStore({dataDir,roots:()=>[],cipher,now:()=>now}),s=make();s.configure({enabled:true,background:false,hours:24},{version:INBOX_POLICY_VERSION,acceptedAt:now,scope:'foreground'});
+ const observation={platform:'booth',accountKey:'fixture-account',sourceKey:'item-123',sourceUrl:'https://accounts.booth.pm/library',title:'BOOTH 已购交付',text:'',boothLibraryItem:'123'};s.ingest(observation);s.ingest(observation);assert.equal(s.state().items.length,1);assert.equal(s.state().unread,0);
+ const item=s.state().items[0];assert.equal(item.url,'https://booth.pm/items/123');assert.equal(item.boothLibraryItem,'123');assert.equal(make().state().error,undefined);assert.deepEqual(make().downloadTarget(item.id),JSON.parse(JSON.stringify(item)));
+ for(const extra of [{boothLibraryItem:'../downloadables/123'},{platform:'xianyu',sourceUrl:'https://www.goofish.com/im'},{sourceUrl:'https://accounts.booth.pm/orders/123'}])assert.throws(()=>s.ingest({...observation,...extra}));
+ const file=path.join(dataDir,'link-inbox.bin'),payload=JSON.parse(fs.readFileSync(file,'utf8'));payload.items[0].boothLibraryItem='456';fs.writeFileSync(file,JSON.stringify(payload));assert(make().state().error);
+});

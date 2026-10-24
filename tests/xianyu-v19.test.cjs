@@ -44,3 +44,19 @@ test('persistent official login cookies retain their expiry after an encrypted s
 test('SPA navigation to a different item invalidates source approval until that item is fully loaded',async t=>{const f=fixture(t),sources=[];f.workspace.deps.applyMarketplace=async(id,url)=>sources.push([id,url]);await f.workspace.open('one');const view=f.workspace.entry.view.webContents;await view.loadURL('https://www.goofish.com/item?id=111');view.url='https://www.goofish.com/item?id=111&tracking=safe';view.emit('did-navigate-in-page');assert.equal((await command(f.workspace,'state')).canApply,true);view.url='https://www.goofish.com/item?id=222';view.emit('did-navigate-in-page');assert.equal((await command(f.workspace,'state')).canApply,false);await assert.rejects(()=>command(f.workspace,'applyMarketplace'));assert.deepEqual(sources,[]);await view.loadURL('https://www.goofish.com/item?id=222');await command(f.workspace,'applyMarketplace');assert.deepEqual(sources,[['one','https://www.goofish.com/item?id=222']]);});
 
 test('navigation during the public snapshot read cannot apply another product or retain browser account HTML',async t=>{const f=fixture(t),sources=[];f.workspace.deps.applyMarketplace=async(...args)=>sources.push(args);await f.workspace.open('one');const view=f.workspace.entry.view.webContents;await view.loadURL('https://www.goofish.com/item?id=111');let finish,started;const began=new Promise(resolve=>started=resolve);view.executeJavaScript=async()=>{started();return new Promise(resolve=>finish=resolve)};const pending=command(f.workspace,'applyMarketplace');await began;view.url='https://www.goofish.com/item?id=222';view.emit('did-navigate-in-page');finish({url:'https://www.goofish.com/item?id=111',html:'<title>PRIVATE ACCOUNT PAGE</title>'});await assert.rejects(()=>pending,/页面已切换/);assert.deepEqual(sources,[]);});
+test('closing during message-session initialization cannot reveal a late account window',async t=>{
+ const f=fixture(t);let finish;f.workspace.initialize=()=>new Promise(resolve=>finish=resolve);Window.prototype.loadURL=async function(url){await this.webContents.loadURL(url)};
+ const pending=f.workspace.openMessages();f.workspace.close();finish();await pending;assert.equal(f.workspace.popups.size,0);
+});
+
+test('inbox checks do not open a hidden session or inspect chat text before an adapter is verified',async t=>{
+ const f=fixture(t),signal=new AbortController().signal;assert.equal((await f.workspace.readInbox('background',signal)).state,'unsupported');assert.equal(f.workspace.remoteSession,undefined);
+ await f.workspace.open('one');await f.workspace.entry.view.webContents.loadURL('https://www.goofish.com/im');f.workspace.entry.view.webContents.executeJavaScript=()=>{throw new Error('unverified chat must not be read')};
+ assert.equal((await f.workspace.readInbox('foreground',signal)).state,'unsupported');const controller=new AbortController();controller.abort();assert.equal((await f.workspace.readInbox('foreground',controller.signal)).state,'paused');
+});
+test('clearing login closes the view, clears cookies and cache and removes the private mirror only',async t=>{
+ const f=fixture(t);await f.workspace.open('one');const view=f.workspace.entry.window,remote=f.workspace.remoteSession;
+ await remote.cookies.set({url:'https://www.goofish.com/',name:'synthetic',value:'private-test',path:'/'});await f.workspace.shutdown();const keep=path.join(f.source,'keep.txt');fs.writeFileSync(keep,'SOURCE');
+ let cleared=0,cached=0;remote.clearStorageData=async()=>{cleared++;remote.cookies.values=[]};remote.clearCache=async()=>{cached++};
+ await f.workspace.clearSession();assert.equal(view.isDestroyed(),true);assert.equal(cleared,1);assert.equal(cached,1);assert.deepEqual(await remote.cookies.get({}),[]);assert.equal(fs.existsSync(path.join(f.dataDir,'xianyu-session-cookies.bin')),false);assert.equal(fs.readFileSync(keep,'utf8'),'SOURCE');
+});

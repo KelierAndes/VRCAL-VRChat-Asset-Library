@@ -16,10 +16,13 @@ function load(relative) {
   finally { for (const [ext, original] of Object.entries(previous)) { if (original) Module._extensions[ext]=original; else delete Module._extensions[ext]; } }
 }
 
-test('history separates unpublished trials from stable releases and keeps chronological order', () => {
+test('history separates public previews, unpublished trials and stable releases in chronological order', () => {
   const {RELEASE_NOTES, filterReleaseNotes} = load('shared/release-notes.ts');
   assert.equal(RELEASE_NOTES[0].version, require('../package.json').version);
-  assert.equal(RELEASE_NOTES[0].channel, 'stable');
+  assert.equal(RELEASE_NOTES[0].channel, 'preview');
+  assert.deepEqual(filterReleaseNotes({channel:'preview'}).map(note=>note.version), [require('../package.json').version]);
+  assert(!filterReleaseNotes({channel:'local'}).some(note=>note.version===require('../package.json').version));
+  assert(!filterReleaseNotes({channel:'stable'}).some(note=>note.version===require('../package.json').version));
   const stable = filterReleaseNotes({channel:'stable',language:'zh-CN'});
   assert.deepEqual(stable.map(entry=>entry.version), ['1.3.0','1.2.9','1.2.8','1.2.7','1.2.6','1.2.5','1.2.4','1.2.3','1.2.2','1.2.1','1.2.0','1.1.1','1.1.0','1.0.0']);
   assert(RELEASE_NOTES.every((entry,index)=>!index || entry.date <= RELEASE_NOTES[index-1].date));
@@ -45,7 +48,7 @@ test('previously translated release history remains available offline in English
   const {RELEASE_NOTES} = load('shared/release-notes.ts');
   const {translate} = load('shared/i18n.ts');
   // New 1.3.0 copy is explicitly deferred for a later translation pass (2026-10-24).
-  for (const entry of RELEASE_NOTES.filter(entry=>entry.version!=='1.3.0')) for (const text of [entry.title,...entry.sections.flatMap(section=>section.items)]) {
+  for (const entry of RELEASE_NOTES.filter(entry=>entry.version!=='1.3.0'&&!/^1\.4\.0-preview\./.test(entry.version))) for (const text of [entry.title,...entry.sections.flatMap(section=>section.items)]) {
     for (const language of ['en','ja']) assert.notEqual(translate(text,language),text,`${language}: ${text}`);
   }
 });
