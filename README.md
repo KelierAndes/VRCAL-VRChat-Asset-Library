@@ -12,11 +12,11 @@
 
 [用户协议与功能使用说明](docs/USER_AGREEMENT.zh-CN.md) · [隐私说明](docs/PRIVACY.zh-CN.md)（账号页面读取的验证范围见本次发布说明）
 
-**当前公开预览：1.4.0-preview.6。** 新增 [改模工作台](docs/AVATAR_WORKBENCH.zh-CN.md)、[新版页面图文说明](docs/WORKSPACE_NAVIGATION.zh-CN.md) 与 [改模体验改进报告](docs/AVATAR_WORKFLOW_REPORT.zh-CN.md)。
+**当前公开预览：1.4.0-preview.7。** 新增 [改模工作台](docs/AVATAR_WORKBENCH.zh-CN.md)、[新版页面图文说明](docs/WORKSPACE_NAVIGATION.zh-CN.md) 与 [改模体验改进报告](docs/AVATAR_WORKFLOW_REPORT.zh-CN.md)。
 
 ## 下载与开始使用
 
-**[下载 1.4.0-preview.6 公开预览版](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.6)**：选择 Windows x64 EXE 直接运行，源码 ZIP 用于开发。此版需手动下载，不作为稳定版内置更新推送。
+**[下载 1.4.0-preview.7 公开预览版](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.7)**：选择 Windows x64 EXE 直接运行，源码 ZIP 用于开发。此版需手动下载，不作为稳定版内置更新推送。
 
 旧版官方附件继续停止提供。 版本记录、Git 历史及其原许可保留；GitHub 根据标签提供的历史 Source code 快照仍可访问。撤下下载不等于撤销旧版授权，详见 [许可变更说明](docs/LICENSING.md)。
 
@@ -43,6 +43,8 @@
 当前发布包未进行代码签名。请从本仓库 Releases 下载，并用随包 SHA-256 清单核对文件。
 
 ## 本次更新与更新记录
+
+**1.4.0-preview.7 修复内置 BOOTH 下载后仍需手动匹配。** 明确的商品页／已购资料库下载直接关联商品，即使本地包名不同也自动补作者、分类和封面，标为“BOOTH 下载关联”。有明确来源的旧下载记录自动补回，人工修改、跳过和排除优先；来源不明或有冲突时保留待确认。[更新说明](docs/RELEASE_1.4.0-preview.7.zh-CN.md)。
 
 **1.4.0-preview.6 修正贡献者署名。** 仅创建 Fork、没有已核实实际贡献的社区参与记录不再列为贡献者；应用恢复“此版本的贡献者”标题，首页与贡献指南同步更正。维护者头像、社交主页与社区入口保留。详见[本版更新说明](docs/RELEASE_1.4.0-preview.6.zh-CN.md)。
 

@@ -1,0 +1,18 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VRChat本地素材管理器 v1.4.0-preview.7</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.7 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">本次更新</a><a href="#section-3">使用</a><a href="#section-4">验证与范围</a></nav><main><h1 id="section-1">VRChat本地素材管理器 v1.4.0-preview.7</h1>
+<p><strong>修复“已在内置 BOOTH 下载，仍被要求手动确认商品和封面”的问题。</strong></p>
+<h2 id="section-2">本次更新</h2>
+<ul>
+<li>商品页和能明确核实商品的已购资料库下载，保存下载文件与商品编号的直接关联；即使文件名只有适配名、版本号或与商品名称不同，也直接读取对应商品的标题、作者、分类和封面。</li>
+<li>已购资料库按本次下载对应的卡片和按钮定位商品，兼容下载按钮先取临时地址再下载的情况；下载文件编号与商品编号分开处理。</li>
+<li>来源展示标为“BOOTH 下载关联”，与人工提供链接、人工确认区分，不把下载来源伪装成人工标注。</li>
+<li>旧下载记录已保存明确商品来源时，启动或恢复联网补全后自动补回关联；不重新下载原文件。成功处理的记录持久化标记，后续不重复读取大包。</li>
+<li>保留手动修改、跳过、排除和重新匹配的决定。多次点击混淆、编号冲突、页面导航或无法核实来源时仍待确认，不随便套用其他商品的封面。</li>
+</ul>
+<h2 id="section-3">使用</h2>
+<p>退出旧程序后运行 <code>VRC-Asset-Library-1.4.0-preview.7-x64.exe</code>，继续使用原资料库。在“BOOTH 账号与下载”登录、选择下载位置，从内置商品页或已购资料库下载。来源明确时，完成后自动登记并补全，无需再去匹配确认点击一次。</p>
+<p>旧记录只有在保存了明确商品来源、对应文件仍存在且没有人工冲突时才可自动补回；先前完全没有保存来源的文件，不会仅凭文件名猜成已确认商品。旧账号页面结构或未验证的礼物／订单页面若无法提供可靠证据，仍保留待确认。</p>
+<h2 id="section-4">验证与范围</h2>
+<p>回归覆盖文件名完全不同仍自动补封面、重启与备份、旧记录修复及幂等、人工保护、跳转到其他商品、并发或过期点击、页面导航、断网与关闭。账号页面结构使用隔离夹具测试，不声称已经验证所有真实账号与所有 BOOTH 页面。</p>
+<p>此版为公开预览，需手动下载，不进入稳定更新通道。已有 preview.5 的功能及试验范围沿用，新增文字暂为中文。附件包含对应源码、中文说明、验收记录和 SHA-256 校验；资料库和登录凭证不在发布包中。</p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

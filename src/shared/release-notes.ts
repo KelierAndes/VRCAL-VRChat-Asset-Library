@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.7',date:'2026-10-24',channel:'preview',title:'BOOTH 下载后直接关联商品与封面',sections:[
+    {kind:'fixed',items:['内置商品页和能核实来源的已购资料库下载，直接关联商品编号并自动补全标题、作者、分类与封面，不再因文件名不同要求确认。','旧下载记录已有明确商品来源时自动补回；成功处理后不重复读取大包，也不重新下载原素材。']},
+    {kind:'improved',items:['匹配依据标为“BOOTH 下载关联”，区分人工提供和确认；重启与备份保留下载来源。','下载按钮、卡片、商品和当前页面必须对应；冲突、导航、过期或多次点击混淆时不自动绑定。']},
+    {kind:'notes',items:['人工来源、跳过、排除与重新匹配优先。原来没有保存商品来源的记录不能只凭文件名恢复成确认结果。','公开预览需手动下载；未验证结构的礼物／订单页可能仍待确认。新增文字暂为中文。']}
+  ]},
   {version:'1.4.0-preview.6',date:'2026-10-24',channel:'preview',title:'贡献者署名核对与清理',sections:[
     {kind:'fixed',items:['移除仅创建 Fork、没有已核实实际贡献的社区参与条目，页面恢复为“此版本的贡献者”。','首页与贡献指南统一按实际代码、文档、翻译、测试或有效反馈记录署名；创建仓库副本本身不计作贡献。']},
     {kind:'notes',items:['保留项目维护者头像、社交主页和社区入口；本版沿用 preview.5 的功能与试验范围，需手动下载公开预览版。']}

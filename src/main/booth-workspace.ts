@@ -14,6 +14,7 @@ import {NATIVE_MESSAGES} from '../shared/messages-native';
 import {snapshotBrowserCookies} from './browser-cookie-migration';
 import {readOwnedInbox,evaluateInboxPage} from './link-inbox-reader';
 import {inboxBoothLibraryItemUrl} from './link-inbox-store';
+import {BOOTH_DOWNLOAD_SOURCE_WORLD,boothDownloadLibraryPage,boothDownloadableIds,boothDownloadCaptureScript} from './booth-download-source';
 import type {InboxReadContext,InboxReadResult} from './link-inbox-monitor';
 
 export interface BoothWorkspaceDependencies {
@@ -67,7 +68,7 @@ export function reserveBoothDownload(directory:string,filename:string,dataDir:st
  const folder=assertSafeWrite(path.join(root,'booth-'+id),dataDir,roots,true);fs.mkdirSync(folder); // Exclusive new task folder; never reuse or overwrite an existing file.
  return assertSafeWrite(path.join(folder,boothDownloadName(filename)),dataDir,roots,true);
 }
-interface StoredDownload extends BoothDownload {file?:string}
+interface StoredDownload extends BoothDownload {file?:string;associationVersion?:1}
 interface Entry {window:BrowserWindow;view:WebContentsView;channel:string;toolbarUrl:string;assetId?:string;title:string;tab:BoothTab|'search';query:string;status:string;statusValues?:Record<string,string|number>;loading:boolean;loaded:boolean;lastLoadedUrl?:string;httpError:boolean;busy:boolean;applied?:string;closed:boolean}
 interface BrowserState {title:string;tab:string;query:string;url:string;status:string;loading:boolean;canApply:boolean;canGoBack:boolean;canGoForward:boolean;applied:boolean;downloadDir?:string;sessionSaved:boolean;activeDownloads:number;theme:AppTheme;language:AppLanguage;messages:Record<string,string>}
 export class BoothWorkspace {
@@ -103,18 +104,34 @@ export class BoothWorkspace {
  private downloads:StoredDownload[]=[];private activeItems=new Map<string,Electron.DownloadItem>();private dns=new Map<string,{at:number;promise:Promise<void>}>();
  private cookieTimer?:ReturnType<typeof setTimeout>;private restoringCookies=false;private clearing=false;private stopping=false;private cookieWrite=Promise.resolve();private initializing?:Promise<void>;private inFlightImports=new Set<Promise<void>>();
  private sessionHooksInstalled=false;
+ private contentVersions=new WeakMap<Electron.WebContents,number>();
+ private downloadSources=new Map<string,{controller:AbortController;promise:Promise<void>}>();
+ private restoringDownloads?:Promise<void>;
  private readonly downloadListener=(event:Electron.Event,item:Electron.DownloadItem,contents:Electron.WebContents)=>this.startDownload(event,item,contents);
  private readonly cookieListener=(_event:Electron.Event,cookie:Electron.Cookie)=>{if(!this.restoringCookies&&!this.clearing&&cookieHost(cookie.domain||'')){if(this.cookieTimer)clearTimeout(this.cookieTimer);this.cookieTimer=setTimeout(()=>{this.cookieTimer=undefined;void this.flushCookies()},300)}};
  constructor(private readonly deps:BoothWorkspaceDependencies){this.loadHistory()}
  private file(name:string):string {return assertSafeWrite(path.join(this.deps.dataDir,name),this.deps.dataDir,this.deps.roots())}
- snapshot():BoothState {return {downloadDir:this.deps.getDownloadDir(),sessionSaved:!!this.remoteSession&&safeStorage.isEncryptionAvailable(),downloads:this.downloads.map(({file:_file,...publicItem})=>({...publicItem})),active:!!this.entry&&!this.entry.closed}}
+ snapshot():BoothState {return {downloadDir:this.deps.getDownloadDir(),sessionSaved:!!this.remoteSession&&safeStorage.isEncryptionAvailable(),downloads:this.downloads.map(({file:_file,associationVersion:_association,...publicItem})=>({...publicItem})),active:!!this.entry&&!this.entry.closed}}
  downloadPath(id:string):string|undefined {
   const item=this.downloads.find(value=>value.id===id);if(!item?.file||item.state!=='completed')return;
   const file=assertSafeWrite(item.file,this.deps.dataDir,this.deps.roots(),true),stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink())throw new Error('下载文件已移动或不是普通文件。');return file;
  }
  cancelDownload(id:string):void {if(typeof id!=='string')throw new Error('下载任务无效。');const item=this.activeItems.get(id);if(item)item.cancel()}
  async retryImport(id:string):Promise<{assetId?:string}> {const record=this.downloads.find(value=>value.id===id);if(!record||record.state!=='completed')throw new Error('请选择已完成的下载。');if(record.assetId)return {assetId:record.assetId};const file=this.downloadPath(id);if(!file)throw new Error('下载文件不存在。');await this.importDownload(record,file);return {assetId:record.assetId}}
- networkChanged():void {if(!this.deps.canNetwork()){for(const [id,item] of this.activeItems){const record=this.downloads.find(value=>value.id===id);if(record)record.error='联网已关闭；请回 BOOTH 重新点击下载。';item.cancel()}for(const contents of this.owned)if(!contents.isDestroyed())contents.stop()}this.notify()}
+ restoreDownloadAssociations():Promise<void> {
+  if(this.restoringDownloads)return this.restoringDownloads;
+  const pending=Promise.resolve().then(async()=>{
+   for(const record of [...this.downloads]){
+    if(this.stopping||this.clearing||!this.deps.canNetwork())break;
+    if(record.state!=='completed'||!record.sourceUrl||!record.assetId||record.associationVersion===1)continue;
+    try{const file=this.downloadPath(record.id);if(file)await this.importDownload(record,file)}catch{/* Missing or unreadable history never prevents startup or other repairs. */}
+   }
+  });
+  this.restoringDownloads=pending;this.inFlightImports.add(pending);
+  void pending.finally(()=>{this.inFlightImports.delete(pending);if(this.restoringDownloads===pending)this.restoringDownloads=undefined}).catch(()=>{});
+  return pending;
+ }
+ networkChanged():void {if(!this.deps.canNetwork()){for(const source of this.downloadSources.values())source.controller.abort();for(const [id,item] of this.activeItems){const record=this.downloads.find(value=>value.id===id);if(record)record.error='联网已关闭；请回 BOOTH 重新点击下载。';item.cancel()}for(const contents of this.owned)if(!contents.isDestroyed())contents.stop()}this.notify()}
  async open(options:BoothOpenOptions):Promise<void> {
   if(this.clearing)throw new Error('正在清除账号登录状态，请稍候。');
   if(!this.deps.canNetwork())throw new Error('请先开启联网，再打开 BOOTH。');
@@ -151,7 +168,7 @@ export class BoothWorkspace {
  private language():AppLanguage {return normalizeLanguage(this.deps.getLanguage?.())}
  private messages():Record<string,string> {return Object.fromEntries(Object.keys(NATIVE_MESSAGES).map(source=>[source,this.t(source)]))}
  private t(source:string,values:Record<string,string|number>={}):string {return translate(source,this.language(),values)}
- async shutdown():Promise<void> {this.stopping=true;this.close();this.removeSessionHooks();for(const [id,item] of this.activeItems){const record=this.downloads.find(value=>value.id===id);if(record){record.state='interrupted';record.downloadBps=0;record.error='应用已关闭；请回 BOOTH 重新点击下载。'}item.cancel()}this.activeItems.clear();await Promise.allSettled([...this.inFlightImports]);this.saveHistory();await this.flushCookies();await this.remoteSession?.cookies.flushStore();this.remoteSession?.flushStorageData()}
+ async shutdown():Promise<void> {this.stopping=true;for(const source of this.downloadSources.values())source.controller.abort();this.close();this.removeSessionHooks();for(const [id,item] of this.activeItems){const record=this.downloads.find(value=>value.id===id);if(record){record.state='interrupted';record.downloadBps=0;record.error='应用已关闭；请回 BOOTH 重新点击下载。'}item.cancel()}this.activeItems.clear();await Promise.allSettled([...this.inFlightImports,...[...this.downloadSources.values()].map(source=>source.promise)]);this.saveHistory();await this.flushCookies();await this.remoteSession?.cookies.flushStore();this.remoteSession?.flushStorageData()}
  async clearSession():Promise<void> {
   if(this.clearing)throw new Error('正在清除账号登录状态，请稍候。');
   this.clearing=true;this.stopping=true;this.close();if(this.cookieTimer)clearTimeout(this.cookieTimer);this.cookieTimer=undefined;
@@ -180,6 +197,10 @@ export class BoothWorkspace {
   this.dns.set(host,{at:Date.now(),promise});void promise.catch(()=>this.dns.delete(host));if(this.dns.size>128)this.dns.delete(this.dns.keys().next().value!);await promise;
  }
  private protectContents(contents:Electron.WebContents,primary=false):void {
+  const moved=()=>this.contentVersions.set(contents,(this.contentVersions.get(contents)||0)+1);
+  contents.on('did-start-navigation',event=>{if(event.isMainFrame)moved()});contents.on('did-navigate-in-page',moved);
+  const captureReady=()=>{if(boothDownloadLibraryPage(contents.getURL()))void this.captureDownloadEvidence(contents,'install',[],new AbortController().signal).catch(()=>{})};
+  contents.on('dom-ready',captureReady);contents.on('did-finish-load',captureReady);
   contents.on('will-attach-webview',event=>event.preventDefault());contents.on('will-frame-navigate',event=>{try{if(!event.isMainFrame&&event.url==='about:blank')return;boothBrowserUrl(event.url)}catch{event.preventDefault();this.status('已阻止非 HTTPS 或本地链接。')}});
   contents.on('will-redirect',event=>{try{boothBrowserUrl(event.url)}catch{event.preventDefault();this.status('已阻止不安全跳转。')}});
   contents.on('login',(event,_details,_auth,callback)=>{event.preventDefault();callback();this.status('此浏览器不处理网络认证弹窗，请使用网站登录页面。')});
@@ -208,6 +229,13 @@ export class BoothWorkspace {
  private emit():void {const entry=this.entry;if(entry&&!entry.closed&&!entry.window.webContents.isDestroyed())entry.window.webContents.send(entry.channel+':state',this.browserState())}
  private status(message:string,values?:Record<string,string|number>):void {if(this.entry){this.entry.status=message;this.entry.statusValues=values;this.emit()}}
  private notify():void {this.emit();this.deps.onChanged()}
+ private async captureDownloadEvidence(contents:Electron.WebContents,action:'install'|'consume',ids:string[],signal:AbortSignal):Promise<unknown> {
+  const before=contents.getURL(),version=this.contentVersions.get(contents)||0;
+  const active=()=>!signal.aborted&&!this.clearing&&!this.stopping&&this.deps.canNetwork()&&this.owned.has(contents)&&!contents.isDestroyed()&&contents.getURL()===before&&(this.contentVersions.get(contents)||0)===version;
+  if(!active()||!boothDownloadLibraryPage(before)||typeof contents.executeJavaScriptInIsolatedWorld!=='function')return;
+  const value=await evaluateInboxPage({executeJavaScript:code=>contents.executeJavaScriptInIsolatedWorld(BOOTH_DOWNLOAD_SOURCE_WORLD,[{code}])},boothDownloadCaptureScript(action,ids),signal,2000);
+  return active()?value:undefined;
+ }
  private startDownload(event:Electron.Event,item:Electron.DownloadItem,contents:Electron.WebContents):void {
   const reject=(message:string)=>{event.preventDefault();this.status(message)};
   if(!this.deps.canNetwork()||this.clearing||this.stopping||!this.owned.has(contents)||!item.hasUserGesture()){reject('下载须由你在 BOOTH 网页点击；联网关闭时不会下载。');return}
@@ -215,26 +243,36 @@ export class BoothWorkspace {
   const directory=this.deps.getDownloadDir();if(!directory){reject('请先在素材库的 BOOTH 页面选择下载保存位置，再点击下载。');return}
   const id=randomUUID();let file:string;try{file=reserveBoothDownload(directory,item.getFilename(),this.deps.dataDir,this.deps.roots(),id);item.setSavePath(file)}catch{reject('下载位置受到保护或不可写；请在素材库重新选择位置。');return}
   const sourceUrl=boothAppliedProduct(contents.getURL()),record:StoredDownload={id,name:path.basename(file),file,sourceUrl,state:'downloading',receivedBytes:0,totalBytes:item.getTotalBytes(),downloadBps:0,startedAt:new Date().toISOString()};
+  let sourceReady:Promise<void>|undefined;
+  if(!sourceUrl&&boothDownloadLibraryPage(contents.getURL())){
+   let chain:unknown=[];try{if(typeof item.getURLChain==='function')chain=item.getURLChain()}catch{/* Older transfers may not expose a redirect chain. */}
+   const controller=new AbortController();
+   sourceReady=this.captureDownloadEvidence(contents,'consume',boothDownloadableIds(chain),controller.signal).then(value=>{
+    if(controller.signal.aborted||this.clearing||this.stopping||!this.deps.canNetwork()||!['downloading','completed'].includes(record.state)||typeof value!=='string'||!(/^[1-9]\d{0,11}$/).test(value))return;
+    record.sourceUrl='https://booth.pm/zh-cn/items/'+value;this.saveHistory();this.notify();
+   }).catch(()=>{});
+   this.downloadSources.set(id,{controller,promise:sourceReady});void sourceReady.finally(()=>this.downloadSources.delete(id));
+  }
   this.downloads.unshift(record);this.downloads=this.downloads.filter((value,index)=>index<MAX_HISTORY||this.activeItems.has(value.id));this.activeItems.set(id,item);this.saveHistory();this.notify();let lastAt=Date.now(),lastBytes=0,lastNotification=0;
   item.on('updated',(_event,state)=>{
    try{assertSafeWrite(file,this.deps.dataDir,this.deps.roots(),true);if(!this.deps.canNetwork()||this.clearing){item.cancel();return}}catch{record.error='保存路径已变化，下载已停止。';item.cancel();return}
    const now=Date.now(),received=item.getReceivedBytes();record.receivedBytes=received;record.totalBytes=item.getTotalBytes();record.downloadBps=state==='interrupted'?0:Math.max(0,(received-lastBytes)*1000/Math.max(1,now-lastAt));record.state=state==='interrupted'?'interrupted':'downloading';lastAt=now;lastBytes=received;
-   if(now-lastNotification>=250){lastNotification=now;this.notify()}if(state==='interrupted'){record.error='下载中断；请回 BOOTH 重新点击下载。';this.saveHistory()}
+   if(now-lastNotification>=250){lastNotification=now;this.notify()}if(state==='interrupted'){this.downloadSources.get(id)?.controller.abort();record.error='下载中断；请回 BOOTH 重新点击下载。';this.saveHistory()}
   });
   item.once('done',(_event,state)=>{
    this.activeItems.delete(id);record.receivedBytes=item.getReceivedBytes();record.totalBytes=item.getTotalBytes();record.downloadBps=0;record.finishedAt=new Date().toISOString();
    if(record.state!=='interrupted'||state==='completed')record.state=state==='completed'?'completed':state==='cancelled'?'cancelled':'interrupted';
-   if(state!=='completed'){record.error??=state==='cancelled'?'下载已取消；已保留任务记录。':'下载中断；请回 BOOTH 重新点击下载。';this.saveHistory();this.notify();return}
-   void this.importDownload(record,file).catch(()=>{});
+   if(state!=='completed'){this.downloadSources.get(id)?.controller.abort();record.error??=state==='cancelled'?'下载已取消；已保留任务记录。':'下载中断；请回 BOOTH 重新点击下载。';this.saveHistory();this.notify();return}
+   void this.importDownload(record,file,sourceReady).catch(()=>{});
   });
  }
- private importDownload(record:StoredDownload,file:string):Promise<void> {
-  const pending=(async()=>{try{assertSafeWrite(file,this.deps.dataDir,this.deps.roots(),true);const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size!==record.receivedBytes)throw new Error();const imported=await this.deps.onDownloaded(file,record.sourceUrl);record.assetId=imported.assetId;if(!record.assetId)throw new Error();record.error=undefined;this.status('下载完成并已导入素材库：{name}',{name:record.name})}catch{record.error='文件已保存，但自动导入未完成；可定位文件或重试导入。';throw new Error('文件已保存，但自动导入未完成。')}finally{this.saveHistory();this.notify()}})();
+ private importDownload(record:StoredDownload,file:string,sourceReady?:Promise<void>):Promise<void> {
+  const pending=(async()=>{try{if(sourceReady)await sourceReady;assertSafeWrite(file,this.deps.dataDir,this.deps.roots(),true);const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size!==record.receivedBytes)throw new Error();const imported=await this.deps.onDownloaded(file,record.sourceUrl);record.assetId=imported.assetId;if(!record.assetId)throw new Error();if(record.sourceUrl)record.associationVersion=1;record.error=undefined;this.status('下载完成并已导入素材库：{name}',{name:record.name})}catch{record.error='文件已保存，但自动导入未完成；可定位文件或重试导入。';throw new Error('文件已保存，但自动导入未完成。')}finally{this.saveHistory();this.notify()}})();
   this.inFlightImports.add(pending);void pending.finally(()=>this.inFlightImports.delete(pending)).catch(()=>{});return pending;
  }
  private loadHistory():void {
   try{const file=this.file('booth-downloads.json'),stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>1024*1024)return;const parsed=JSON.parse(fs.readFileSync(file,'utf8'));if(!Array.isArray(parsed))return;
-   this.downloads=parsed.slice(0,MAX_HISTORY).filter(value=>value&&typeof value.id==='string'&&/^[a-f0-9-]{36}$/.test(value.id)&&typeof value.name==='string'&&['downloading','completed','interrupted','cancelled','failed'].includes(value.state)).map(value=>({id:value.id,name:boothDownloadName(value.name),state:value.state==='downloading'?'interrupted':value.state,receivedBytes:Math.max(0,Number(value.receivedBytes)||0),totalBytes:Math.max(0,Number(value.totalBytes)||0),downloadBps:0,startedAt:typeof value.startedAt==='string'?value.startedAt:'',finishedAt:typeof value.finishedAt==='string'?value.finishedAt:undefined,assetId:typeof value.assetId==='string'?value.assetId:undefined,sourceUrl:typeof value.sourceUrl==='string'?boothAppliedProduct(value.sourceUrl):undefined,file:typeof value.file==='string'&&path.isAbsolute(value.file)?value.file:undefined,error:value.state==='downloading'?'上次下载未完成，请回 BOOTH 重新点击。':typeof value.error==='string'?value.error.slice(0,300):undefined}));
+   this.downloads=parsed.slice(0,MAX_HISTORY).filter(value=>value&&typeof value.id==='string'&&/^[a-f0-9-]{36}$/.test(value.id)&&typeof value.name==='string'&&['downloading','completed','interrupted','cancelled','failed'].includes(value.state)).map(value=>({id:value.id,name:boothDownloadName(value.name),state:value.state==='downloading'?'interrupted':value.state,receivedBytes:Math.max(0,Number(value.receivedBytes)||0),totalBytes:Math.max(0,Number(value.totalBytes)||0),downloadBps:0,startedAt:typeof value.startedAt==='string'?value.startedAt:'',finishedAt:typeof value.finishedAt==='string'?value.finishedAt:undefined,assetId:typeof value.assetId==='string'?value.assetId:undefined,sourceUrl:typeof value.sourceUrl==='string'?boothAppliedProduct(value.sourceUrl):undefined,associationVersion:value.associationVersion===1?1:undefined,file:typeof value.file==='string'&&path.isAbsolute(value.file)?value.file:undefined,error:value.state==='downloading'?'上次下载未完成，请回 BOOTH 重新点击。':typeof value.error==='string'?value.error.slice(0,300):undefined}));
   }catch{/* An invalid journal never affects browsing or original files. */}
  }
  private saveHistory():void {try{this.writeOwned('booth-downloads.json',Buffer.from(JSON.stringify(this.downloads)))}catch{this.status('下载记录暂时无法保存，请检查资料库位置。')}}

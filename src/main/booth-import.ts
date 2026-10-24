@@ -4,7 +4,7 @@ import type {BigIntStats} from 'node:fs';
 import type {AssetKind,AssetRecord,AvatarEvidence,FileListing} from '../shared/contracts';
 import {Store} from './store';
 import {inferAvatars,inferCategory,isAvatarName} from './hints';
-import {boothProductId} from './matching';
+import {boothProductId,canonicalSourceKey,MATCH_RULE_VERSION} from './matching';
 import {assertSafeWrite,isWithin} from './safety';
 import {assertUserStorage} from './storage';
 import {readArchive} from './archive-reader';
@@ -66,9 +66,15 @@ export async function importBoothDownload(store:Store,file:string,sourceItem:str
   if(!unchanged(first.stat,latest.stat))throw new Error('下载文件在读取过程中发生变化，请等下载完成后重试。');
   const {localEvidence,localNameHints}=evidenceAndHints(first.file,listing),fileIdentity=latest.stat.ino>0n&&latest.stat.birthtimeNs>0n?{device:latest.stat.dev.toString(),inode:latest.stat.ino.toString(),birthtime:latest.stat.birthtimeNs.toString()}:undefined;
   const record=store.upsertScan({path:first.file,name:path.basename(first.file),group:'BOOTH 下载',kind,size:Number(latest.stat.size),mtimeMs:Number(latest.stat.mtimeNs)/1e6,localCategory:inferCategory(path.basename(first.file)),localAvatars:[...new Set(localEvidence.map(entry=>entry.avatar))],localEvidence,compatibilityComplete:!!listing&&!listing.truncated&&listing.entries.length>0&&localEvidence.length>0,localNameHints,hintUrls:sourceUrl?[sourceUrl]:[],fileIdentity});
-  // Repeat registration preserves a source already annotated or confirmed by
-  // the user. The download URL itself is never guessed from a filename or ID.
-  if(sourceUrl&&!record.manual.sourceUrl&&!record.online.url)store.updateManual([record.id],{sourceUrl},false);
+  // The download owner supplies an observed product identity, not a name search
+  // hint. Keep it separate from human annotations and never revive a skipped,
+  // excluded, rematching or differently linked asset during a history repair.
+  if(sourceUrl&&record.manual.matchingMode!=='manual'&&!record.online.rematchRequested&&!record.online.confirmedSource&&
+     (!record.manual.sourceUrl||canonicalSourceKey(record.manual.sourceUrl)===canonicalSourceKey(sourceUrl))&&
+     (!record.online.url||canonicalSourceKey(record.online.url)===canonicalSourceKey(sourceUrl))&&
+     !record.online.rejectedUrls?.some(url=>canonicalSourceKey(url)===canonicalSourceKey(sourceUrl))){
+    store.updateOnline(record.id,{status:'pending',url:sourceUrl,confirmedSource:true,candidates:[],matchEvidence:{method:'booth-download',signals:['BOOTH 内置下载记录提供明确商品来源'],ruleVersion:MATCH_RULE_VERSION,recordedAt:new Date().toISOString()}});
+  }
   return {assetId:record.id};
 }
 

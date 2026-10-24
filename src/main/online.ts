@@ -162,7 +162,7 @@ export function detectedImageExtension(bytes:Buffer):string|undefined {
   return undefined;
 }
 
-interface TaskContext { discovery?:boolean; task:Task; current:string; controller:AbortController; lastTransferId?:string;sourceUrl?:string }
+interface TaskContext { discovery?:boolean; task:Task; current:string; controller:AbortController; lastTransferId?:string;sourceUrl?:string;binding?:string }
 interface ActiveRequest { controller:AbortController; consumers:Set<TaskContext>; promise:Promise<Resource>; host?:string;transferId?:string }
 interface Resource {bytes:Buffer;url:string;mime:string}
 interface LiveTransfer {meter:TransferMeter;id:string;taskId:string;lastEmission:number}
@@ -215,6 +215,11 @@ export class EnrichmentQueue {
   }
   private validConcurrency(value:number):number {return Number.isFinite(value)?Math.min(6,Math.max(1,Math.round(value))):3;}
   private canonicalId(id:string):string {return this.deps.canonicalId?.(id)??id;}
+  private sourceBinding(asset:AssetRecord|null|undefined,task:Task):string|undefined {
+    if(!asset||task.rematch&&asset.online.rematchRequested&&!task.url)return;
+    const source=asset.manual.sourceUrl||(asset.online.confirmedSource?asset.online.url:undefined);
+    return source?canonicalSourceKey(source):undefined;
+  }
   private normalizeTasks(tasks:Task[]):Task[] {
     const grouped=new Map<string,Task>();
     for(const input of tasks){const task={...input,id:this.canonicalId(input.id)},previous=grouped.get(task.id),chosen=this.deps.get(task.id)?.manual.sourceUrl;
@@ -233,7 +238,7 @@ export class EnrichmentQueue {
     return {running:!this.paused&&!this.stopped&&(this.contexts.size>0||this.tasks.length>0),paused:this.paused,pending:this.tasks.length+this.contexts.size,completed:this.completed,current:[...this.contexts.values()].map(c=>c.current).join(' · '),message:this.message||undefined,transfer:this.transfer?{...this.transfer}:undefined,recentTransfers:this.recentTransfers.map(t=>({...t})),activeTransfers,speedHistory:this.speedHistory.map(s=>({...s})),downloadedBytes:this.downloadedBytes,peakDownloadBps:this.peakDownloadBps,totalDownloadBps,totalUploadBps:0,concurrency:this.concurrency,activeTasks:this.contexts.size};
   }
   private emit():void {this.deps.onProgress?.(this.progress);}
-  private check(ctx:TaskContext):void {if(ctx.controller.signal.aborted)throw ctx.controller.signal.reason||new QueuePaused();if(ctx.discovery){if(this.stopped)throw new QueuePaused("资料库正在关闭或迁移，请稍后重新搜索。");return;}const current=this.deps.get(ctx.task.id);if(!current||current.online.rematchRequested&&!ctx.task.rematch&&!ctx.task.url&&!ctx.task.previews||current.manual.matchingMode==='manual'&&!(ctx.task.url&&ctx.task.manualRequest===true)){const error=new QueueSuperseded('此素材已转入手动归类或不再参与匹配');ctx.controller.abort(error);throw error;}if(this.paused||this.stopped)throw new QueuePaused();}
+  private check(ctx:TaskContext):void {if(ctx.controller.signal.aborted)throw ctx.controller.signal.reason||new QueuePaused();if(ctx.discovery){if(this.stopped)throw new QueuePaused("资料库正在关闭或迁移，请稍后重新搜索。");return;}const current=this.deps.get(ctx.task.id);if(!current||current.online.rematchRequested&&!ctx.task.rematch&&!ctx.task.url&&!ctx.task.previews||current.manual.matchingMode==='manual'&&!(ctx.task.url&&ctx.task.manualRequest===true)){const error=new QueueSuperseded('此素材已转入手动归类或不再参与匹配');ctx.controller.abort(error);throw error;}if(this.sourceBinding(current,ctx.task)!==ctx.binding){const error=new QueueSuperseded('商品来源已改变，已停止旧商品任务');ctx.controller.abort(error);throw error;}if(this.paused||this.stopped)throw new QueuePaused();}
   private stopHeartbeat():void {if(this.heartbeat)clearInterval(this.heartbeat);this.heartbeat=undefined;}
   private ensureHeartbeat():void {
     if(this.heartbeat||this.paused||this.stopped)return;
@@ -295,7 +300,7 @@ export class EnrichmentQueue {
   }
   private update(ctx:TaskContext,patch:Partial<OnlineInfo>):void {this.check(ctx);
     if(ctx.task.rematch&&this.deps.get(ctx.task.id)?.online.rematchRequested&&!ctx.task.url){patch={...patch,status:'review'};for(const key of ['url','confirmedSource','matchEvidence','metadataSourceUrl'] as const)delete patch[key];}
-    this.deps.updateOnline(ctx.task.id,patch);this.deps.onChange?.();}
+    this.deps.updateOnline(ctx.task.id,patch);ctx.binding=this.sourceBinding(this.deps.get(ctx.task.id),ctx.task);this.deps.onChange?.();}
   private rejected(id:string,url:string):boolean {const key=canonicalSourceKey(url);return !!this.deps.get(id)?.online.rejectedUrls?.some(source=>canonicalSourceKey(source)===key);}
   private requireCurrentBinding(ctx:TaskContext,product:ProductCandidate):void {
     this.check(ctx);const current=this.deps.get(ctx.task.id),chosen=current?.manual.sourceUrl;
@@ -309,6 +314,7 @@ export class EnrichmentQueue {
     const id=boothItem(product.url),nameScore=candidateScore(asset.name,product),clue=searchClue(asset.name),signals:string[]=[];
     if(method==='manual')signals.push(manualConfirmed?'用户已确认这一商品来源':'用户提供来源网址；仍按名称与作者核对');
     if(method==='known-source')signals.push('刷新已登记商品来源；不视为新增人工确认');
+    if(method==='booth-download')signals.push('BOOTH 内置下载记录提供明确商品来源');
     if(id&&extractBoothIds(asset.name).includes(id))signals.push('文件名商品编号与 BOOTH '+id+' 一致');
     if(method==='child-package'){
       const localName=asset.localNameHints?.find(name=>id&&extractBoothIds(name).includes(id)||candidateScore(name,product)>=.95);
@@ -333,7 +339,10 @@ export class EnrichmentQueue {
     const selected=(ids?ids.map(id=>this.deps.get(this.canonicalId(id))).filter((a):a is AssetRecord=>!!a):this.deps.all().filter(a=>a.kind!=='unity-project'&&(!retry||a.online.status!=='matched'||this.needsCorrection(a)))).filter(a=>a.manual.matchingMode!=='manual');
     if(retry){const requested=new Set(selected.map(a=>a.id));this.tasks=this.tasks.filter(task=>!task.previews||!requested.has(task.id));for(const ctx of this.contexts.values())if(ctx.task.previews&&requested.has(ctx.task.id))ctx.controller.abort(new QueueSuperseded());}
     const queued=new Set([...this.tasks.map(t=>t.id),...[...this.contexts.values()].filter(ctx=>!retry||!ctx.task.previews).map(ctx=>ctx.task.id)]);
-    for(const asset of selected){const id=this.canonicalId(asset.id),correction=this.needsCorrection(asset);if(asset.missing||asset.kind==='unity-project'||(!retry&&asset.online.status!=='pending'&&!correction)||queued.has(id))continue;this.tasks.push({id,...(asset.online.rematchRequested?{rematch:true}:{}),...(correction?{correction:true}:{})});queued.add(id);}
+    for(const asset of selected){const id=this.canonicalId(asset.id),correction=this.needsCorrection(asset);if(asset.missing||asset.kind==='unity-project'||(!retry&&asset.online.status!=='pending'&&!correction))continue;
+      const active=this.contexts.get(id),binding=this.sourceBinding(asset,{id});
+      if(asset.online.status==='pending'&&asset.online.matchEvidence?.method==='booth-download'&&binding&&active&&active.binding!==binding){this.replaceTask({id});queued.add(id);continue;}
+      if(queued.has(id))continue;this.tasks.push({id,...(asset.online.rematchRequested?{rematch:true}:{}),...(correction?{correction:true}:{})});queued.add(id);}
     this.message='';this.save();this.emit();this.start();
   }
   async enqueueCandidateCovers(ids:string[]):Promise<void> {
@@ -383,7 +392,7 @@ export class EnrichmentQueue {
     while(this.contexts.size<this.concurrency){
       const index=this.tasks.findIndex(task=>(!task.notBefore||task.notBefore<=Date.now())&&!this.contexts.has(task.id));
       if(index<0)break;
-      const task=this.tasks.splice(index,1)[0],asset=this.deps.get(task.id),ctx:TaskContext={task,current:asset?.name||task.id,controller:new AbortController()};
+      const task=this.tasks.splice(index,1)[0],asset=this.deps.get(task.id),ctx:TaskContext={task,current:asset?.name||task.id,controller:new AbortController(),binding:this.sourceBinding(asset,task)};
       this.contexts.set(task.id,ctx);this.save();this.emit();this.ensureHeartbeat();
       const worker=this.runTask(ctx).catch(error=>{this.message=error instanceof Error?error.message:'队列运行失败';this.paused=true;this.cancelAll();}).finally(()=>{
         this.contexts.delete(task.id);this.workers.delete(worker);this.save();this.emit();this.start();
@@ -398,6 +407,9 @@ export class EnrichmentQueue {
     const task=ctx.task;
     try {const asset=this.deps.get(task.id);this.check(ctx);if(asset&&!asset.missing){if(task.previews)await this.candidateCovers(ctx,asset);else await this.enrich(ctx,asset,task);}this.check(ctx);if(!task.previews)this.completed++;}
     catch(error){
+      // A source may change while a request fails. Recheck before writing its
+      // failure or persisting retries, just as successful callbacks do.
+      try{this.check(ctx)}catch(currentError){error=currentError}
       if(error instanceof QueueSuperseded||ctx.controller.signal.reason instanceof QueueSuperseded)return;
       if(error instanceof QueuePaused||this.paused||this.stopped||ctx.controller.signal.reason instanceof QueuePaused){
         if(!this.tasks.some(t=>t.id===task.id))this.tasks.unshift({...task,notBefore:undefined});
@@ -596,7 +608,7 @@ export class EnrichmentQueue {
       const product=task.capturedHtml?parseProduct(task.capturedHtml,source):await this.product(ctx,source);if(this.rejected(asset.id,product.url))return;
       const changedItem=!!boothItem(source)&&boothItem(source)!==boothItem(product.url);
       const trusted=!!task.accept||!!asset.online.confirmedSource&&!!asset.online.url&&canonicalSourceKey(asset.online.url)===canonicalSourceKey(source);
-      const method:MatchEvidence['method']=legacy?'known-source':'manual';
+      const method:MatchEvidence['method']=!task.accept&&trusted&&asset.online.matchEvidence?.method==='booth-download'?'booth-download':legacy?'known-source':'manual';
       if(!changedItem&&(trusted||legacy||!!boothItem(source)&&candidateScore(asset.name,product)>=.95))await this.apply(ctx,asset,product,method,trusted);
       else{this.update(ctx,{url:changedItem?source:product.url,confirmedSource:false,matchEvidence:this.evidence(asset,product,method,false)});await this.showReview(ctx,[{...product,reason:changedItem?'网址跳转到了另一商品编号，需要重新确认':this.reviewReason(asset,product)}],'来源已读取，确认后应用封面与标签');}return;
     }

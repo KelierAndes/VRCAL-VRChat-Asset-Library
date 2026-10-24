@@ -9,7 +9,7 @@ export const CATEGORIES = ['未分类','模型','服装','头发','饰品','贴�
 export type Category = typeof CATEGORIES[number];
 export type AssetKind = 'folder'|'archive'|'unitypackage'|'file'|'unity-project';
 export type MatchStatus = 'pending'|'matched'|'review'|'not-found'|'failed'|'blocked';
-export interface MatchEvidence {method:'filename-id'|'readme-link'|'name-search'|'child-package'|'manual'|'known-source';signals:string[];ruleVersion:string;recordedAt:string}
+export interface MatchEvidence {method:'filename-id'|'readme-link'|'name-search'|'child-package'|'manual'|'known-source'|'booth-download';signals:string[];ruleVersion:string;recordedAt:string}
 export interface SearchEvidence {field:'name'|'item-id'|'author'|'category'|'avatar'|'tag'|'notes'|'description'|'member';text:string}
 export interface FileIdentity {device:string;inode:string;birthtime:string}
 export interface CategoryEvidence {rawCategory:string;sourceUrl:string;itemId:string;ruleVersion:string}

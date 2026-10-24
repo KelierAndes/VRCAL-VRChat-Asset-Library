@@ -191,6 +191,46 @@ test('completed-file import failure can be retried explicitly without another do
  await f.workspace.retryImport(id);assert.equal(f.workspace.snapshot().downloads[0].assetId,'recovered');assert.equal(f.workspace.snapshot().downloads[0].error,undefined);assert.equal(count,2);
 });
 
+test('library download waits for exact source capture before import and never persists signed transfer URLs',async t=>{
+ const f=fixture(t);await f.workspace.open({tab:'library'});await settled();const contents=f.workspace.entry.view.webContents;let release;
+ contents.executeJavaScriptInIsolatedWorld=async(world,scripts)=>{assert.equal(typeof world,'number');assert(!scripts[0].code.includes('TOP_SECRET_SIGNED_TOKEN'));return new Promise(resolve=>{release=resolve})};
+ const download=new Download();download.getURLChain=()=>['https://booth.pm/downloadables/987',download.getURL()];assert.equal(start(f.workspace,download),false);assert.ok(download.path);download.complete();await settled();assert.equal(f.imports.length,0);
+ release('456');await settled();assert.equal(f.imports.length,1);assert.equal(f.imports[0].url,'https://booth.pm/zh-cn/items/456');assert.equal(f.workspace.snapshot().downloads[0].sourceUrl,'https://booth.pm/zh-cn/items/456');assert(!fs.readFileSync(path.join(f.dataDir,'booth-downloads.json'),'utf8').includes('TOP_SECRET_SIGNED_TOKEN'));
+});
+
+test('library download discards a captured source after navigation, cancellation or network shutdown',async t=>{
+ for(const mode of ['navigation','cancel','offline']){const f=fixture(t);await f.workspace.open({tab:'library'});await settled();const contents=f.workspace.entry.view.webContents;let release;contents.executeJavaScriptInIsolatedWorld=async(_world,scripts)=>/\)\("install",/.test(scripts[0].code)?true:new Promise(resolve=>{release=resolve});const download=new Download();start(f.workspace,download);
+  if(mode==='navigation'){await contents.loadURL('https://accounts.booth.pm/library?page=2');download.complete()}else if(mode==='cancel')download.cancel();else{f.setOnline(false);f.workspace.networkChanged()}
+  release('456');await settled();assert.equal(f.workspace.snapshot().downloads[0].sourceUrl,undefined);assert.equal(f.imports[0]?.url,undefined);
+ }
+});
+
+test('historical download associations recover only completed known products without opening an account session',async t=>{
+ const f=fixture(t),file=path.join(f.downloadDir,'saved.zip');fs.writeFileSync(file,'abcde');const records=[
+  {id:'11111111-1111-1111-1111-111111111111',name:'saved.zip',file,state:'completed',sourceUrl:'https://booth.pm/items/456',assetId:'saved-1',receivedBytes:5,totalBytes:5},
+  {id:'22222222-2222-2222-2222-222222222222',name:'unknown.zip',file,state:'completed',assetId:'unknown-1',receivedBytes:5,totalBytes:5},
+  {id:'33333333-3333-3333-3333-333333333333',name:'missing.zip',file:path.join(f.downloadDir,'missing.zip'),state:'completed',sourceUrl:'https://booth.pm/items/777',assetId:'missing-1',receivedBytes:5,totalBytes:5}
+ ];fs.writeFileSync(path.join(f.dataDir,'booth-downloads.json'),JSON.stringify(records));const restored=new BoothWorkspace(f.deps);await restored.restoreDownloadAssociations();
+ assert.deepEqual(f.imports,[{file,url:'https://booth.pm/zh-cn/items/456'}]);assert.equal(restored.remoteSession,undefined);assert.equal(restored.entry,undefined);assert.equal(restored.snapshot().downloads.length,3);await restored.shutdown();
+});
+
+test('historical recovery shares one serial job and shutdown waits for its current import',async t=>{
+ let release,started=0;const f=fixture(t,{onDownloaded:async()=>{started++;await new Promise(resolve=>{release=resolve});return {assetId:'repaired'}}}),file=path.join(f.downloadDir,'saved.zip');fs.writeFileSync(file,'abcde');
+ const records=['11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222'].map(id=>({id,name:'saved.zip',file,state:'completed',sourceUrl:'https://booth.pm/items/456',assetId:id,receivedBytes:5,totalBytes:5}));fs.writeFileSync(path.join(f.dataDir,'booth-downloads.json'),JSON.stringify(records));
+ const restored=new BoothWorkspace(f.deps),first=restored.restoreDownloadAssociations(),second=restored.restoreDownloadAssociations();assert.equal(first,second);await settled();assert.equal(started,1);let stopped=false;const shuttingDown=restored.shutdown().then(()=>{stopped=true});await settled();assert.equal(stopped,false);release();await Promise.all([first,shuttingDown]);assert.equal(started,1);assert.equal(stopped,true);
+});
+
+test('successful historical associations persist their internal version and are not replayed after restart',async t=>{
+ const f=fixture(t),file=path.join(f.downloadDir,'saved.zip');fs.writeFileSync(file,'abcde');fs.writeFileSync(path.join(f.dataDir,'booth-downloads.json'),JSON.stringify([{id:'11111111-1111-1111-1111-111111111111',name:'saved.zip',file,state:'completed',sourceUrl:'https://booth.pm/items/456',assetId:'saved-1',receivedBytes:5,totalBytes:5}]));
+ const restored=new BoothWorkspace(f.deps);await restored.restoreDownloadAssociations();assert.equal(f.imports.length,1);assert.equal(JSON.parse(fs.readFileSync(path.join(f.dataDir,'booth-downloads.json'),'utf8'))[0].associationVersion,1);assert.equal('associationVersion' in restored.snapshot().downloads[0],false);await restored.shutdown();
+ const restarted=new BoothWorkspace(f.deps);await restarted.restoreDownloadAssociations();assert.equal(f.imports.length,1);assert.equal(restarted.remoteSession,undefined);await restarted.shutdown();
+});
+
+test('historical recovery stops when networking closes and failed repairs remain eligible',async t=>{
+ const f=fixture(t),file=path.join(f.downloadDir,'saved.zip');fs.writeFileSync(file,'abcde');const records=['11111111-1111-1111-1111-111111111111','22222222-2222-2222-2222-222222222222'].map(id=>({id,name:'saved.zip',file,state:'completed',sourceUrl:'https://booth.pm/items/456',assetId:id,receivedBytes:5,totalBytes:5}));fs.writeFileSync(path.join(f.dataDir,'booth-downloads.json'),JSON.stringify(records));let calls=0;
+ const restored=new BoothWorkspace({...f.deps,onDownloaded:async()=>{calls++;f.setOnline(false);throw new Error('incomplete')}});await restored.restoreDownloadAssociations();assert.equal(calls,1);assert.equal(JSON.parse(fs.readFileSync(path.join(f.dataDir,'booth-downloads.json'),'utf8')).some(record=>record.associationVersion===1),false);f.setOnline(true);await restored.restoreDownloadAssociations();assert.equal(calls,2);await restored.shutdown();
+});
+
 test('restoring a library releases the old session hooks so replacement workspace can still download and account can reopen after clearing',async t=>{
  const f=fixture(t);await f.workspace.open({tab:'library'});const session=f.workspace.remoteSession;assert.equal(session.listenerCount('will-download'),1);await f.workspace.shutdown();assert.equal(session.listenerCount('will-download'),0);
  const replacement=new BoothWorkspace(f.deps);replacement.publicHost=async()=>{};await replacement.open({tab:'library'});assert.equal(replacement.remoteSession,session);assert.equal(session.listenerCount('will-download'),1);const item=new Download();assert.equal(start(replacement,item),false);item.complete();await settled();assert.equal(replacement.snapshot().downloads[0].assetId,'downloaded-1');
