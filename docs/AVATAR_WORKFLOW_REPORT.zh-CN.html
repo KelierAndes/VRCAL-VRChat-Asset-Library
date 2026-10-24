@@ -1,30 +1,63 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VRChat 本地素材管理器：改模体验与一键装配改进报告</title><style>
  :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
- </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.5 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">结论</a><a href="#section-3">研究方法与证据边界</a><a href="#section-4">当前能力盘点</a><a href="#section-5">用户从想法到成品的痛点</a><a href="#section-6">容易漏掉的实际问题</a><a href="#section-7">重要设计约束</a><a href="#section-14">本轮实施范围</a><a href="#section-15">后续实施门槛</a><a href="#section-16">社区与 AI 的分工</a><a href="#section-17">验收标准</a><a href="#section-18">来源（2026-10-24 核对）</a><a href="#section-19">实施记录</a></nav><main><h1 id="section-1">VRChat 本地素材管理器：改模体验与一键装配改进报告</h1>
-<p>日期：2026-10-24。基线：1.4.0-preview.3。本报告同时作为本轮改进的设计说明；实际完成情况以末尾实施记录和随包验收记录为准。</p>
-<h2 id="section-2">结论</h2>
-<p>当前应用已经覆盖“找素材、识别商品、管理文件、导入工程”的大部分入口，但这些入口没有形成连续的改模流程。用户最难的往往不是点击导入，而是确定：该选哪个包、会改哪个工程、是否已经装过、导入和穿上是否都成功、菜单在哪里、出了问题该继续哪一步。</p>
-<p>本轮优先补齐连续流程：<strong>改模工作台 → 导入前检查 → 装配并接入菜单 → 分步结果 → 用户效果检查记录</strong>。同一次预制件装配与菜单配置共用一次操作、一次撤销；默认保留作者菜单。跨角色自动变形、任意穿模修复和跨重启自动卸载需要更多工程证据，不能用“自动成功”掩盖未知。</p>
-<h2 id="section-3">研究方法与证据边界</h2>
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.9 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">当前结论：首期流程已实现，整份路线图尚未完成</a><a href="#section-3">首期五项承诺，逐项核对</a><a href="#section-4">preview.5–9 后续进展与现有边界</a><a href="#section-5">尚未完成的功能，保持明确待办</a><a href="#section-6">如何核对验收证据</a><a href="#section-7">研究方法与证据边界</a><a href="#section-8">原设计：用户从想法到成品的痛点</a><a href="#section-9">容易漏掉的实际问题</a><a href="#section-10">重要设计约束</a><a href="#section-17">preview.4 首期实施范围（历史）</a><a href="#section-18">后续实施门槛</a><a href="#section-19">社区与 AI 的分工</a><a href="#section-20">验收标准</a><a href="#section-21">来源（2026-10-24 核对）</a><a href="#section-22">preview.4 实施记录（历史，保留当时验收范围）</a></nav><main><h1 id="section-1">VRChat 本地素材管理器：改模体验与一键装配改进报告</h1>
+<p>初始设计日期：2026-10-24，设计基线 preview.3，首期实现 preview.4。<strong>本次核对版本：1.4.0-preview.9</strong>，应用源码提交 <code>ec42543d16a6e4619f57e8742773a49b55cfbaad</code>。本次更新报告与计划，不改变应用行为或重新发布安装包。</p>
+<h2 id="section-2">当前结论：首期流程已实现，整份路线图尚未完成</h2>
+<p><strong>不能把这份报告理解为“所有功能都已经完善”。</strong> 改模工作台、有限的导入前检查、同内容素材包重复提醒、MA 装配与菜单联动、分步结果和人工检查记录，已有实现及隔离测试。角色衣柜、套装互斥、保存预览工程、持久卸载、最终构建预算、自动体型适配和穿模修复仍未完成。</p>
+<p>当前已经有“找到素材 → 选工程 → 导入 → 交给 Unity 装配 → 回应用核对记录”的基础流程；<strong>实际商业角色、真实 MA／SDK 和游戏内同步的完整验收还没有完成</strong>。984 项自动化回归通过，只证明对应代码检查与夹具结果通过，不代表这些真实场景已经验证。</p>
+<p>旧输出目录 <code>VRCAL-1.4.0-preview.4</code> 中的报告是当时随包快照，保留不覆盖。本文件是更新后的跟踪报告。下文标为 preview.4 的段落保留原设计和历史验收语境；当前状态以本节及<a href="WORK_PLAN_20261024.zh-CN.html">总计划</a>为准。</p>
+<h2 id="section-3">首期五项承诺，逐项核对</h2>
+<div class="table-scroll"><table><thead><tr><th>首期内容</th><th>当前完成情况</th><th>还缺什么／不能据此认定什么</th></tr></thead><tbody>
+<tr><td>改模工作台与目标工程记忆</td><td>已实现：选择工程、显示路径、记住目标，集中商品、导入、插件与报错入口</td><td>记住工程不等于稳定识别具体角色、场景和复制后的对象；尚无完整角色档案</td></tr>
+<tr><td>导入前检查与重复提醒</td><td>已实现基础检查：SDK／MA／NDMF 公开包文件与声明分开，Unitypackage 按同工程历史内容 SHA-256 去重，执行时复核</td><td>本地适配仍可为未知；未检测全部着色器或编译兼容性；历史全局最多 100 笔，不覆盖所有手动导入；普通复制与 Unitypackage 的覆盖规则不同</td></tr>
+<tr><td>MA 装配与菜单联动</td><td>已实现：可选角色与 Prefab，符合明确条件时自动继续，直接子级末尾放置；保留作者已有 MA 菜单，否则可创建显隐开关；同组 Undo 与失败回滚</td><td>真实 MA／SDK／商业预制件端到端仍待验收；不自动关闭旧衣服，不实现套装互斥或身体形态映射；不会自动保存场景</td></tr>
+<tr><td>分步结果与用户检查记录</td><td>已实现：文件导入、角色装配、菜单、人工效果检查分开显示；重启保存、记录筛选和逐批展开</td><td>回执成功不等于 SDK 构建、动作、身体遮挡或游戏同步成功；人工勾选只代表用户记录</td></tr>
+<tr><td>报告、教程、截图与程序交付</td><td>已交付 preview.4 本地首期，并在 preview.5 起汇入 GitHub 公开预览；当前公开程序为 preview.9</td><td>交付文件完整不等于长期规划全部完成；本次只是核对文档，不能新增真实兼容性证明</td></tr>
+</tbody></table></div>
+<p>实现依据：<a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/renderer/avatar-workbench.tsx#L13">工作台页面</a>、<a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/main/project-readiness.ts#L5">工程准备检查</a>、<a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/main/project-import.ts#L76">导入及历史</a>、<a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/assets/unity/VRCALMASetup.cs#L400">Unity MA 助手</a>、<a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/blob/ec42543d16a6e4619f57e8742773a49b55cfbaad/src/renderer/import-progress.tsx#L10">分步显示</a>。操作入口见<a href="AVATAR_WORKBENCH.zh-CN.html">工作台图文教程</a>。</p>
+<h2 id="section-4">preview.5–9 后续进展与现有边界</h2>
+<div class="table-scroll"><table><thead><tr><th>能力</th><th>当前状态</th><th>当前边界</th></tr></thead><tbody>
+<tr><td>页面逻辑与导航</td><td>已实现：素材整理、改模与工程、查找与下载分组，窄窗口导航和集中工作台</td><td>整理入口不等于已经实现角色衣柜</td></tr>
+<tr><td>BOOTH 下载后商品／封面关联</td><td>preview.7 已修复明确来源的直接关联及旧记录补回</td><td>来源冲突、未知或先前没有保存来源时不强行绑定；不是任意外部下载都能恢复来源</td></tr>
+<tr><td>衣服单模型与角色静态组合预览</td><td>preview.9 已实现，合成模型、实际窗口和打包版验证通过</td><td>只保留原坐标作静态参考，可手调、显隐；不还原 Unity 场景、骨骼绑定、材质、遮罩和物理；关闭后不保存组合</td></tr>
+<tr><td>AI 衣服类型／风格建议</td><td>文本接口、队列、缓存、建议与人工接受流程已实现</td><td>没有图片风格分类；仍需配置 API 密钥，真实服务准确率未验收，不覆盖人工主分类</td></tr>
+<tr><td>Unity 报错与 AI 解释</td><td>归属核对、日志归并、本地提示与可选 AI 已实现</td><td>页面打开期间检查所选工程，不是所有工程常驻后台监控；不执行修复建议，真实 AI 排障效果未验收</td></tr>
+<tr><td>自然语言找素材</td><td>网站检索流程已实现，历史有 BOOTH／闲鱼真实搜索结果；API 规划经模拟验证</td><td>商品由网站返回，不采用 AI 虚构商品；真实 AI 检索质量仍待验证</td></tr>
+<tr><td>网页 AI 免 API 密钥</td><td>preview.8 已实现找素材辅助流程：复制提示词、打开固定官网、用户发送并粘回 JSON</td><td>需要用户操作，不是后台静默 AI；不承诺免费额度；这个入口没有同时覆盖分类与报错解释</td></tr>
+<tr><td>近期待下载链接</td><td>页面、同意、加密记录、6／12／24 小时、去重、蓝点和下载衔接已有实现</td><td>仍只检查已加载官方页面；BOOTH 6 条历史卡片无购买时间，仅能待核对；真实闲鱼新交付到下载全链路未验收</td></tr>
+<tr><td>登录后的独立后台交付发现</td><td>未完成</td><td>关闭平台窗口后不能持续发现；预览行没有链接时不会自动进入会话取得完整交付；修复连接规则不等于真实聊天已连通</td></tr>
+<tr><td>30 项公开插件入口</td><td>已实现目录、作者来源与安装方式，部分可下载后导入</td><td>不读取私有插件；具体角色、插件与版本组合仍需实际工程核对</td></tr>
+</tbody></table></div>
+<p>预览与数据范围见<a href="MODEL_PREVIEW.zh-CN.html">3D 图文教程</a>、<a href="AI_DISCOVERY.zh-CN.md">找素材说明</a>、<a href="LINK_INBOX_READERS.zh-CN.md">待下载链接读取范围</a>。</p>
+<h2 id="section-5">尚未完成的功能，保持明确待办</h2>
+<ol>
+<li><strong>稳定角色档案与衣柜</strong>：把工程、场景、角色对象、套装及配件可靠关联，重命名或复制后不误认。</li>
+<li><strong>套装互斥和身体／动画冲突检查</strong>：保留作者规则，检查旧衣服、BlendShape、身体遮罩、动画和参数控制冲突。</li>
+<li><strong>跨重启卸载、更新与恢复</strong>：持久化修改清单，检测用户后来改动及共享引用；当前 Undo 不是永久卸载。</li>
+<li><strong>最终菜单、参数与性能预算</strong>：读取真实构建结果与平台目标；当前没有 SDK 构建成功或最终预算验证功能。</li>
+<li><strong>保存角色与衣服的组合／预览工程</strong>：目前调整只存在于窗口；静态组合已做，保存和复用仍未做。</li>
+<li><strong>跨角色适配与有限穿模修复</strong>：没有自动重绑骨骼、体型变形、动态穿模检测和修复；手动缩放不能算这项完成。</li>
+<li><strong>平台窗口关闭后的独立后台交付发现</strong>：不把现有页面轮询说成完整后台；真实新交付的时间、蓝点及下载闭环也待验收。</li>
+<li><strong>真实 AI、MA／SDK、商业角色及游戏效果验收</strong>：不是全部缺代码，但缺真实效果证据；不能因此标记完善。</li>
+<li><strong>新增内容的完整日语／英语翻译</strong>：按维护者要求暂缓，已有翻译保留。</li>
+</ol>
+<p>下一步优先补齐已实现关键链路的真实证据与故障反馈，再推进报告原定 P1 的稳定角色身份、可撤回衣柜和冲突检查；P2 自动适配／穿模处理继续独立列项。本报告不承诺这些事项的完成日期，也不把它们塞入“已完成”。</p>
+<h2 id="section-6">如何核对验收证据</h2>
+<ul>
+<li><strong>代码与自动化</strong>：当前应用 preview.9 的 984 项回归全部通过；<a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/actions/runs/40079845174">Windows CI</a>对应上面的应用源码提交。</li>
+<li><strong>实际应用窗口</strong>：preview.4 历史记录有 10 组隔离界面验收，回执样例明确为合成；preview.9 验证单模型及双模型彩色像素、显隐、四主题、980px／200% 和源哈希。</li>
+<li><strong>真实 Unity 编辑器与真实 MA 必须分开</strong>：历史 62 项断言在真实 Unity 2022.3 的合成工程执行，但 MA 公共 API 是测试替身，记录的 <code>realMARuntime</code> 为 false；不能据此声称真实 MA／SDK 闭环已经通过。</li>
+<li><strong>公开交付</strong>：<a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.9">preview.9 Release</a>及其验收附件有源码提交、6 个附件摘要、打包与下载检查；历史报告和其原验收口径保留。</li>
+<li><strong>本次文档核对</strong>：只比对已有源码、计划和验收记录，没有新增真实账号、商业素材或 Unity 工程测试。真实服务和角色效果仍按上面的未验收状态记录。</li>
+</ul>
+<h2 id="section-7">研究方法与证据边界</h2>
 <ul>
 <li>依据本项目用户反馈：文件命名混乱、适配版本不明、导入位置未知、MA 窗口术语难懂、误确认后需要撤回、资料库丢失感、反复操作成本高。</li>
 <li>检查当前源码与现有回归记录：工程导入、MA 助手、工作台入口、Unity 日志、轻量模型预览、AI 和下载收件箱。</li>
 <li>核对 MA 与 VRChat 官方文档，参考下文来源。</li>
 <li>本报告不是问卷调查；没有虚构访谈人数、成功率、节省时间或用户满意度。表中的“痛点”是已知反馈或基于流程的产品判断。</li>
 </ul>
-<h2 id="section-4">当前能力盘点</h2>
-<div class="table-scroll"><table><thead><tr><th>能力</th><th>当前状态</th><th>与完整改模的距离</th></tr></thead><tbody>
-<tr><td>BOOTH 匹配、封面、人工确认与来源撤回</td><td>已实现</td><td>商品身份不等于本地适配版本正确</td></tr>
-<tr><td>工程文件与商品读取</td><td>已实现</td><td>文件存在不等于场景正在使用</td></tr>
-<tr><td>Unitypackage 导入与普通文件复制</td><td>已实现</td><td>完成导入不等于穿上或构建通过</td></tr>
-<tr><td>MA 装配、候选选择、层级末尾放置</td><td>已实现</td><td>缺少统一的前置检查与菜单联动</td></tr>
-<tr><td>单独 MA 菜单配置</td><td>已实现</td><td>与装配模式分开，增加重复操作</td></tr>
-<tr><td>Unity 撤销</td><td>已实现场景操作撤销</td><td>不能代替跨重启卸载及恢复用户后续修改</td></tr>
-<tr><td>轻量 3D 预览</td><td>已实现，合成格式已测试</td><td>不还原 Unity 着色器、物理与完整角色工程</td></tr>
-<tr><td>国内 AI 分类、报错解释和找素材</td><td>已接入，接口与 UI 已测试</td><td>尚无真实付费 API 效果证据</td></tr>
-<tr><td>待下载链接</td><td>部分实现</td><td>闲鱼真实交付识别和独立后台发现仍未完成</td></tr>
-</tbody></table></div>
-<h2 id="section-5">用户从想法到成品的痛点</h2>
+<h2 id="section-8">原设计：用户从想法到成品的痛点</h2>
 <div class="table-scroll"><table><thead><tr><th>环节</th><th>用户遇到的问题</th><th>应用需要承担的工作</th><th>优先级</th></tr></thead><tbody>
 <tr><td>选工程</td><td>同名角色、多个场景，担心装错工程</td><td>明确工程路径，记住常用工程；角色选择仍以 Unity 当前场景为准</td><td>P0</td></tr>
 <tr><td>选素材</td><td>多适配、多版本、多语言命名</td><td>展示本地包候选和原路径；不把商品全部适配列表当作本地内容</td><td>P0</td></tr>
@@ -39,7 +72,7 @@
 <tr><td>性能与平台</td><td>菜单关了仍很重，PC 正常而 Quest 异常</td><td>最终构建统计、分平台配置和当前穿搭精简模式</td><td>P1</td></tr>
 <tr><td>跨角色适配</td><td>同名骨骼不等于身材与蒙皮兼容</td><td>验证过的适配配方优先；后续再做可撤回辅助变形</td><td>P2</td></tr>
 </tbody></table></div>
-<h2 id="section-6">容易漏掉的实际问题</h2>
+<h2 id="section-9">容易漏掉的实际问题</h2>
 <div class="table-scroll"><table><thead><tr><th>问题</th><th>常见结果</th><th>后续如何处理</th></tr></thead><tbody>
 <tr><td>着色器缺失或版本不符</td><td>粉色材质、透明排序异常、光照不一致</td><td>根据作者依赖声明核对版本；不自动把全部材质替换为通用材质</td></tr>
 <tr><td>身体形态名称不一致</td><td>衣服宽窄不合、脚部和胸部穿插</td><td>使用作者提供的 BlendShape 映射与隐藏区域，未知映射不猜</td></tr>
@@ -53,14 +86,14 @@
 <tr><td>文件与资料库放在不同磁盘</td><td>盘符断开时以为整理成果丢了</td><td>保留原记录并提示缺失位置；不偷偷重建空资料库</td></tr>
 </tbody></table></div>
 <p>这些是待完善的检查方向，并不表示本版已经具备全套检测。自动化优先处理有明确证据、可恢复的情况；只有选择有歧义或会覆盖用户成果时才打断。效果勾选是可选的个人记录，不强制用户每次导入多点三次。</p>
-<h2 id="section-7">重要设计约束</h2>
-<h3 id="section-8">1. 从工程开始，逐步走向角色工作台</h3>
+<h2 id="section-10">重要设计约束</h2>
+<h3 id="section-11">1. 从工程开始，逐步走向角色工作台</h3>
 <p>本轮工作台集中目标工程、依赖线索、导入记录和下一步操作。它不声称能离线知道 Unity 当前打开的角色。后续角色档案应绑定工程、场景和稳定对象标识；不能只记角色名称，也不能因为只有一个预制件就推断其适配正确。</p>
-<h3 id="section-9">2. 菜单、形态与动画需要共同检查</h3>
+<h3 id="section-12">2. 菜单、形态与动画需要共同检查</h3>
 <p>单个 VRChat 菜单最多 8 个控件，MA 支持满页自动分页。同步参数有总预算；同名参数、默认状态、保存状态、其他玩家的同步效果都可能影响可用性。[1][2][3]</p>
 <p>完整衣柜要区分套装互斥和配件叠加。不能把所有服装都强制互斥，也不能把已有作者菜单丢弃再重建。多个动画控制同一对象、多个 Shape Changer 控制同一身体形态时，可能发生覆盖。层级末尾放置还可能改变 MA 同优先级动画的合并顺序，因此“在底部”只是展示与组织规则，不是兼容性证明。[4][5]</p>
 <p>本轮采用保守且可用的接入方式：已有 MA 菜单组件则保留；没有时，在用户勾选后创建独立显隐开关。不开启旧衣服自动关闭、套装互斥和身体形态猜测。这些需要角色关系证据后再自动化。</p>
-<h3 id="section-10">3. 自动适配应有证据等级</h3>
+<h3 id="section-13">3. 自动适配应有证据等级</h3>
 <ul>
 <li>作者适配版本与完整 MA 预设：优先使用原配置。</li>
 <li>同角色骨骼兼容但无完整预设：使用 MA 装配，效果仍需动作与体型检查。</li>
@@ -68,21 +101,21 @@
 <li>跨角色衣装或未知骨骼：转辅助配置，不因名称相似自动变形。</li>
 </ul>
 <p>MA 官方区分可兼容装配的衣装和预先设置好菜单、形态同步、身体遮挡的完整预设。[6] 轻量预览负责看模型；实际 Unity 构建和游戏内同步仍需对应环境验证。</p>
-<h3 id="section-11">4. 成功必须拆开显示</h3>
+<h3 id="section-14">4. 成功必须拆开显示</h3>
 <p>“文件已导入”“角色已装配”“菜单已保留或生成”“用户已检查效果”“SDK 构建通过”分别是不同证据。本轮不增加虚假的 SDK 成功状态；用户手动勾选也不会变成机器验证通过。</p>
-<h3 id="section-12">5. 恢复能力必须保留后来做的修改</h3>
+<h3 id="section-15">5. 恢复能力必须保留后来做的修改</h3>
 <p>即时失败回滚与 Unity Undo 解决当前操作；跨重启恢复需要记录每个修改前后值，并在恢复前比较用户是否又改过。共享材质、着色器、其他角色引用不能按“属于同一次导入”直接删除。后续卸载默认先解除本工具管理的场景配置，文件清理需单独列出实际引用证据。</p>
-<h3 id="section-13">6. 性能要检查最终成品</h3>
+<h3 id="section-16">6. 性能要检查最终成品</h3>
 <p>关闭衣服开关不等于从性能统计中移除。VRChat 性能统计包含禁用对象和组件。[7] 后续应区分“仅构建当前穿搭”和“保留多套游戏内切换”，并显示最终构建后的增量；本轮不以包文件大小推断 FPS 或性能等级。</p>
-<h2 id="section-14">本轮实施范围</h2>
+<h2 id="section-17">preview.4 首期实施范围（历史）</h2>
 <ol>
 <li>新增独立“改模工作台”，集中工程选择、依赖线索、文件与商品入口、导入历史、错误诊断及插件入口；记住选中的工程。</li>
-<li>导入预览增加结构化检查和同工程同内容 Unitypackage 重复提示；重新导入必须显式选择，GUID 冲突仍不可覆盖。执行时复核，防止两个旧预览绕过提醒。</li>
+<li>导入预览增加结构化检查和同工程同内容 Unitypackage 重复提示；重新导入必须显式选择。普通文件复制会阻止已发现的 GUID 冲突；Unitypackage 的覆盖项由 Unity 原生导入窗口核对，不声称阻止所有包内 GUID 覆盖。执行时复核，防止两个旧预览绕过提醒。</li>
 <li>MA 装配可同时接入菜单：保留作者现有菜单，没有时创建显隐开关；保持预制件直接位于角色末尾，配置合并到同一次 Undo，失败回滚。</li>
 <li>显示分步结果和下一步操作；保存外观、动作、菜单的用户检查记录，重启可读。历史记录分页显示，不只展示最近八条。</li>
 <li>报告、使用步骤、真实应用截图、测试记录和 Windows 本地预览包一起交付。新增文案先使用中文。</li>
 </ol>
-<h2 id="section-15">后续实施门槛</h2>
+<h2 id="section-18">后续实施门槛</h2>
 <div class="table-scroll"><table><thead><tr><th>阶段</th><th>下一项能力</th><th>开始自动执行前必须具备</th></tr></thead><tbody>
 <tr><td>P1-A</td><td>角色档案、衣柜与目标记忆</td><td>Unity 返回稳定场景/对象身份；删除、复制和改名后不会误认</td></tr>
 <tr><td>P1-B</td><td>套装互斥、体型和身体遮挡</td><td>作者配置或人工确认的映射；A→B→A 恢复测试</td></tr>
@@ -91,9 +124,9 @@
 <tr><td>P2</td><td>跨角色辅助适配与穿模处理</td><td>保留原网格、多个动作检查、前后对比和可撤回派生文件</td></tr>
 </tbody></table></div>
 <p>已有待下载链接、真实 AI 和真实商品兼容性验证仍保留在 WORK_PLAN_20261024.zh-CN.md，不因本轮改模工作被标记完成。</p>
-<h2 id="section-16">社区与 AI 的分工</h2>
+<h2 id="section-19">社区与 AI 的分工</h2>
 <p>社区贡献可验证的装配配置，记录商品/角色版本、预制件、依赖、挂点、菜单和已测试动作，保留贡献者署名。配置只描述操作，不夹带原作者的收费素材。AI 负责理解需求、整理检索词、解释说明和诊断建议；工程写入由确定的规则执行和校验，不直接执行 AI 生成的任意脚本。</p>
-<h2 id="section-17">验收标准</h2>
+<h2 id="section-20">验收标准</h2>
 <ul>
 <li>原素材清单及抽样哈希前后不变；所有 Unity 测试只用独立合成工程。</li>
 <li>不同工程、包改名但内容相同、同包再次导入、过期预览、GUID 冲突有明确行为。</li>
@@ -103,7 +136,7 @@
 <li>四主题、980px 与 200% 缩放下主要操作可达；截图为实际应用窗口。</li>
 <li>商业角色适配、真实收费 AI、游戏内最终同步未测时如实记录，不以模拟测试替代。</li>
 </ul>
-<h2 id="section-18">来源（2026-10-24 核对）</h2>
+<h2 id="section-21">来源（2026-10-24 核对）</h2>
 <ol>
 <li><a href="https://creators.vrchat.com/avatars/expression-menu-and-controls/">VRChat Expressions Menu and Controls</a></li>
 <li><a href="https://modular-avatar.nadena.dev/docs/reference/menu-installer">Modular Avatar Menu Installer</a></li>
@@ -113,7 +146,7 @@
 <li><a href="https://modular-avatar.nadena.dev/docs/distributing-prefabs/for-outfit-creators">Modular Avatar Advice for Outfit Creators</a></li>
 <li><a href="https://creators.vrchat.com/avatars/avatar-performance-ranking-system/">VRChat Performance Ranks</a></li>
 </ol>
-<h2 id="section-19">实施记录</h2>
+<h2 id="section-22">preview.4 实施记录（历史，保留当时验收范围）</h2>
 <p>本轮已实现 1.4.0-preview.4 的五项范围：改模工作台、结构化导入检查、Unitypackage 内容去重、MA 装配菜单联动和持久化用户检查。代码已通过 877 项回归；隔离 Electron 完成 10 组验收，覆盖四主题、980px/200%、选择工程、菜单请求、重复导入、诊断衔接及重启保存。</p>
 <p>真实 Unity 2022.3 编辑器在独立合成工程中执行 62 项断言，包括装配、菜单保留/生成、失败回滚、一次撤销、重启与原生包导入回调。MA 接口使用明确标记的测试替身；不能据此宣称全部真实 MA/SDK 版本兼容或商业角色试穿成功。图文说明中的回执为 UI 合成样例。</p>
 <p>独立审查发现并修正：慢初始化覆盖用户新选择、再次选择同一工程使记录空白、复制元数据误当内容摘要。普通复制继续沿用 GUID 冲突检查，内容去重明确限定 Unitypackage。</p>

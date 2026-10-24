@@ -1,0 +1,93 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>本轮落地计划与状态（核对至 1.4.0-preview.9）</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.9 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">当前核对说明</a><a href="#section-3">1. 轻量 3D 预览 · 已实现</a><a href="#section-4">2. 待下载链接 · 部分实现，优先继续</a><a href="#section-5">3. 国内 AI 衣装细分类 · 已接入，待真实服务验证</a><a href="#section-6">4. Unity 报错解释 · 已实现基础流程</a><a href="#section-7">5. 公开插件目录 · 已实现</a><a href="#section-8">6. 统一交付 · 当前已公开至 preview.9</a><a href="#section-9">后续阶段，仍保留在计划中</a><a href="#section-10">7. AI 找素材 · 1.4.0-preview.3</a><a href="#section-11">8. 改模工作台 · 1.4.0-preview.4</a></nav><main><h1 id="section-1">本轮落地计划与状态（核对至 1.4.0-preview.9）</h1>
+<p>用户要求：继续实际落地，尽量后台完成，减少多余操作；用户此前允许使用已登录账号只读验证，本次仅核对源码与已有记录，没有核实当前登录状态。此清单同时保存已完成项和未完成项，不能将合成测试当作真实账号验收。</p>
+<h2 id="section-2">当前核对说明</h2>
+<p>本文件已对照 preview.9 应用源码 <code>ec42543d16a6e4619f57e8742773a49b55cfbaad</code> 和随包验收记录更新。首期流程已实现，<strong>完整一键改模尚未完成</strong>。勾选表示所述代码或测试范围完成，不表示真实商业角色、MA／SDK、账号和付费 AI 效果均通过。完整对照见<a href="AVATAR_WORKFLOW_REPORT.zh-CN.html">改模体验与一键装配报告</a>。</p>
+<p>当前公开版本为 <a href="https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.9">1.4.0-preview.9</a>；preview.5–9 已同步 GitHub。下列版本数字对应各轮历史证据，不累加为真实兼容性证明。本次为文档核对，不新增程序版本。</p>
+<h2 id="section-3">1. 轻量 3D 预览 · 已实现</h2>
+<ul>
+<li>[x] 不依赖 Unity；常见 FBX、GLB、glTF、OBJ，以及 ZIP／Unitypackage 里的可支持模型。</li>
+<li>[x] 单独窗口，25/50/75/100% 渲染比例、旋转/平移/远近、复位、素模、线框与可读取动画。</li>
+<li>[x] 原素材只读，单文件不扩读父目录；贴图与包体限额、远程资源拒绝、取消和释放。</li>
+<li>[x] 首次 19 项聚焦回归；真实 Electron 显示合成 glTF/FBX/OBJ＋PNG，四主题彩色像素、980px/200%、源哈希检查。</li>
+<li>[x] preview.9：右键预览入口、角色素材／模型选择、双模型静态组合、独立与部件显隐、衣服手动变换和五个视角；实际打包窗口、四主题、980px／200% 与哈希检查通过。</li>
+<li>[ ] 更多实际商品包兼容性验证。不还原 Unity 着色器/物理/完整工程，不提供自动骨骼或体型适配。</li>
+<li>[ ] 保存组合与预览工程。当前选择、变换和显隐关闭窗口后不保留。</li>
+</ul>
+<h2 id="section-4">2. 待下载链接 · 部分实现，优先继续</h2>
+<ul>
+<li>[x] 独立页面、加密保存、单独同意、6/12/24 小时时间窗、去重、蓝点及百度下载衔接。</li>
+<li>[x] BOOTH 真实登录资料库识别 6 个已购条目；点击后复核账号并定位对应卡片。</li>
+<li>[x] 购买时间未知时只列待核对，不冒充近期；不发送消息、不主动打开未读聊天。</li>
+<li>[x] 默认关闭、暂停、退避、超时和账号切换保护；原生页面与持久化回归。</li>
+<li>[ ] 闲鱼真实消息行读取：登录入口已确认，但测试页没有消息行，历史最后记录为读取超时，未宣称成功。</li>
+<li>[ ] 完整后台发现：当前只检查已加载的平台页面；关闭平台窗口后的独立后台发现尚未实现。</li>
+<li>[ ] 真实新交付 → 时间判断 → 蓝点 → 下载全链路验收。需要正常出现的新消息/已购交付，不伪造证据。</li>
+</ul>
+<h2 id="section-5">3. 国内 AI 衣装细分类 · 已接入，待真实服务验证</h2>
+<ul>
+<li>[x] 千问、Kimi、DeepSeek 官方接口；默认关闭、用户填写一次密钥并同意所选范围。</li>
+<li>[x] 系统加密密钥、最少文本线索、脱敏、限额、串行队列、缓存与有限重试。</li>
+<li>[x] 服装类型/风格独立保存为建议；可以接受为标签，人工分类与 BOOTH 类目保留。</li>
+<li>[x] 实际窗口＋模拟服务验收；切换素材不会串标签，普通备份不含密钥，同机迁移和重启保留设置。</li>
+<li>[ ] 现存验收记录未使用真实密钥调用收费服务；真实分类准确率和供应商响应仍待验证。</li>
+</ul>
+<h2 id="section-6">4. Unity 报错解释 · 已实现基础流程</h2>
+<ul>
+<li>[x] 读取所选已登记工程的 Editor.log，核对工程归属；归并编译错误/异常、轮转与敏感信息过滤。</li>
+<li>[x] 独立页面、本地提示、可选自动 AI 分析；建议返回页面后保留，忙碌等暂时状态有限重排。</li>
+<li>[x] 只读日志，不自动执行建议，不修改工程或删除插件。</li>
+<li>[x] 合成日志＋真实 Electron＋模拟 AI 的流程验收。</li>
+<li>[ ] 用户实际 Unity 会话和真实 AI 排障效果验收；当前在报错页面打开期间检查所选工程，不宣称后台监控所有工程。</li>
+</ul>
+<h2 id="section-7">5. 公开插件目录 · 已实现</h2>
+<ul>
+<li>[x] 从 9 项扩至 30 项官方来源，6 类用途和安装方式筛选；29 项有 VPM 入口，6 项可直接下载导入，GoGo Loco 使用作者官网。</li>
+<li>[x] 不搜索本机非公开插件。16 个公开包源核对、3 个新增包实际下载和哈希检查；修复官方附件重定向。</li>
+<li>[x] 1.4.0-preview.2：15 项插件/网络聚焦回归；打包后的原生 10 组界面验收通过；实际免安装 EXE 启动、扫描、预览、再次启动保存通过。</li>
+<li>[ ] 具体用户角色/插件组合的兼容性需要在实际工程另行确认。</li>
+</ul>
+<h2 id="section-8">6. 统一交付 · 当前已公开至 preview.9</h2>
+<ul>
+<li>[x] preview.1–4 的本地功能从 preview.5 起汇入公开预览，preview.6–9 的增量源码、更新说明及程序均已同步 GitHub。</li>
+<li>[x] preview.9 完整回归 984/984，实际打包组合窗口与免安装程序两次启动验证通过；29 个运行依赖完整，Windows CI 成功。</li>
+<li>[x] 公开附件包含免安装 EXE、对应提交的源码、中文指南、验收记录及 SHA-256；发布后核对 6 个附件及公开下载，预览不进入稳定更新通道。</li>
+<li>[x] 协议、隐私、工作台及预览说明随功能更新；新增内容按要求先中文，普通备份不含凭证。</li>
+<li>[x] 本次更新报告、总计划和社区路线图，将已实现、部分、待真实验收和未完成明确分开。</li>
+</ul>
+<p>preview.2 的 851 项、preview.3 的 861 项、preview.4 的 877 项及其本地输出是历史验收记录；不能再用“当前未上传 GitHub”描述现状。更新后的总回归数也不会自动补齐真实账号或真实 AI 证据。</p>
+<p>下一步先补真实交付与 MA／SDK／角色链路的证据，再推进稳定角色身份、衣柜和可撤回操作。未实现事项继续保留，不能因交付了新程序而整体勾选完成。</p>
+<h2 id="section-9">后续阶段，仍保留在计划中</h2>
+<ul>
+<li>[x] 角色＋衣服静态同场预览（preview.9），限手动参考，不代表真正适配。</li>
+<li>[ ] 可保存、复用的模型组合／预览工程。</li>
+<li>[ ] 还原 Unity 预制件、着色器、身体遮罩、骨骼和物理的真实试穿。</li>
+<li>[ ] 优先按作者适配版本处理，再考虑骨骼对齐和辅助调整尺寸。</li>
+<li>[ ] 有前后预览与撤回的有限穿模修复；不承诺跨角色全自动改衣或完全还原 Unity。</li>
+<li>[ ] 用户最后要求时再统一补齐日语/英语翻译。</li>
+</ul>
+<p>所有当前测试使用隔离资料库和合成工程，不改真实素材与工程；不用 IDM。</p>
+<h2 id="section-10">7. AI 找素材 · 1.4.0-preview.3</h2>
+<ul>
+<li>[x] 独立自然语言搜索页面，AI 只整理中日英检索词，真实商品由 BOOTH / 闲鱼返回。</li>
+<li>[x] 复用三家国内 AI 服务、独立用途同意、加密密钥、额度和缓存；未启用时明确回退本地关键词规则。</li>
+<li>[x] 当前隔离登录会话实测：哥特礼裙需求，两站各 12 件真实商品，24 张真实封面加载；没有读取聊天、购买或改写原素材。</li>
+<li>[x] 四主题、980px、200% 缩放、内置 BOOTH 商品预览、离线保留结果验收。</li>
+<li>[x] preview.8 网页免密钥找素材：复制内置提示词与脱敏需求，打开千问／Kimi／DeepSeek 固定官网，用户发送问题并粘回 JSON；应用流程经隔离验证。</li>
+<li>[ ] 网页 AI 的真实回答质量；现有方式需用户手动发送、复制，不是静默云端 AI，也不为分类／诊断提供免密钥入口。</li>
+<li>[ ] 真实付费 AI 效果验收仍需用户配置密钥，目前为接口模拟验证。</li>
+<li>[x] 完整回归 861/861；收尾取消逻辑后 33 项聚焦回归通过。打包版真实搜索、原生模拟 AI 与免安装程序验收记录随本地交付保存。</li>
+</ul>
+<h2 id="section-11">8. 改模工作台 · 1.4.0-preview.4</h2>
+<ul>
+<li>[x] 完成改模痛点与改进报告，明确产品缺口、证据等级、菜单/动画/身体/性能与恢复问题。</li>
+<li>[x] 独立工作台、目标工程记忆、公开依赖线索、记录筛选、文件/商品/插件/报错入口。</li>
+<li>[x] Unitypackage 内容去重和执行时复核，普通文件保留 GUID 冲突保护。</li>
+<li>[x] MA 装配同时保留/创建菜单，一次 Undo，失败回退，衣服实例仍是角色直接子级末尾。</li>
+<li>[x] 分步状态与持久化人工效果检查；不把文件完成当适配或 SDK 构建通过。</li>
+<li>[x] 877 项回归，62 项真实 Unity 合成断言（MA API 替身），10 组隔离 Electron 验收，独立审查修复三项问题。</li>
+<li>[ ] 真实 MA/SDK 版本和实际商业角色的端到端兼容性、游戏同步测试。</li>
+<li>[ ] P1：稳定角色身份、衣柜互斥、身体映射、最终预算和跨重启卸载；P2：跨角色辅助适配与有限穿模修复。</li>
+</ul>
+<p>这轮按用户新要求落地改模流程；第 2 节真实消息发现、第 3 节真实 AI 和其他尚未完成事项继续保留，未被本轮成果替代。</p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

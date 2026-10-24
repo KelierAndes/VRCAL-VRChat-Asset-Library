@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>社区路线图</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.9 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">仍待完成的改模方向</a><a href="#section-3">社区可以继续参与的工作</a></nav><main><h1 id="section-1">社区路线图</h1>
+<p>当前公开预览为 <strong>1.4.0-preview.9</strong>。已有改模工作台、基础导入检查与内容重复提醒、MA 装配／菜单联动、分步记录、公开插件入口、AI 辅助和轻量角色＋衣服静态组合；代码完成与真实角色／账号验收分开记录。报告不代表所有长期方向已经实现，详见<a href="AVATAR_WORKFLOW_REPORT.zh-CN.html">逐项现状</a>和<a href="WORK_PLAN_20261024.zh-CN.html">总计划</a>。</p>
+<h2 id="section-2">仍待完成的改模方向</h2>
+<div class="table-scroll"><table><thead><tr><th>方向</th><th>当前状态</th><th>需要补齐的证据或能力</th></tr></thead><tbody>
+<tr><td>稳定角色档案与衣柜</td><td>未完成；已有目标工程记忆</td><td>场景／角色稳定身份、改名和复制后仍能正确识别</td></tr>
+<tr><td>套装互斥与身体／动画冲突</td><td>未完成；已有基础 MA 菜单联动</td><td>作者映射、身体遮罩、形态和参数控制者、来回切换恢复</td></tr>
+<tr><td>跨重启卸载／更新恢复</td><td>未完成；当前有会话 Undo</td><td>持久修改清单、后续手改检测、共享引用及选择性恢复</td></tr>
+<tr><td>最终菜单、参数和平台性能预算</td><td>未完成</td><td>真实 SDK 构建输出、平台目标及当前穿搭统计</td></tr>
+<tr><td>保存预览工程与组合复用</td><td>未完成；静态双模型组合已实现</td><td>持久化配置、文件变化和缺失处理；不能将手调参考当作真实试穿</td></tr>
+<tr><td>跨角色适配与穿模处理</td><td>未完成</td><td>可撤回派生文件、骨骼／体型证据、多个动作验证</td></tr>
+<tr><td>独立后台新交付发现</td><td>部分；只读已加载官方页面</td><td>关闭窗口后的稳定发现、真实消息时间到蓝点及下载全链路</td></tr>
+<tr><td>真实兼容性验收</td><td>仍待补齐</td><td>真实 MA／SDK、商业角色、付费／网页 AI 及平台账号验证；保留授权和脱敏边界</td></tr>
+<tr><td>新增内容完整英日翻译</td><td>暂缓</td><td>按维护者最后统一翻译的安排执行</td></tr>
+</tbody></table></div>
+<h2 id="section-3">社区可以继续参与的工作</h2>
+<p>下面是可讨论和认领的方向，尚未承诺完成时间。开始较大改动前先提 Issue 明确范围，避免重复工作。</p>
+<div class="table-scroll"><table><thead><tr><th>方向</th><th>可以贡献的内容</th><th>验收重点</th></tr></thead><tbody>
+<tr><td>素材扫描范围管理</td><td>改善范围提示、路径冲突说明与子目录排除体验</td><td>仅改变索引范围；不删除素材，保留人工标注，明确旧记录怎样显示</td></tr>
+<tr><td>匹配与分类样例</td><td>公开商品链接、异常文件名、精简网页样例与离线测试</td><td>编号、作者与本商品名称相互核对；有歧义时不自动认定</td></tr>
+<tr><td>贡献者入门</td><td>文档、安装说明、脱敏截图、常见问题</td><td>新用户能照着步骤完成；不要求接触个人资料库</td></tr>
+<tr><td>界面与可访问性</td><td>键盘操作、缩放、窄窗口、对比度和文案</td><td>四主题、980px、200% 缩放下主要操作可用</td></tr>
+<tr><td>多语言</td><td>校对简体中文、日语与英语，补充缺失翻译与长文字样例</td><td>保留素材原名与人工标注，三种语言下主要操作清楚可用</td></tr>
+<tr><td>回归与兼容</td><td>中文／日文／表情路径、目录合并、备份与来源撤回</td><td>合成输入前后清单与哈希一致，人工信息重启后保留</td></tr>
+</tbody></table></div>
+<p>文案、文档链接和已明确复现步骤的小问题可标为 <code>good first issue</code>。复杂目录合并、迁移及账号安全问题需要先熟悉相应模块，不宜仅凭任务看起来短就认定为新手任务。</p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>
