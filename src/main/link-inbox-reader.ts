@@ -3,9 +3,11 @@ import {extractShareLinks,recency,sourceTime,type InboxPlatform,type InboxObserv
 import type {InboxReadContext,InboxReadResult} from './link-inbox-monitor';
 import {inboxAccountStatus} from './link-inbox-account';
 import {inboxCaptureScript} from './link-inbox-dom';
+import {relativeInboxTime} from './inbox-relative-time';
 
 export interface InboxDomRow {key:string;kind:'message'|'conversation'|'purchase';text:string;title?:string;time?:string;day?:string;unread?:boolean;purchaseUrl?:string;libraryItem?:string}
-export interface InboxDomSnapshot {url:string;account:string;supported:boolean;login?:boolean;rows:InboxDomRow[]}
+const diagnostics=['account-header','account-avatar','conversation-root','message-root','message-layout','conversation-empty','chat-unselected','empty'] as const;
+export interface InboxDomSnapshot {url:string;account:string;supported:boolean;login?:boolean;diagnostic?:typeof diagnostics[number];rows:InboxDomRow[]}
 export interface InboxPage {isDestroyed():boolean;getURL():string;executeJavaScript(code:string):Promise<unknown>}
 /** Keep direct user-initiated reads bounded as well as monitor-driven checks. */
 export async function evaluateInboxPage(page:Pick<InboxPage,'executeJavaScript'>,script:string,signal:AbortSignal,timeoutMs=10000):Promise<unknown> {
@@ -27,7 +29,8 @@ function purchaseUrl(raw:unknown):string|undefined {
 /** An explicit timezone is interpreted as displayed; otherwise use the platform's local day. */
 export function inboxSourceTime(raw:string|undefined,platform:InboxPlatform,now:number,day?:string):number|undefined {
  if(!raw||raw.length>100)return;
- const value=raw.trim().replace(/年|月/g,'-').replace(/日\s*/,' ').replace(/\//g,'-');
+ if(platform==='xianyu'){const relative=relativeInboxTime(raw,now);if(relative!==undefined)return relative}
+ const value=raw.trim().replace(/年|月/g,'-').replace(/(\d)日\s*/,'$1 ').replace(/\//g,'-');
  const iso=/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?)(Z|[+-]\d{2}:\d{2})$/.exec(value);
  if(iso){const zone=iso[2],hours=zone==='Z'?0:Number(zone.slice(1,3)),minutes=zone==='Z'?0:Number(zone.slice(4,6));if(hours>14||minutes>59||hours===14&&minutes!==0)return;const offset=zone==='Z'?0:(zone[0]==='-'?-1:1)*(hours*60+minutes);return sourceTime(iso[1],now,offset)}
  return sourceTime(value,now,platform==='booth'?540:480,day);
@@ -39,11 +42,16 @@ function knownOldDay(raw:string|undefined,platform:InboxPlatform,context:InboxRe
 }
 function validSnapshot(value:unknown):value is InboxDomSnapshot {
  if(!value||typeof value!=='object')return false;const s=value as InboxDomSnapshot;
- return typeof s.url==='string'&&s.url.length<=2048&&typeof s.account==='string'&&s.account.length>0&&s.account.length<=512&&typeof s.supported==='boolean'&&(s.login===undefined||typeof s.login==='boolean')&&Array.isArray(s.rows)&&s.rows.length<=100&&s.rows.every(r=>r&&typeof r.key==='string'&&r.key.length>0&&r.key.length<=512&&['message','conversation','purchase'].includes(r.kind)&&typeof r.text==='string'&&r.text.length<=32768&&(r.title===undefined||typeof r.title==='string'&&r.title.length<=160)&&(r.libraryItem===undefined||typeof r.libraryItem==='string'&&r.libraryItem.length<=12)&&(r.purchaseUrl===undefined||typeof r.purchaseUrl==='string'&&r.purchaseUrl.length<=512)&&(r.time===undefined||typeof r.time==='string'&&r.time.length<=100)&&(r.day===undefined||typeof r.day==='string'&&r.day.length<=20)&&(r.unread===undefined||typeof r.unread==='boolean'))&&s.rows.reduce((n,r)=>n+r.text.length,0)<=262144;
+ return typeof s.url==='string'&&s.url.length<=2048&&typeof s.account==='string'&&s.account.length<=512&&typeof s.supported==='boolean'&&(s.login===undefined||typeof s.login==='boolean')&&(s.diagnostic===undefined||diagnostics.includes(s.diagnostic))&&Array.isArray(s.rows)&&s.rows.length<=100&&s.rows.every(r=>r&&typeof r.key==='string'&&r.key.length>0&&r.key.length<=512&&['message','conversation','purchase'].includes(r.kind)&&typeof r.text==='string'&&r.text.length<=32768&&(r.title===undefined||typeof r.title==='string'&&r.title.length<=160)&&(r.libraryItem===undefined||typeof r.libraryItem==='string'&&r.libraryItem.length<=12)&&(r.purchaseUrl===undefined||typeof r.purchaseUrl==='string'&&r.purchaseUrl.length<=512)&&(r.time===undefined||typeof r.time==='string'&&r.time.length<=100)&&(r.day===undefined||typeof r.day==='string'&&r.day.length<=20)&&(r.unread===undefined||typeof r.unread==='boolean'))&&s.rows.reduce((n,r)=>n+r.text.length,0)<=262144;
 }
 export function interpretInboxSnapshot(platform:InboxPlatform,value:unknown,mode:'foreground'|'background',context:InboxReadContext):InboxReadResult {
  if(value&&typeof value==='object'&&(value as InboxDomSnapshot).login===true)return result('login','请在官方窗口完成登录后重试。');
- if(!validSnapshot(value)||!value.supported||!pageUrl(platform,value.url))return result('unsupported','当前账号或交付区域未能确认，已停止读取。');
+ if(!validSnapshot(value)||!pageUrl(platform,value.url))return result('unsupported','当前页面结构或网址无法确认，请等待官方消息／已购页面完成加载。');
+ if(!value.account)return result('unsupported','尚未确认页面中的本人账号栏；请等待头像和账号信息加载，无需先清除登录状态。');
+ if(!value.supported){
+  const message=value.diagnostic==='chat-unselected'?'账号已识别；请先在官方消息页打开要检查的会话，再点击“检查新链接”。':value.diagnostic==='conversation-empty'?'账号已识别，当前会话列表为空或仍在加载；稍后再检查。':platform==='xianyu'?'账号已识别，但当前聊天消息结构尚未适配；没有读取其他会话。':'账号已识别，但当前已购交付区域尚未适配；请打开资料库列表后重试。';
+  return result('unsupported',message);
+ }
  const accountKey=createHash('sha256').update(platform+'\0'+value.account).digest('hex'),observations:InboxObservation[]=[];
  for(const row of value.rows){
   if(platform==='booth'&&row.kind!=='purchase'||platform==='xianyu'&&row.kind==='purchase')continue;
@@ -55,8 +63,11 @@ export function interpretInboxSnapshot(platform:InboxPlatform,value:unknown,mode
   // An owned purchase link is mandatory before any accompanying text is eligible.
   if(platform==='booth'&&!download&&!libraryItem||!download&&!libraryItem&&!extractShareLinks(row.text).length)continue;
   const title=platform==='booth'&&typeof row.title==='string'?row.title.replace(/[\x00-\x1f]/g,' ').trim().slice(0,160):'';
-  observations.push({platform,accountKey,sourceKey:row.key,sourceUrl:download||pageUrl(platform,value.url)!,title:title||(platform==='booth'?'BOOTH 已购交付':'闲鱼交付链接'),sourceAt,text:row.text,...(download?{boothDownloadPage:download}:{}),...(libraryItem?{boothLibraryItem:libraryItem}:{})});
+  // Calendar-relative labels may remain on a loaded page across midnight as well.
+  const approximate=platform==='xianyu'&&sourceAt!==undefined&&row.time&&(relativeInboxTime(row.time,context.now)!==undefined||/^(?:今天|今日|昨天|昨日|Today|Yesterday)\s*/i.test(row.time.trim()));
+  observations.push({platform,accountKey,sourceKey:row.key,sourceUrl:download||pageUrl(platform,value.url)!,title:title||(platform==='booth'?'BOOTH 已购交付':'闲鱼交付链接'),sourceAt,...(approximate?{sourceTimeApproximate:true}:{}),text:row.text,...(download?{boothDownloadPage:download}:{}),...(libraryItem?{boothLibraryItem:libraryItem}:{})});
  }
+ if(platform==='xianyu'&&!observations.length)return result('ready',mode==='background'?'已检查当前页面的近期未读预览；未发现符合条件的链接，未打开聊天。':'已识别聊天区域，当前会话未发现符合条件的百度网盘链接。');
  const noPurchaseTime=platform==='booth'&&value.rows.length>0&&value.rows.every(r=>inboxSourceTime(r.time,platform,context.now,r.day)===undefined);
  return result('ready',noPurchaseTime?(mode==='background'?'资料库未显示购买时间；无法判断近期新增，未加入后台通知。':'已识别资料库条目；页面未提供购买时间，条目仅待核对。'):(mode==='background'?'已检查当前页面的近期未读预览／购买记录；未打开聊天。':'已检查当前页面中的交付链接。'),observations);
 }

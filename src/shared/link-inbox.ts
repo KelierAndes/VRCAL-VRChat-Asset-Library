@@ -4,8 +4,8 @@ export type InboxPlatform='xianyu'|'booth';
 export type InboxAge='recent'|'old'|'unknown';
 export interface InboxSettings {enabled:boolean;background:boolean;hours:6|12|24}
 export interface InboxLink {url:string;code:string;codeConflict:boolean}
-export interface InboxObservation {platform:InboxPlatform;accountKey:string;sourceKey:string;sourceUrl:string;title:string;sourceAt?:number;text:string;boothDownloadPage?:string;boothLibraryItem?:string}
-export interface InboxItem extends InboxLink {id:string;platform:InboxPlatform;accountKey:string;sourceUrl:string;title:string;sourceAt?:number;discoveredAt:number;read:boolean;dismissed:boolean;kind:'baidu'|'booth';boothLibraryItem?:string;taskIds:string[];completed:boolean}
+export interface InboxObservation {platform:InboxPlatform;accountKey:string;sourceKey:string;sourceUrl:string;title:string;sourceAt?:number;sourceTimeApproximate?:boolean;text:string;boothDownloadPage?:string;boothLibraryItem?:string}
+export interface InboxItem extends InboxLink {id:string;platform:InboxPlatform;accountKey:string;sourceUrl:string;title:string;sourceAt?:number;sourceTimeApproximate?:boolean;discoveredAt:number;read:boolean;dismissed:boolean;kind:'baidu'|'booth';boothLibraryItem?:string;taskIds:string[];completed:boolean}
 export interface InboxStatus {platform:InboxPlatform;state:'paused'|'login'|'ready'|'checking'|'unsupported'|'error';message:string;checkedAt?:number}
 export interface InboxState {settings:InboxSettings;items:InboxItem[];unread:number;statuses:InboxStatus[];error?:string}
 export const DEFAULT_INBOX_SETTINGS:InboxSettings={enabled:false,background:false,hours:24};

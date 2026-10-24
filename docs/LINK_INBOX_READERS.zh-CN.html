@@ -1,0 +1,39 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>交付链接读取器的边界与验收</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.10 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">preview.10：闲鱼公开结构核对与合成验证</a><a href="#section-3">历史真实页面核对（preview.10 之前）</a></nav><main><h1 id="section-1">交付链接读取器的边界与验收</h1>
+<p>读取器复用素材库拥有的官方窗口。只有主进程已有有效识别授权且联网时才调用；前台／后台的授权、轮询间隔和超时继续由 <code>LinkInboxMonitor</code> 管理。关闭授权、退出、清除登录和断网后的在途结果都会丢弃。</p>
+<p><code>link-inbox-dom.ts</code> 负责页面中的局部 DOM，<code>link-inbox-reader.ts</code> 负责来源、账号、时间和数据大小校验。账号边界必须来自已确认的“自己的账号”区域，不使用聊天对象、Cookie、其他浏览器配置或页面内部私有接口。BOOTH 依据导航栏头像地址中的用户编号；闲鱼只提供个人入口的可见标签和自定义头像，因此使用两者组合的可见身份指纹，不能声称拿到了平台内部用户编号。缺失、默认头像或多义的入口会停止读取；更换头像／标签可能形成不同的本地区分键。正文捕获后再次检查当前网址与账号，发生切换时整次页面结果丢弃。返回给收件箱的账号键为 SHA-256 摘要。</p>
+<p>单次最多检查 4 个已经存在的官方窗口，每页最多 100 个交付片段，单片段 32 KiB、合计 256 KiB。只处理官方 <code>/im</code> 与 BOOTH 的购买／资料库页面，不把商品推荐、商品详情、外站链接或带签名的文件地址当作已购交付。</p>
+<p>前台允许将缺少可靠来源时间的交付列入待核对，不产生近期蓝点。明确过期的记录被排除；来源只有日期时，也会排除整天都已超出所选范围的记录。后台仅接收来源时间可核实在 6／12／24 小时范围内的未读会话预览或购买记录。网页中的来源时间和发现时间保持独立，不能将轮询时刻写成消息时刻。闲鱼的相对时间按显示区间最早时刻保守估算，并保留近似标记；同账号同链接重复轮询采用首次或更早的近似时间，明确的精确时间可以升级它。裸时分不视为今天。</p>
+<p>后台通过已经加载的会话列表发现未打开会话中的预览链接，不点击会话，也不打开历史聊天。网页预览未展示链接时无法获得完整交付。这一版本不为检查而创建隐藏网页登录窗口、发起页面导航或分页，因此关闭所有平台窗口后不会继续发现新内容。网站自己的页面脚本仍会按其正常行为运行；读取器没有调用已读、发送、购买或下载操作。</p>
+<p>2026-10-24 的合成回归覆盖近期与旧时间、明确时区、非法日期、账号切换、登录覆盖层、关闭授权、读取取消、冒充域名、未知结构、超大载荷与签名链接排除。合成测试不构成真实交付识别成功的证明；真实网页结构和实际识别结果需要另行记录。</p>
+<p>此前从应用自己拥有的已登录窗口核实了 BOOTH 导航头像、资料库卡片和下载按钮属性。读取器只返回卡片所对应的商品编号与标题，不返回或请求按钮里的下载文件地址。<code>boothLibraryItem</code> 是明确的资料库选择字段，记录仍保留真实商品网址和 <code>/library</code> 来源；不会编造不存在的 <code>/library/编号</code> 路径。用户选择条目时重新核对账号及卡片，再滚动到官网卡片，下载仍由用户在官网选择。当前资料库 DOM 没有购买时间，因此只能作为前台待核对项，不能用于近期后台通知。</p>
+<h2 id="section-2">preview.10：闲鱼公开结构核对与合成验证</h2>
+<p>历史账号检查核实了个人入口、会话侧栏和聊天主区域，但当时没有取得非空消息行。preview.10 进一步只读核对官网公开 <code>xy-site/0.0.179</code> 的 React 渲染代码，确认会话和消息主要由普通 div 组成，不能继续把 ARIA 标记作为唯一条件。新版保留语义结构兼容，并加入公开结构对应的局部规则。</p>
+<ul>
+<li>前台限定当前打开会话的 <code>#message-list-scrollable</code>、<code>#msg-list-container</code> 和文字消息容器，排除引用旧消息的 <code>reply-container--</code> 子树及输入区域。只取本条渲染项自己的时间，不继承其他行或侧栏最新时间。</li>
+<li>后台限定 <code>#conv-list-scrollable</code> 内已加载的会话。仅接受具有明确未读 Badge、唯一摘要和相邻时间的条目；摘要被 <code>[草稿]</code> 替代时跳过，不读整行名称、商品卡片和未展示的聊天历史。</li>
+<li>未读依据是会话头像上的 Badge 数量，不把发送消息的“对方未读”状态当成新交付。会话 active 样式也用于悬浮，不能代替已选中会话的证据。</li>
+<li>手动「检查新链接」始终使用前台范围；后台开关只控制相应定时检查，不把手动检查改成摘要检查。</li>
+<li>状态分别提示本人账号栏未确认、区域结构未支持、还未打开会话和未发现符合条件链接；不会把所有情况归为账号异常。</li>
+</ul>
+<p>公开取证来源是<a href="https://g.alicdn.com/idle-pc/xy-site/0.0.179/js/p_im-index.js">官网直接引用的消息页脚本</a>，SHA-256 为 <code>ec9c8491cc0ef9366f8491ae5d68ec0b8d44620129078136c245b4b126770093</code>。以下为该文件从 0 开始的 UTF-8 字节偏移，便于复核；没有把第三方完整脚本复制到源码或发布包。</p>
+<div class="table-scroll"><table><thead><tr><th>核对内容</th><th>字节偏移</th></tr></thead><tbody>
+<tr><td>会话列表固定 ID</td><td>2484118</td></tr>
+<tr><td>两种会话行的渲染入口</td><td>2455632、2464579</td></tr>
+<tr><td>局部摘要与相邻时间</td><td>2458452、2466482</td></tr>
+<tr><td>会话未读 Badge 数量</td><td>2456513</td></tr>
+<tr><td>已选会话及消息列表固定 ID</td><td>2965630、2966366</td></tr>
+<tr><td>消息行、文字正文与本条日期分隔</td><td>2514383、2522694、2576693</td></tr>
+<tr><td>会话相对时间格式</td><td>2427219</td></tr>
+</tbody></table></div>
+<p>“刚刚／N分钟前／N小时前／N天前”使用显示区间最早时刻，例如“2分钟前”按检查前约 3 分钟处理，来源时间显示“约”。“今天／昨天＋时分”也属于相对日期，同样标“约”并冻结首次或更早的日期推定，不随跨日轮询变新；明确的完整日期时间可升级为精确值。官网裸时分的日期不能据此可靠确认，因此不自动补当天。界面上的发现时间也不作为发送时间。超过时间窗的记录不加入近期通知，已读和忽略状态不会被轮询重置。</p>
+<p>脱敏合成夹具在隔离 Chromium 中完成六组局部读取、解释、真实加密保存与应用页面显示验证。这里的账号、消息、链接均为合成内容，不是真实闲鱼账号验收。实际新交付、平台验证及下载闭环仍待实测；关闭平台窗口后的独立后台发现也没有完成。合成通过不证明网站始终兼容或聊天已连接。</p>
+<h2 id="section-3">历史真实页面核对（preview.10 之前）</h2>
+<p>2026-10-24 06:57（中国时间），使用应用自己拥有的已登录窗口与新编译的捕获脚本进行只读检查。脱敏摘要仅保留计数和状态：</p>
+<div class="table-scroll"><table><thead><tr><th>平台</th><th>结果</th><th>时间证据</th><th>本次可以确认的范围</th></tr></thead><tbody>
+<tr><td>BOOTH</td><td><code>supported: true</code>，6 条资料库商品，账号区域可确认</td><td>6 条均无购买时间</td><td>已验证当前官网卡片的局部 DOM 提取；条目只待核对，不产生近期蓝点</td></tr>
+<tr><td>闲鱼</td><td>4 秒诊断读取超时</td><td>未取得</td><td>仍未验证真实消息识别；先前检查确认了个人入口，但只有空会话外壳</td></tr>
+</tbody></table></div>
+<p>闲鱼超时摘要中的账号标志为 false 只是本次没有得到结果，不能据此判断用户已退出登录。没有读取或报告账号值、聊天正文、私人分享地址或下载签名。没有发送消息、改变已读状态的主动操作、购买或下载文件。这次验收没有覆盖真实下载端到端流程，也没有证明完整后台近期发现可用。</p>
+<p>最初 BOOTH 未识别卡片的原因已复现：带底边框的商品信息区域不包含旁边的下载区。修复只取其直接父卡片，并要求仍在原 main 内、父节点不是 main、只有一张商品缩略图且全卡片只有一个商品编号。不会扩大到整页或多商品容器。该轮合成回归覆盖这个实际结构及多商品拒绝，相关测试最终 <strong>85 / 85 通过</strong>。复核还补上了每次页面求值最长 10 秒及取消处理，防止直接点击条目时绕过轮询器的超时保护。该轮未继续扩写未观察到的页面选择器；preview.10 的新增依据为上节公开脚本与隔离合成验证，未把它补记成新的真实账号验收。</p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

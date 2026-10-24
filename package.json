@@ -1,6 +1,6 @@
 {
   "name": "vrchat-asset-library",
-  "version": "1.4.0-preview.9",
+  "version": "1.4.0-preview.10",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
@@ -90,7 +90,15 @@
       "docs/MODEL_PREVIEW.zh-CN.md",
       "docs/screenshots/model-preview/**/*",
       "docs/MODEL_PREVIEW.zh-CN.html",
-      "docs/RELEASE_1.4.0-preview.9.zh-CN.html"
+      "docs/RELEASE_1.4.0-preview.9.zh-CN.html",
+      "docs/RELEASE_1.4.0-preview.10.zh-CN.md",
+      "docs/RELEASE_1.4.0-preview.10.zh-CN.html",
+      "docs/LINK_INBOX_READERS.zh-CN.html",
+      "docs/PRIVACY.zh-CN.html",
+      "docs/USER_AGREEMENT.zh-CN.html",
+      "docs/WORK_PLAN_20261024.zh-CN.md",
+      "docs/WORK_PLAN_20261024.zh-CN.html",
+      "docs/AVATAR_WORKFLOW_REPORT.zh-CN.html"
     ],
     "asar": true,
     "win": {

@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.10',date:'2026-10-24',channel:'preview',title:'闲鱼交付链接读取与状态提示',sections:[
+    {kind:'fixed',items:['按官网公开非 ARIA 结构读取当前打开会话的正文，排除引用内容；后台仅检查已加载的近期未读摘要，排除草稿。','手动检查固定读取当前会话，不受后台开关影响；账号未确认、区域未支持、未选会话和未发现链接分开提示。']},
+    {kind:'improved',items:['分钟前等相对时间按显示区间最早时刻估算；今天／昨天也标“约”并冻结日期推定。同账号同链接不随轮询刷新年龄，后续完整精确时间可以升级。','只有时分、无法核实日期的消息继续待核对，不冒充近期交付；账号和网址双重检查、取消与加密保存继续保留。']},
+    {kind:'notes',items:['已核对官网公开 0.0.179 结构，并通过隔离合成 Chromium 的读取、解释、加密保存和界面验证；这不是实际账号交付验收。','后台不主动打开其他会话，不读取未展示的完整交付；关闭平台窗口后的独立发现仍未完成。公开预览手动下载，新增文字暂为中文。']}
+  ]},
   {version:'1.4.0-preview.9',date:'2026-10-24',channel:'preview',title:'角色与衣服组合预览',sections:[
     {kind:'added',items:['素材右键新增 3D 预览；右侧详情中的预览按钮更醒目，可从设置调整右键选项。','预览窗口新增添加角色看上身参考，选择本地角色素材与模型，可隐藏原有衣服部件、单独显示角色或衣服、调整衣服尺寸和位置、切换五个视角。']},
     {kind:'improved',items:['保持原始坐标与文件单位，双模型分别管理贴图与资源，避免同名文件串用；组合模式停止内置动画。','取消或失败保留上次成功画面，多模型等待选择；共享资源和三角面上限，继续支持 25%–100% 渲染比例及按需绘制。']},

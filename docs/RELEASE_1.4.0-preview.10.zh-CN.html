@@ -1,0 +1,51 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VRChat本地素材管理器 v1.4.0-preview.10</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.10 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">为什么之前看得到消息却读不到</a><a href="#section-3">怎样使用</a><a href="#section-4">哪些内容会读取</a><a href="#section-5">为什么时间前面会出现「约」</a><a href="#section-6">现在会显示哪些状态</a><a href="#section-7">本次验证到了哪里</a><a href="#section-8">升级</a></nav><main><h1 id="section-1">VRChat本地素材管理器 v1.4.0-preview.10</h1>
+<p>这次修复「待下载链接」中，闲鱼消息页已经显示会话，却仍提示“当前账号或交付区域未能确认”的情况，并让时间与读取状态更容易理解。</p>
+<p><strong>验证范围：官网公开结构已核对，隔离合成 Chromium 链路已通过；实际闲鱼账号的新交付到下载全链路仍未验收。</strong> 本版没有实现关闭平台窗口后的无人值守发现。</p>
+<h2 id="section-2">为什么之前看得到消息却读不到</h2>
+<p>旧读取器要求会话和消息具有明确的 ARIA 列表／日志标记。官网公开 <code>xy-site/0.0.179</code> 渲染的列表与正文主要使用普通 div，并不提供旧规则要求的这些标记。因此，即使本人账号栏已经识别，仍可能把消息区域判断为未支持。</p>
+<p>本版根据官方公开脚本核对局部结构，补上对应规则。没有把读取范围扩大到整页，没有访问 Cookie、React 内部数据、其他浏览器或平台私有接口。登录状态不明时，也不会建议用户先清除账号。</p>
+<h2 id="section-3">怎样使用</h2>
+<ol>
+<li>在应用左侧打开 <strong>待下载链接</strong>。</li>
+<li>如果还没有开启，勾选 <strong>识别交付链接</strong>，阅读并确认处理说明。登录和识别是两个独立选择；只登录不会自动同意读取。</li>
+<li>在 <strong>闲鱼交付消息</strong> 中点击 <strong>登录／查看账号</strong>，在官方窗口正常登录。</li>
+<li>要手动检查某条聊天，先在官方消息页打开该会话，再回应用点击 <strong>检查新链接</strong>。这个按钮读取当前打开会话，不会因为后台开关开启而改去只查侧栏摘要。</li>
+<li>符合范围的百度网盘链接出现在列表中。确认时间与来源后，点击 <strong>选择文件下载</strong>，继续读取分享、选择具体文件及保存位置。下载不是自动开始，也不自动下单。</li>
+<li>希望定时检查时，可另外开启 <strong>后台检查（每 3 分钟）</strong> 并确认相应范围。平台页面需要保持在应用内加载；后台开关和手动检查各自按自己的读取范围执行。</li>
+</ol>
+<h2 id="section-4">哪些内容会读取</h2>
+<div class="table-scroll"><table><thead><tr><th>情况</th><th>本版行为</th></tr></thead><tbody>
+<tr><td>当前已打开的闲鱼会话</td><td>只取受支持消息容器中的当条文字正文；剔除引用旧消息的子区域，不读取输入框草稿</td></tr>
+<tr><td>后台检查</td><td>只检查已加载会话列表中有明确未读标记、唯一摘要及可核实近期时间的预览；排除被本地草稿替换的摘要</td></tr>
+<tr><td>预览没有展示完整链接</td><td>不会自动进入该会话或翻页取得完整交付；可由用户打开会话后手动检查</td></tr>
+<tr><td>账号切换、网址变化、关闭授权或取消</td><td>丢弃相应在途结果，不把不确定内容保存为交付</td></tr>
+<tr><td>平台窗口全部关闭</td><td>不继续发现新内容；独立后台发现仍未完成</td></tr>
+<tr><td>BOOTH 已购资料库</td><td>保留已有局部读取；页面没有购买时间的商品只待核对，不推定近期购买</td></tr>
+</tbody></table></div>
+<p>读取前后核对本人账号与官方网址，账号值转换为本地区分用散列。程序不发送消息、不主动点击未读会话，也不调用标记平台消息已读的操作；官网自身加载和显示行为仍由平台控制，不能保证隐身读取。</p>
+<h2 id="section-5">为什么时间前面会出现「约」</h2>
+<p>“2分钟前”表示一个时间区间，不是精确发送时间。本版保守地取这个显示区间的最早时刻：例如看到“2分钟前”，以本次检查前约 3 分钟作为判断依据，并在来源时间前标 <strong>约</strong>。小时、天采用同样规则，“刚刚”保守取约 1 分钟前。</p>
+<p>“今天／昨天＋时分”也属于相对日期，同样标“约”，保留首次或更早的日期推定，不随跨日轮询漂移。同账号、同链接重复出现时，不因每次检查而一直变成新链接；之后取得明确的完整日期时间，可以替换近似值。已读、忽略和原发现时间不会因为重复读取而重置。</p>
+<p>默认只看来源时间在最近 24 小时的交付，可改为 6／12 小时。只有 <code>12:34</code>、没有可靠日期的消息不当成今天；不能核实的时间只进入待核对，不点亮近期蓝点。明确几天前的链接不作为新交付。</p>
+<h2 id="section-6">现在会显示哪些状态</h2>
+<ul>
+<li><strong>尚未确认本人账号栏</strong>：账号信息或头像未能安全核对，等待加载，不代表账号一定退出。</li>
+<li><strong>账号已识别，但聊天结构尚未适配</strong>：账号与消息结构分开判断，不再把所有问题都归到登录。</li>
+<li><strong>请先打开要检查的会话</strong>：会话列表已经显示，但主区域还没有选中聊天。</li>
+<li><strong>当前未发现符合条件的链接</strong>：已识别受支持区域，但未发现符合本次时间、未读和链接条件的内容；不等于账号识别失败。</li>
+</ul>
+<h2 id="section-7">本次验证到了哪里</h2>
+<ul>
+<li>核对了官方公开 <code>0.0.179</code> 脚本中的会话根、消息容器、正文、引用、摘要、时间和未读 Badge；来源与摘要见<a href="LINK_INBOX_READERS.zh-CN.html">读取器边界及证据</a>。公开脚本不是私人聊天数据。</li>
+<li>聚焦回归覆盖实际结构的脱敏合成夹具、前台／后台边界、草稿与引用排除、账号及网址切换、相对时间窗口、加密重启、去重和年龄不漂移。</li>
+<li>本轮完整自动化回归 1018 项通过，另有 13 项版本元数据及文字检查通过；这些结果不代表真实账号、实际下载或平台永久兼容。</li>
+<li>隔离合成 Chromium 完成六组读取、解释、真实加密保存及应用页面显示验证。这里的“真实加密”指实际使用本机加密保存代码；页面内容、账号和分享链接均为合成样例，不是真实账号交付验收。</li>
+<li>本次没有读取用户真实聊天、购买记录或私人网盘链接，也没有修改真实素材与 Unity 工程。完整回归、打包、资源与发布校验的最终结果以随包验收记录为准。</li>
+</ul>
+<p>实际闲鱼新交付 → 时间判断 → 蓝点 → 选择下载，仍需要真实账号场景另行验收。完整后台、真实 MA／SDK／商业角色、付费／网页 AI 效果，以及报告中的 P1／P2 方向继续保留待办，不因本次修复标为完成。</p>
+<h2 id="section-8">升级</h2>
+<p>先退出旧程序，再运行 <code>VRC-Asset-Library-1.4.0-preview.10-x64.exe</code>，继续使用原资料库；已有来源确认、封面和标注无需重做。公开预览需手动从项目 Releases 下载，不进入稳定版内置更新通道。</p>
+<p>角色＋衣服静态组合预览、BOOTH 下载自动关联、网页 AI 辅助和改模工作台继续保留。新增说明暂为中文，统一英日翻译仍按后续安排处理。本次不改变链接识别的同意版本，也不新增读取用途。</p>
+<p><a href="PRIVACY.zh-CN.html">隐私说明</a> · <a href="USER_AGREEMENT.zh-CN.html">用户协议与使用说明</a> · <a href="WORK_PLAN_20261024.zh-CN.html">总计划与未完成事项</a></p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>
