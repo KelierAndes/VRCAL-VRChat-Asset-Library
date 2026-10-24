@@ -12,12 +12,6 @@ export const CONTRIBUTORS = [
   {id:'necoaya-github',label:'GitHub 主页',url:'https://github.com/NecoAya'},
   {id:'necoaya-bilibili',label:'Bilibili 主页',url:'https://space.bilibili.com/13551697'},
  ]},
- // Verified 2026-10-24: this fork has no unique main-branch commits or upstream PRs.
- // Credit the observed community participation, not an unverified code contribution.
- {handle:'MoLucien',name:'MoLucien',initials:'M',role:'社区参与：创建项目 Fork',links:[
-  {id:'molucien-github',label:'GitHub 主页',url:'https://github.com/MoLucien'},
-  {id:'molucien-fork',label:'查看项目 Fork',url:'https://github.com/MoLucien/VRCAL-VRChat-Asset-Library'},
- ]},
 ] as const satisfies readonly Contributor[];
 export function communityUrl(id:unknown):string {
  if(typeof id!=='string'||id.length>100)throw new Error('社区链接无效。');

@@ -46,9 +46,6 @@ export const UI_MESSAGES: Record<string, readonly [string, string]> = {
   "VRChat 本地素材管理器": ["VRChat Local Asset Manager", "VRChat ローカル素材マネージャー"],
   // New licensing copy stays in Chinese until the requested consolidated translation pass.
   "源码可见": ["源码可见", "源码可见"],
-  "社区参与：创建项目 Fork": ["社区参与：创建项目 Fork", "社区参与：创建项目 Fork"],
-  "查看项目 Fork": ["查看项目 Fork", "查看项目 Fork"],
-  "贡献者与社区参与者": ["贡献者与社区参与者", "贡献者与社区参与者"],
   "感谢让这个项目不断变好的每一个人。": ["Thank you to everyone helping this project grow.", "このプロジェクトをより良くしてくれる皆さんに感謝します。"],
   "源码仓库": ["Source repository", "ソースコード"],
   "参与贡献": ["Get involved", "開発に参加する"],

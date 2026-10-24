@@ -12,11 +12,11 @@
 
 [用户协议与功能使用说明](docs/USER_AGREEMENT.zh-CN.md) · [隐私说明](docs/PRIVACY.zh-CN.md)（账号页面读取的验证范围见本次发布说明）
 
-**当前公开预览：1.4.0-preview.5。** 新增 [改模工作台](docs/AVATAR_WORKBENCH.zh-CN.md)、[新版页面图文说明](docs/WORKSPACE_NAVIGATION.zh-CN.md) 与 [改模体验改进报告](docs/AVATAR_WORKFLOW_REPORT.zh-CN.md)。
+**当前公开预览：1.4.0-preview.6。** 新增 [改模工作台](docs/AVATAR_WORKBENCH.zh-CN.md)、[新版页面图文说明](docs/WORKSPACE_NAVIGATION.zh-CN.md) 与 [改模体验改进报告](docs/AVATAR_WORKFLOW_REPORT.zh-CN.md)。
 
 ## 下载与开始使用
 
-**[下载 1.4.0-preview.5 公开预览版](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.5)**：选择 Windows x64 EXE 直接运行，源码 ZIP 用于开发。此版需手动下载，不作为稳定版内置更新推送。
+**[下载 1.4.0-preview.6 公开预览版](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.6)**：选择 Windows x64 EXE 直接运行，源码 ZIP 用于开发。此版需手动下载，不作为稳定版内置更新推送。
 
 旧版官方附件继续停止提供。 版本记录、Git 历史及其原许可保留；GitHub 根据标签提供的历史 Source code 快照仍可访问。撤下下载不等于撤销旧版授权，详见 [许可变更说明](docs/LICENSING.md)。
 
@@ -43,6 +43,8 @@
 当前发布包未进行代码签名。请从本仓库 Releases 下载，并用随包 SHA-256 清单核对文件。
 
 ## 本次更新与更新记录
+
+**1.4.0-preview.6 修正贡献者署名。** 仅创建 Fork、没有已核实实际贡献的社区参与记录不再列为贡献者；应用恢复“此版本的贡献者”标题，首页与贡献指南同步更正。维护者头像、社交主页与社区入口保留。详见[本版更新说明](docs/RELEASE_1.4.0-preview.6.zh-CN.md)。
 
 **1.4.0-preview.5 汇总此前本地预览功能。**
 
@@ -144,7 +146,7 @@ npm run package
 
 初始维护者：[NecoAya／八云绫](https://github.com/NecoAya)。任何人都可以提出修改，维护者负责评审、合并和发布；持续参与的贡献者可申请承担维护职责。详见 [社区治理](GOVERNANCE.md) 与 [行为准则](CODE_OF_CONDUCT.md)。
 
-社区参与记录：[MoLucien](https://github.com/MoLucien) 创建了[项目 Fork](https://github.com/MoLucien/VRCAL-VRChat-Asset-Library)。此项记录为社区参与，未计作已合并的代码功能贡献；后续合并的改进会按实际提交补充署名与说明。
+贡献者按已核实的代码、文档、翻译、测试或有效反馈署名；单纯创建 Fork 不计入贡献名单。
 
 ## 许可
 

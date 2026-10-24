@@ -1,6 +1,6 @@
 {
   "name": "vrchat-asset-library",
-  "version": "1.4.0-preview.5",
+  "version": "1.4.0-preview.6",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
@@ -82,7 +82,8 @@
       "docs/screenshots/workbench/**/*",
       "docs/WORKSPACE_NAVIGATION.zh-CN.md",
       "docs/screenshots/navigation/**/*",
-      "docs/RELEASE_1.4.0-preview.5.zh-CN.md"
+      "docs/RELEASE_1.4.0-preview.5.zh-CN.md",
+      "docs/RELEASE_1.4.0-preview.6.zh-CN.md"
     ],
     "asar": true,
     "win": {

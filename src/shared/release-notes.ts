@@ -14,6 +14,10 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.6',date:'2026-10-24',channel:'preview',title:'贡献者署名核对与清理',sections:[
+    {kind:'fixed',items:['移除仅创建 Fork、没有已核实实际贡献的社区参与条目，页面恢复为“此版本的贡献者”。','首页与贡献指南统一按实际代码、文档、翻译、测试或有效反馈记录署名；创建仓库副本本身不计作贡献。']},
+    {kind:'notes',items:['保留项目维护者头像、社交主页和社区入口；本版沿用 preview.5 的功能与试验范围，需手动下载公开预览版。']}
+  ]},
   {version:'1.4.0-preview.5',date:'2026-10-24',channel:'preview',title:'改模工作台、AI 辅助与轻量预览',sections:[
     {kind:'added',items:['改模工作台集中目标工程、依赖线索、工程商品、导入历史和错误处理；同内容素材包重复导入前提醒，保留已有 MA 菜单或创建显隐开关，装配与菜单支持一笔撤销。','无需 Unity 的轻量 3D 预览，支持 FBX、GLB、glTF、OBJ 及部分 ZIP／Unitypackage；可旋转、平移、缩放，调整渲染比例和线框。','公开插件目录扩充到 30 项，提供作者来源与安装方式，其中 6 项支持下载素材包并交给指定工程导入。','可选千问、Kimi、DeepSeek：衣服类型与风格建议、Unity 报错解释、自然语言找素材；AI 搜索词交给 BOOTH 或已开启的闲鱼读取真实商品。','待下载链接页按近期范围去重、显示待核对记录并衔接百度下载；仅检查应用内已加载的官方账号页面，不扫描其他浏览器。']},
     {kind:'improved',items:['侧栏分为素材整理、改模与工程、查找与下载；更新记录和社区放入应用区，隐藏素材仍有独立页面。','素材分类放到搜索筛选栏，工具页不再展示无关的分类；集合保留在整理区。','顶部显示当前页面用途，主题和语言收进外观；工程页突出添加工程和进入改模工作台。','空闲下载摘要更紧凑，完整速度与历史仍可查看；小窗口通过导航抽屉访问全部入口。']},

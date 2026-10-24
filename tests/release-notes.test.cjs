@@ -20,7 +20,9 @@ test('history separates public previews, unpublished trials and stable releases 
   const {RELEASE_NOTES, filterReleaseNotes} = load('shared/release-notes.ts');
   assert.equal(RELEASE_NOTES[0].version, require('../package.json').version);
   assert.equal(RELEASE_NOTES[0].channel, 'preview');
-  assert.deepEqual(filterReleaseNotes({channel:'preview'}).map(note=>note.version), [require('../package.json').version]);
+  const previews=filterReleaseNotes({channel:'preview'});
+  assert(previews.some(note=>note.version===require('../package.json').version));
+  assert(previews.every(note=>note.channel==='preview'));
   assert(!filterReleaseNotes({channel:'local'}).some(note=>note.version===require('../package.json').version));
   assert(!filterReleaseNotes({channel:'stable'}).some(note=>note.version===require('../package.json').version));
   const stable = filterReleaseNotes({channel:'stable',language:'zh-CN'});
