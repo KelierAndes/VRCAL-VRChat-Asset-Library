@@ -12,6 +12,8 @@
 
 [用户协议与功能使用说明](docs/USER_AGREEMENT.zh-CN.md) · [隐私说明](docs/PRIVACY.zh-CN.md)（账号页面读取的验证范围见本次发布说明）
 
+[第三方组件、资源与参考来源](THIRD_PARTY_NOTICES.md) · [运行依赖许可全文索引](licenses/README.md)
+
 **本轮版本：1.4.0-preview.14。** 百度分享支持勾选多个文件依次下载，完成后局部入库并直接更新图库；同商品材质、适配和源文件放入新下载目录，原素材保持原样。闲鱼链接待核对提示和数量更明确。[操作图文指南](docs/DOWNLOADS.zh-CN.md) · [本版说明](docs/RELEASE_1.4.0-preview.14.zh-CN.md)。
 
 ## 下载与开始使用

@@ -5,3 +5,7 @@
 
 # Preserve exact predecessor bytes for guarded Unity helper upgrades.
 assets/unity/legacy/* -text
+
+# Keep upstream license bytes stable for the recorded SHA-256 values.
+licenses/*.txt -text
+licenses/runtime/*.txt -text

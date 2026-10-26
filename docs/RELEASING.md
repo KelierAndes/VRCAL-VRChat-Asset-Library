@@ -19,6 +19,7 @@
 ## 发布前检查
 
 - 运行 `npm run check`、`npm test`、`npm run build`；修复实际失败。
+- 依赖升级后同步 `THIRD_PARTY_NOTICES.md`、`licenses/README.md` 与 `licenses/runtime-packages.json`；核对锁定版本、许可原文及 SHA-256。实际包中保留这些声明、字体许可和 Electron／Chromium 随附许可；仅修改仓库文档不会补齐旧安装包。
 - 审查公开文件，不包含凭证、个人资料库、购买记录或付费素材；普通备份不含登录凭证。
 - 验证打包后的主程序、全部运行资源、实际版本、SQLite 和界面启动；使用隔离资料库验证新增交互、重启与备份恢复。
 - 保持扫描源文件清单和哈希不变。涉及主动导入时，只测试隔离合成工程，分别记录导入和装配结果。
