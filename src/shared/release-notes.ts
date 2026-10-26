@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.15',date:'2026-10-26',channel:'preview',title:'深层素材扫描与外部工程加入',sections:[
+    {kind:'fixed',items:['修复多层分类目录、压缩包和 Unity 工程因固定层数限制漏读；素材文件列表同步支持深层子目录。读取数量达到上限时明确提示。','修复改模工作台添加扫描范围外的工程后提示“请选择已登记的 Unity 工程”；先登记选中工程再读取，重复加入沿用原记录并恢复可用状态。']},
+    {kind:'improved',items:['改模工作台可直接拖入外部 Unity 工程根目录，无需移动工程或先全局扫描；与按钮添加共用验证和登记流程。','随程序补齐当前运行依赖的版权与许可全文。']},
+    {kind:'notes',items:['商品内部模型与贴图仍按商品整体展示，缓存及目录链接仍跳过；扫描不移动、改名或解压原素材。','隔离合成目录与工程用于本次验证；不代表真实角色装配验收。公开预览需手动下载，新增文案暂为中文。']}
+  ]},
   {version:'1.4.0-preview.14',date:'2026-10-25',channel:'preview',title:'勾选下载、完成即入库与同商品归组',sections:[
     {kind:'added',items:['百度分享列表可勾选多个文件、全选和下载所选，每批最多100个，依次下载；支持取消后续队列。','百度下载完成只登记本次文件，直接更新素材库，无需全局扫描；入库失败可重试，已完成文件保留。']},
     {kind:'improved',items:['BOOTH明确商品ID、百度同分享的保守文件族分别归组；材质、源文件和角色适配包可放入同一新目录并合并展示。同名另建目录，不覆盖已有文件，不移动历史素材。','下载记录保持文件查看、工程导入范围、人工标注、重启、备份与迁移；文件和目录身份变化时停止操作。']},

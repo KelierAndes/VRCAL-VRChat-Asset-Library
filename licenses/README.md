@@ -1,6 +1,6 @@
 # 运行依赖许可索引
 
-本表于 2026-10-26 按 `1.4.0-preview.14` 的 `package-lock.json` 和已安装依赖核对，覆盖 29 个非 dev 包条目（包含同名不同版本）。完整版权与许可正文保留在下方文件中，不以 SPDX 标识代替正文。
+本表于 2026-10-26 按 `1.4.0-preview.15` 的 `package-lock.json` 和已安装依赖核对，覆盖 29 个非 dev 包条目（包含同名不同版本）。完整版权与许可正文保留在下方文件中，不以 SPDX 标识代替正文。
 
 [第三方说明](../THIRD_PARTY_NOTICES.md) · [版本、来源及 SHA-256 清单](runtime-packages.json)
 

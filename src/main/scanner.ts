@@ -123,9 +123,10 @@ export class Scanner {
   }
   /** Find category shelves through ordinary parent folders. Engine layouts and
    * loose model sources prove a product boundary, so variants stay one bundle. */
-  private async sourceContainer(directory:string,depth=0,budget={remaining:256}):Promise<boolean>{
-    if(this.cancelled||!this.store.isPathActive(directory)||depth>6||budget.remaining--<=0)return false;
+  private async sourceContainer(directory:string,budget={remaining:5000,truncated:false}):Promise<boolean>{
+    if(this.cancelled||!this.store.isPathActive(directory))return false;
     const key=sourcePathKey(directory),cached=this.bucketCache.get(key);if(cached!==undefined)return cached;
+    if(budget.remaining--<=0){if(!budget.truncated)this.error(directory,new Error('目录识别达到本次读取上限，部分子目录尚未识别；请添加更具体的素材目录。'));budget.truncated=true;return false}
     let entries:fs.Dirent[];try{entries=await fsp.readdir(directory,{withFileTypes:true})}catch{return false}
     const category=isSourceBucketName(path.basename(directory));
     const bundle=entries.some(entry=>!entry.isSymbolicLink()&&(entry.isDirectory()&&['assets','packages','projectsettings','textures','shaders'].includes(entry.name.toLowerCase())||entry.isFile()&&(/\.(?:fbx|blend|vrm|obj|spp|prefab|mat|anim|controller)$/i.test(entry.name)||!category&&/\.(?:unitypackage|zip|rar|7z)$/i.test(entry.name))));
@@ -137,10 +138,11 @@ export class Scanner {
     for(const entry of entries){
       const source=path.join(directory,entry.name);
       if(!entry.isDirectory()||entry.isSymbolicLink()||!this.store.isPathActive(source)||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name))continue;
-      if(await this.sourceContainer(source,depth+1,budget)){this.bucketCache.set(key,true);return true}
+      if(await this.sourceContainer(source,budget)){this.bucketCache.set(key,true);return true}
     }
-    // A bounded search may have stopped before reaching the final branch.
-    if(depth===0&&budget.remaining>0)this.bucketCache.set(key,false);
+    // Cache a negative result only after all eligible branches were inspected.
+    // Depth is not a product boundary; the work budget still bounds large trees.
+    if(!this.cancelled&&!budget.truncated)this.bucketCache.set(key,false);
     return false;
   }
   private async archiveEvidence(source:string,stat:fs.Stats):Promise<FileListing>{
@@ -157,8 +159,8 @@ export class Scanner {
       for(const avatar of inferAvatars(name)){const key=`${avatar}:${basis}`,entry=evidence.get(key)??{avatar,files:[],basis};if(entry.files.length<80&&!entry.files.includes(file))entry.files.push(file);evidence.set(key,entry)}
     };
     addEvidence(path.basename(directory),directory,'filename');
-    const visit=async(location:string,depth:number,hintScope=true)=>{
-      if(this.cancelled||!this.store.isPathActive(location)||count>=5000||depth>10){complete=false;return}
+    const visit=async(location:string,hintScope=true)=>{
+      if(this.cancelled||!this.store.isPathActive(location)||count>=5000){complete=false;return}
       let entries;try{entries=await fsp.readdir(location,{withFileTypes:true})}catch{complete=false;return}
       const hintDepth=isWithin(location,hintRoot)?path.relative(hintRoot,location).split(path.sep).filter(Boolean).length:-1;
       for(const entry of entries){if(this.cancelled||count++>=5000){complete=false;break}if(entry.isSymbolicLink()){complete=false;continue}const source=path.join(location,entry.name);if(!this.store.isPathActive(source))continue;
@@ -167,7 +169,7 @@ export class Scanner {
           if(await this.project(source)){complete=false;continue}
           const childHintScope=hintScope&&!['assets','packages','projectsettings'].includes(entry.name.toLowerCase());
           if(childHintScope&&hintDepth>=0&&hintDepth<2&&nameHints.size<20)nameHints.add(entry.name);
-          addEvidence(entry.name,source,'filename');await visit(source,depth+1,childHintScope);continue;
+          addEvidence(entry.name,source,'filename');await visit(source,childHintScope);continue;
         }
         if(!entry.isFile())continue;
         try{const stat=await fsp.stat(source);size+=stat.size;
@@ -183,7 +185,7 @@ export class Scanner {
         if(count%100===0)await pause();
       }
     };
-    await visit(directory,0);return {size,urls:[...urls].slice(0,20),preview,localEvidence:[...evidence.values()],compatibilityComplete:complete&&evidence.size>0,localNameHints:[...nameHints]};
+    await visit(directory);if(count>=5000)this.error(directory,new Error('素材文件读取达到本次上限，部分深层内容尚未读取；请添加更具体的素材目录。'));return {size,urls:[...urls].slice(0,20),preview,localEvidence:[...evidence.values()],compatibilityComplete:complete&&evidence.size>0,localNameHints:[...nameHints]};
   }
   private async add(source:string,group:string,seen:Set<string>,excluded:string[],project=false,preview?:string):Promise<void>{
     if(this.cancelled||!this.store.isPathActive(source))return;
@@ -213,30 +215,30 @@ export class Scanner {
       seen.add(record.id);this.state.found++;this.emit();await pause();
     }catch(error){excluded.push(source);this.error(source,error)}
   }
-  private async container(directory:string,group:string,seen:Set<string>,excluded:string[],depth=0,budget={remaining:5000}):Promise<void>{
-    if(this.cancelled)return;this.store.markScanContainer(directory);if(depth>32||budget.remaining--<=0){excluded.push(directory);return}
+  private async container(directory:string,group:string,seen:Set<string>,excluded:string[],budget={remaining:5000}):Promise<void>{
+    if(this.cancelled)return;this.store.markScanContainer(directory);if(budget.remaining--<=0){excluded.push(directory);this.error(directory,new Error('目录扫描达到本次读取上限，部分子目录尚未扫描；请添加更具体的素材目录。'));return}
     try{for(const entry of await this.scanEntries(directory)){
-      if(this.cancelled)return;if(budget.remaining--<=0){excluded.push(directory);break}const source=path.join(directory,entry.name),extension=path.extname(entry.name).toLowerCase();
+      if(this.cancelled)return;if(budget.remaining--<=0){excluded.push(directory);this.error(directory,new Error('目录扫描达到本次读取上限，部分子目录尚未扫描；请添加更具体的素材目录。'));break}const source=path.join(directory,entry.name),extension=path.extname(entry.name).toLowerCase();
       if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
       if(entry.isDirectory()){
         if(await this.project(source)){await this.add(source,group,seen,excluded,true);continue}
         if(['assets','packages','projectsettings'].includes(entry.name.toLowerCase())){excluded.push(source);continue}
-        if(isOrganizationalFolderName(entry.name)||/^(?:textures?|貼圖|贴图|纹理)$/i.test(entry.name)||await this.sourceContainer(source)){await this.container(source,group,seen,excluded,depth+1,budget);continue}
-        if(/^(?:模型|通用$|优化$|轉模$|转模$|转膜$)/.test(entry.name)||isAvatarName(entry.name)){await this.container(source,entry.name,seen,excluded,depth+1,budget);continue}
+        if(isOrganizationalFolderName(entry.name)||/^(?:textures?|貼圖|贴图|纹理)$/i.test(entry.name)||await this.sourceContainer(source)){await this.container(source,group,seen,excluded,budget);continue}
+        if(/^(?:模型|通用$|优化$|轉模$|转模$|转膜$)/.test(entry.name)||isAvatarName(entry.name)){await this.container(source,entry.name,seen,excluded,budget);continue}
         const nested=await this.discoverProjects(source,excluded);
         if(nested.projects.length){for(const project of nested.projects)await this.add(project,group,seen,excluded,true);for(const archive of nested.archives)await this.addListed(archive,group,seen,excluded)}
         else await this.add(source,group,seen,excluded);
       }else if(entry.isFile()&&(ARCHIVES.has(extension)||FILES.has(extension)&&extension!=='.psd'))await this.addListed(source,group,seen,excluded);
     }}catch(error){excluded.push(directory);this.error(directory,error)}
   }
-  private async projectTree(directory:string,group:string,seen:Set<string>,excluded:string[],depth=0):Promise<void>{
-    if(this.cancelled)return;if(depth>32){excluded.push(directory);return}
+  private async projectTree(directory:string,group:string,seen:Set<string>,excluded:string[],budget={remaining:5000}):Promise<void>{
+    if(this.cancelled)return;if(budget.remaining--<=0){excluded.push(directory);this.error(directory,new Error('工程目录扫描达到本次读取上限；请添加更具体的工程目录。'));return}
     if(await this.project(directory)){await this.add(directory,group,seen,excluded,true);return}
     try{
       for(const entry of await this.scanEntries(directory)){
         if(this.cancelled)return;const source=path.join(directory,entry.name);
         if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)){excluded.push(source);continue}
-        if(entry.isDirectory())await this.projectTree(source,group,seen,excluded,depth+1);
+        if(entry.isDirectory())await this.projectTree(source,group,seen,excluded,budget);
         else if(entry.isFile()&&isPackage(entry.name))await this.addListed(source,group,seen,excluded);
       }
     }catch(error){excluded.push(directory);this.error(directory,error)}
@@ -249,10 +251,10 @@ export class Scanner {
       else if(entry.isFile()&&(ARCHIVES.has(extension)||FILES.has(extension)))await this.addListed(source,group,seen,excluded);
     }}catch(error){excluded.push(directory);this.error(directory,error)}
   }
-  private async discoverProjects(directory:string,excluded:string[],depth=0,budget={remaining:5000}):Promise<{projects:string[];archives:string[]}>{
+  private async discoverProjects(directory:string,excluded:string[],budget={remaining:5000}):Promise<{projects:string[];archives:string[]}>{
     const result={projects:[] as string[],archives:[] as string[]};
     if(this.cancelled)return result;
-    if(depth>24||budget.remaining--<=0){excluded.push(directory);return result}
+    if(budget.remaining--<=0){excluded.push(directory);this.error(directory,new Error('工程目录识别达到本次读取上限；请添加更具体的工程目录。'));return result}
     if(await this.project(directory)){result.projects.push(directory);return result}
     try{
       const entries=await this.scanEntries(directory);
@@ -261,7 +263,7 @@ export class Scanner {
         // A downloaded package's internal Assets hierarchy stays aggregated.
         // A full Unity project was already detected before these exclusions.
         if(!this.store.isPathActive(source)||entry.isSymbolicLink()||CACHES.has(entry.name.toLowerCase())||SOFTWARE.test(entry.name)||['assets','packages','projectsettings'].includes(entry.name.toLowerCase())){excluded.push(source);continue}
-        if(entry.isDirectory()){const child=await this.discoverProjects(source,excluded,depth+1,budget);result.projects.push(...child.projects);result.archives.push(...child.archives)}
+        if(entry.isDirectory()){const child=await this.discoverProjects(source,excluded,budget);result.projects.push(...child.projects);result.archives.push(...child.archives)}
       }
       if(result.projects.length)for(const entry of entries)if(entry.isFile()&&(ARCHIVES.has(path.extname(entry.name).toLowerCase())||path.extname(entry.name).toLowerCase()==='.unitypackage'))result.archives.push(path.join(directory,entry.name));
     }catch(error){excluded.push(directory);this.error(directory,error)}
@@ -341,13 +343,13 @@ export class Scanner {
 
 async function directoryFiles(root:string,isActive:(source:string)=>boolean=()=>true):Promise<FileListing>{
   const entries:FileListing['entries']=[];let truncated=false,unreadable=0;
-  const visit=async(directory:string,depth:number)=>{
-    if(entries.length>=LIMIT||depth>12){truncated=true;return}
+  const visit=async(directory:string)=>{
+    if(entries.length>=LIMIT){truncated=true;return}
     let children;try{children=await fsp.readdir(directory,{withFileTypes:true})}catch{unreadable++;return}
     for(const child of children){if(entries.length>=LIMIT){truncated=true;break}if(child.isSymbolicLink()||CACHES.has(child.name.toLowerCase()))continue;
-      const source=path.join(directory,child.name);if(!isActive(source))continue;if(child.isDirectory()){entries.push({name:path.relative(root,source),size:0,directory:true});await visit(source,depth+1)}
+      const source=path.join(directory,child.name);if(!isActive(source))continue;if(child.isDirectory()){entries.push({name:path.relative(root,source),size:0,directory:true});await visit(source)}
       else if(child.isFile())try{entries.push({name:path.relative(root,source),size:(await fsp.stat(source)).size,directory:false})}catch{unreadable++}
     }
   };
-  await visit(root,0);return {entries,truncated,message:unreadable?'部分文件无法读取；Unity 缓存与目录链接已跳过。':'Unity 缓存与目录链接已跳过。'};
+  await visit(root);return {entries,truncated,message:[unreadable?'部分文件无法读取。':'',truncated?`文件列表达到 ${LIMIT} 条读取上限，未列出的文件不代表不存在。`:'','Unity 缓存与目录链接已跳过。'].filter(Boolean).join(' ')};
 }

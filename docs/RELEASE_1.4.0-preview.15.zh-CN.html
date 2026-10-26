@@ -1,0 +1,25 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1.4.0-preview.15：深层素材扫描与外部工程加入</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.15 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">深层目录不再因固定层数而漏读</a><a href="#section-3">外部工程可以直接加入改模工作台</a><a href="#section-4">升级后怎么做</a><a href="#section-5">包含的许可补充与验证边界</a></nav><main><h1 id="section-1">1.4.0-preview.15：深层素材扫描与外部工程加入</h1>
+<p>本版修复多层文件夹内素材漏读，以及在改模工作台加入外部工程后出现“请选择已登记的 Unity 工程”的问题。公开预览需手动下载，不进入稳定自动更新通道。</p>
+<h2 id="section-2">深层目录不再因固定层数而漏读</h2>
+<ul>
+<li>修复深层分类目录、压缩包和 Unity 工程被旧层数限制截断的问题。素材详情的文件列表也可以展开更深的子目录。</li>
+<li>商品目录仍整体展示；不将同一件衣服中的模型、贴图和内部文件夹全部拆成商品卡片。深层包属于一个商品时，可在该素材的文件列表查看。</li>
+<li>保留读取数量上限；达到上限会明确提示，可选择更具体的素材目录继续读取。Unity 缓存和目录链接仍跳过。</li>
+<li>扫描不移动、重命名或解压原素材，不修改工程内容。此前关于磁盘文件被移动的反馈没有通过本次深层扫描测试复现，不能以此宣布该情况已解决。</li>
+</ul>
+<h2 id="section-3">外部工程可以直接加入改模工作台</h2>
+<p>在左侧点击 <strong>改模工作台</strong>，点击 <strong>添加工程</strong> 选择工程根目录，或把工程根目录直接拖入工作台。根目录是同时包含 <code>Assets</code>、<code>Packages</code>、<code>ProjectSettings</code> 的那一级文件夹。</p>
+<p>程序会先验证并登记你选择的工程，再选中它并显示依赖检查。无需先把工程移到素材目录，也无需先全局扫描。重复添加同一个工程会沿用原有记录；曾标记为缺失但已经恢复的工程可以重新读取。</p>
+<p>只登记明确选择的工程，不扩大到它的父目录或同级其他工程。资料库／备份目录重叠、目录链接、无效工程仍会被拒绝，并给出原因。添加工程本身不启动 Unity，也不安装插件或导入素材。</p>
+<h2 id="section-4">升级后怎么做</h2>
+<ol>
+<li>正常退出旧版，运行本版，继续选择原资料库。</li>
+<li>对已有素材来源点击一次 <strong>刷新素材</strong>，补读此前因嵌套深度遗漏的内容；保留人工标题、标签与商品来源。</li>
+<li>此前加入失败的工程，在 <strong>改模工作台</strong> 再添加或拖入一次工程根目录。</li>
+</ol>
+<h2 id="section-5">包含的许可补充与验证边界</h2>
+<p>程序随包补齐当前运行依赖的版权与许可全文，详见 <a href="../THIRD_PARTY_NOTICES.md">第三方声明</a>。没有改变这些组件的原许可，也不撤销历史许可。</p>
+<p>使用隔离合成目录与工程验证扫描、登记、重复加入及打包程序交互。最终测试数量、程序启动和 SHA-256 核对见同版验收附件。没有读取私人素材或运行真实角色装配；本版不宣称全部实验功能已经完成实机验收。新增文案按维护安排暂为中文。</p>
+<p><a href="SCANNING_AND_COVERS.zh-CN.html">扫描与封面说明</a> · <a href="AVATAR_WORKBENCH.zh-CN.html">改模工作台使用说明</a></p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

@@ -167,7 +167,7 @@ export interface LibraryAPI {
   selectWorkbenchProject(projectId:string):Promise<void>;
   findProjectImportLocations(jobId:string):Promise<void>;
   cancelProjectImport(id:string):Promise<boolean>;openProjectEditor(id:string):Promise<void>;
-  chooseProject():Promise<AssetRecord|null>;chooseUnityEditor(projectId:string):Promise<boolean>;
+  chooseProject():Promise<AssetRecord|null>;addDroppedProject(files:File[]):Promise<AssetRecord|null>;chooseUnityEditor(projectId:string):Promise<boolean>;
   listCollections():Promise<LibraryCollection[]>;saveCollection(input:CollectionInput):Promise<LibraryCollection>;
   updateCollectionMembers(collectionId:string,ids:string[],mode:'add'|'remove'):Promise<void>;deleteCollection(id:string):Promise<void>;
   listTags():Promise<TagSummary[]>;mergeTags(names:string[],target:string):Promise<void>;setTagAliases(name:string,aliases:string[]):Promise<void>;
