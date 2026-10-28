@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.17',date:'2026-10-28',channel:'preview',title:'素材位置多选与批量移除',sections:[
+    {kind:'added',items:['设置与备份中的素材位置支持逐项勾选、全选、取消勾选和移除所选，保留单个位置的移除入口；多个位置一次处理，无需逐个点击。']},
+    {kind:'improved',items:['整批位置验证与保存成功后才生效，失败不部分移除；扫描、下载解压、工程导入或回收等操作占用时继续等待空闲，不增加确认弹窗。','可一次移除全部登记位置，清空后保持为空；旧标注保留，重新添加原位置后可恢复使用。']},
+    {kind:'notes',items:['移除仅取消本应用的位置登记，不删除、改名、搬动或回收磁盘文件；与隐藏单个素材、删除并移入系统回收站分别处理。','新增初学者素材位置指南。公开预览需手动下载，新增文案暂为中文；最终验证以同版验收记录为准。']}
+  ]},
   {version:'1.4.0-preview.16',date:'2026-10-28',channel:'preview',title:'历史 ZIP 合并解压与 MA 菜单预览诊断',sections:[
     {kind:'added',items:['百度下载记录支持勾选同一素材的模型包、材质包，一起解压到一个新目录并直接入库，无需全局扫描；每个 ZIP 使用独立子目录。','新增下载后自动解压 ZIP、成功入库后将原 ZIP 移至系统回收站两项设置，默认均关闭并保存选择；自动解压按本次批量下载中的同商品组处理。']},
     {kind:'improved',items:['历史 UUID 下载目录不搬动；保留原包时保留其既有标注。解压结果单独登记，失败保留原包，有可用结果时可重试入库；重试入库不回收原包。','Unity 日志保留已销毁对象的后续提示和堆栈，精确识别 MA Inspector 菜单预览的失效 Menu Installer 引用并给出中文排查建议。']},

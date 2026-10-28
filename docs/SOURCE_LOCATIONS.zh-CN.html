@@ -1,0 +1,57 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>素材位置管理：多选、全选与批量移除</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.17 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">先找到素材位置列表</a><a href="#section-3">勾选几个位置后一起移除</a><a href="#section-4">全选、取消勾选与全部清空</a><a href="#section-5">只移除一个位置</a><a href="#section-6">重新添加原位置，继续使用旧标注</a><a href="#section-7">移除、隐藏和删除有什么区别</a><a href="#section-8">常见提示与处理</a><a href="#section-9">实际界面示例</a></nav><main><h1 id="section-1">素材位置管理：多选、全选与批量移除</h1>
+<p>适用版本：1.4.0-preview.17 起。更新日期：2026-10-28。新增文案暂为中文。</p>
+<p><strong>这里的“移除”只取消素材位置在应用中的登记，保留磁盘文件和已有标注。</strong> 它不会删除、改名、搬动文件，也不会把文件送入系统回收站。想暂时停止整理一批文件夹，或先清空旧位置再添加自己的目录时，可使用本页步骤。</p>
+<h2 id="section-2">先找到素材位置列表</h2>
+<ol>
+<li>打开 VRC 素材库，在主界面点击 <strong>设置与备份</strong>。</li>
+<li>在设置内容中向下滚动，找到标题 <strong>素材位置</strong>。</li>
+<li>看清每一行显示的完整路径。文件夹图标旁是登记位置；标有 <strong>手动添加</strong> 的位置来自手动添加，也可以在这里管理。</li>
+<li>如果扫描、下载／解压、工程导入或回收等任务仍在进行，先等待任务结束。忙碌状态可能使移除按钮不可用，或在提交时提示等待。</li>
+</ol>
+<p>“素材位置”是应用读取原素材的来源。“资料库数据”中的保存位置用于索引、标注、封面和设置，二者不是同一个目录。不要为了移除扫描来源而去删除资料库文件夹。</p>
+<h2 id="section-3">勾选几个位置后一起移除</h2>
+<ol>
+<li>点击目标路径前方的复选框，出现勾号即表示选中。继续勾选其他要移除的位置。</li>
+<li>核对已选数量和路径。只想取消某一项时，再点一次该行的复选框，勾号消失即可；取消勾选本身不会移除位置。</li>
+<li>点击 <strong>移除所选（N）</strong>，其中 N 是本次已选位置数，例如 <strong>移除所选（3）</strong>。程序一次处理本次选择，不需要再逐行点击右侧按钮，也不会额外弹出确认窗口。</li>
+<li>操作成功后，所选位置退出登记列表。未选中的位置继续保留。</li>
+</ol>
+<p>没有勾选任何位置时，不能执行 <strong>移除所选（0）</strong>。校验或登记保存失败时，整批保持原状；核对提示后再重试。如果提示“素材位置已移除，但联网补全队列未能保存”，表示位置移除已成功，补全已暂停；检查资料库磁盘后再恢复补全，不必重复移除。</p>
+<h2 id="section-4">全选、取消勾选与全部清空</h2>
+<ol>
+<li>勾选列表上方的 <strong>全选</strong>，一次选中当前登记的全部位置。</li>
+<li>如果只想保留少数位置，逐项取消这些位置前的勾号，再核对剩余选择。</li>
+<li>如果这次不想移除，点击 <strong>取消勾选</strong> 清掉全部勾号；也可逐项取消勾选。选中或取消选择都不会改动磁盘文件。</li>
+<li>确实要停止读取全部位置时，保持全部选中并点击 <strong>移除所选（N）</strong>。</li>
+</ol>
+<p>全部移除后，<strong>素材位置列表保持为空</strong>，不会自动补回 <code>E:\VRChat</code> 等默认位置。应用没有当前登记的素材来源时，来自这些位置的素材不再展示。这不表示磁盘文件丢失，也不表示旧标注被清空。接下来可点击 <strong>添加素材文件夹</strong>，选择自己的素材目录。</p>
+<h2 id="section-5">只移除一个位置</h2>
+<p>每条路径右侧原有的 <strong>移除</strong> 按钮仍可使用。只想移除一个位置时，先核对该行路径，再点击这一行的 <strong>移除</strong> 即可；它与批量移除一样，只取消应用登记。</p>
+<p>不需要先进入多选模式，也不必为单个位置全选整个列表。</p>
+<h2 id="section-6">重新添加原位置，继续使用旧标注</h2>
+<ol>
+<li>在 <strong>设置与备份 → 素材位置</strong> 点击 <strong>添加素材文件夹</strong>。</li>
+<li>选择先前移除的原文件夹，等待读取完成。若原来源是通过手动选择文件或拖入文件加入，请用原来的手动添加方式重新加入这些文件。</li>
+<li>回到素材库，核对素材及原有的封面、标题、备注、标签、收藏、来源等资料。原文件仍在原路径且原资料库继续使用时，可以沿用已有标注。</li>
+</ol>
+<p>移除登记没有把任何文件放入回收站，因此恢复来源不需要打开 Windows 回收站，也不需要重新下载。保留原路径和原资料库有助于恢复对应关系；如果文件已经被其他程序移走或改名，应先核对实际位置，不能把新路径当作原位置已自动恢复。</p>
+<h2 id="section-7">移除、隐藏和删除有什么区别</h2>
+<div class="table-scroll"><table><thead><tr><th>操作</th><th>作用范围</th><th>磁盘文件</th><th>如何恢复使用</th></tr></thead><tbody>
+<tr><td>素材位置中的移除／移除所选</td><td>一条或多条已登记来源，停止从这些位置读取和展示</td><td>保留原处，不删除、不改名、不搬动、不回收</td><td>重新添加原位置，读取后沿用旧标注</td></tr>
+<tr><td>从资料库隐藏</td><td>应用中选中的素材条目，不取消整个来源</td><td>保留原处</td><td>在左侧“已隐藏素材”中恢复显示</td></tr>
+<tr><td>删除（移入回收站）</td><td>确认窗口列出的实际原文件或文件夹</td><td>确认后实际移入 Windows 系统回收站</td><td>在系统回收站还原到原路径，再刷新素材</td></tr>
+</tbody></table></div>
+<p>位置移除不会增加“已隐藏素材”的数量，也不会释放原素材占用的磁盘空间。若目标只是让某几个素材暂时不显示，应使用隐藏；若需要实际回收原文件，须另行使用有确认步骤的删除功能。</p>
+<h2 id="section-8">常见提示与处理</h2>
+<ul>
+<li><strong>按钮不可用或提示任务占用</strong>：等待扫描、下载／解压、工程导入或回收结束后再试；不要通过移动原文件来绕过忙碌提示。</li>
+<li><strong>提示位置已经变化或列表需要重新读取</strong>：核对当前设置列表，再重新勾选本次要处理的位置。整批操作失败时不会留下只移除一半的状态。</li>
+<li><strong>移除后素材卡片不见了</strong>：这是该来源退出当前展示的结果。先到资源管理器核对原文件，再按上面的步骤重新添加原位置。</li>
+<li><strong>想换成自己的母目录</strong>：可先全部移除登记，再添加自己的目录。素材位置应与资料库数据、备份目录分开存放，不能互相包含；无需搬动原素材来执行位置移除。</li>
+</ul>
+<p><a href="RELEASE_1.4.0-preview.17.zh-CN.md">本版说明</a> · <a href="SCANNING_AND_COVERS.zh-CN.md">扫描与封面规则</a> · <a href="USER_GUIDE.md">功能与开发参考</a></p>
+<h2 id="section-9">实际界面示例</h2>
+<p>下图来自隔离测试资料库，路径与素材均为合成样例。左侧复选框可以多选，顶部显示已选数量和“移除所选”按钮。</p>
+<figure><img src="images/source-locations-selection-preview17.png" alt="在素材位置中勾选多个目录后批量移除" loading="lazy"><figcaption>在素材位置中勾选多个目录后批量移除</figcaption></figure><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

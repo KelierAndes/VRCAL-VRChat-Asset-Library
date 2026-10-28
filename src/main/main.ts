@@ -27,7 +27,7 @@ import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {Store,safeBoothDownloadPath} from './store';
 import {Scanner} from './scanner';
-import {assertSourceSeparation} from './source-roots';
+import {assertSourceSeparation,normalizeSourceRoots,sourcePathKey} from './source-roots';
 import {assertSafeWrite,safeCoverPath,copyCover} from './safety';
 import {EnrichmentQueue,publicHttpsUrl} from './online';
 import {ProductPreview} from './preview';
@@ -255,7 +255,7 @@ async function performScan(){if(recycleOperation||closing||migrating)return;awai
 async function addMaterials(paths:unknown){assertNotRecycling();const result=await scanner.addPaths(paths);if(!closing&&!migrating){changed();if(result.ids.length&&store.settings().onlineEnabled&&!process.env.VRC_LIBRARY_NO_NETWORK)await queue.enqueue(result.ids)}return {...result,errors:result.errors.map(error=>{const split=error.lastIndexOf("：");return split<0?translate(error,uiLanguage()):error.slice(0,split+1)+translate(error.slice(split+1),uiLanguage())})};}
 async function addProject(selected:unknown,current=store){const verify=()=>{assertNotRecycling();if(current!==store||migrating||closing)throw new Error('资料库位置已变化，请重新添加工程。');if(scanner.progress().running)throw new Error('请先停止扫描，再添加工程。')};verify();const project=await registerProject(current,selected,verify);changed();return project;}
 function assertNotRecycling(){if(recycleOperation)throw new Error('正在处理回收站操作，请稍候。')}
-function handle(name:string,fn:(...args:any[])=>any){ipcMain.handle(`library:${name}`,async(event,...args)=>{try{if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw new Error('操作来源无效。');if(migrating)throw new Error('正在更改资料库位置，请稍候。');if(baiduDownloads?.processing&&['chooseDataDir','restore','removeRoot','chooseRoot','scan','chooseMaterials','addMaterials','chooseProject','addDroppedProject','installUpdate','recycleAssets','clearBaiduSession'].includes(name))throw new Error('请等待解压与自动入库完成后再执行此操作。');if(recycleOperation&&['recycleAssets','chooseDataDir','restore','removeRoot','chooseRoot','scan','chooseMaterials','addMaterials','chooseProject','installPublicPlugin','executeProjectImport','setHidden','forceRematch'].includes(name))throw new Error('正在处理回收站操作，请稍候。');if((projectImports?.busy||pluginInstall||publicPlugins?.busy)&&['chooseDataDir','restore','removeRoot','installUpdate','recycleAssets'].includes(name))throw new Error('请等待工程素材导入完成后再执行此操作。');return await fn(...args)}catch(error){if(error instanceof Error)throw new Error(translate(error.message,uiLanguage()));throw error}})}
+function handle(name:string,fn:(...args:any[])=>any){ipcMain.handle(`library:${name}`,async(event,...args)=>{try{if(!window||event.sender!==window.webContents||event.senderFrame!==window.webContents.mainFrame)throw new Error('操作来源无效。');if(migrating)throw new Error('正在更改资料库位置，请稍候。');if(baiduDownloads?.processing&&['chooseDataDir','restore','removeRoot','removeRoots','chooseRoot','scan','chooseMaterials','addMaterials','chooseProject','addDroppedProject','installUpdate','recycleAssets','clearBaiduSession'].includes(name))throw new Error('请等待解压与自动入库完成后再执行此操作。');if(recycleOperation&&['recycleAssets','chooseDataDir','restore','removeRoot','removeRoots','chooseRoot','scan','chooseMaterials','addMaterials','chooseProject','installPublicPlugin','executeProjectImport','setHidden','forceRematch'].includes(name))throw new Error('正在处理回收站操作，请稍候。');if((projectImports?.busy||pluginInstall||publicPlugins?.busy)&&['chooseDataDir','restore','removeRoot','removeRoots','installUpdate','recycleAssets'].includes(name))throw new Error('请等待工程素材导入完成后再执行此操作。');return await fn(...args)}catch(error){if(error instanceof Error)throw new Error(translate(error.message,uiLanguage()));throw error}})}
 async function recycleMaterials(input:unknown,scope:'card'|'file'='card'):Promise<AssetRecycleResult> {
  if(closing||migrating||recycleOperation)throw new Error('正在处理回收站操作，请稍候。');
  const activeStore=store,activeScanner=scanner,activeQueue=queue,selected=store.selectedRawIds(parseIds(input),scope),settings=store.settings();
@@ -493,6 +493,22 @@ function registerHandlers(){
   if(scanner.progress().running)throw new Error('请先停止扫描，再修改素材目录。');
   if(typeof root!=='string'||!path.isAbsolute(root)||!store.settings().roots.some(value=>path.resolve(value).toLowerCase()===path.resolve(root).toLowerCase()))throw new Error('素材目录未登记。');
   const affected=store.all().filter(asset=>contained(root,asset.path)).flatMap(asset=>asset.members?.map(member=>member.id)||[asset.id]);store.removeRoot(root);queue.exclude(affected.filter(id=>{const raw=store.getRaw(id);return !raw||!store.isPathActive(raw.path)}));preview.close();changed();return true;
+ });
+ handle('removeRoots',async(input:unknown)=>{
+  if(scanner.progress().running)throw new Error('请先停止扫描，再修改素材目录。');
+  const roots=normalizeSourceRoots(input),registered=new Set(store.settings().roots.map(sourcePathKey));
+  if(!roots.length||roots.some(root=>!registered.has(sourcePathKey(root))))throw new Error('素材目录未登记。');
+  const affected=store.all().flatMap(asset=>asset.members??[asset]).filter(asset=>roots.some(root=>contained(root,asset.path))).map(asset=>asset.id);
+  store.removeRoots(roots);
+  // Once settings commit, ancillary failures must not report a failed removal.
+  try{queue.exclude(affected.filter(id=>{const raw=store.getRaw(id);return !raw||!store.isPathActive(raw.path)}))}catch{
+   try{queue.pause()}catch{/* Pausing updates memory before attempting to save. */}
+   const warning='素材位置已移除，但联网补全队列未能保存；已暂停补全，请检查资料库磁盘后重试。';if(!store.recoveryWarnings.includes(warning))store.recoveryWarnings.push(warning);
+  }
+  try{preview.close()}catch{
+   const warning='素材位置已移除，但商品预览未能关闭；请手动关闭预览窗口。';if(!store.recoveryWarnings.includes(warning))store.recoveryWarnings.push(warning);
+  }
+  changed();return true;
  });
  handle('updateState',()=>updater.state());
  handle('checkForUpdates',()=>updater.check());

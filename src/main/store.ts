@@ -268,7 +268,9 @@ export class Store {
     next.directSources=normalizeSourceRoots(next.directSources??[]).filter(source=>next.roots.some(root=>sourcePathKey(root)===sourcePathKey(source)));if(!next.directSources.length)delete next.directSources;
     const enabled=next.roots.filter(root=>!current.roots.some(old=>sourcePathKey(old)===sourcePathKey(root)));
     const removed=current.roots.filter(root=>!next.roots.some(active=>isWithin(root,active)));
-    next.detachedRoots=normalizeSourceRoots([...this.detachedRootPaths,...removed,...detachedSources]).filter(root=>!enabled.some(active=>isWithin(root,active)));
+    const detachedCandidates=[...this.detachedRootPaths,...removed,...detachedSources];
+    // A removed scope may appear in both lists; count unique saved scopes.
+    next.detachedRoots=normalizeSourceRoots(normalizeSourceRoots(detachedCandidates,detachedCandidates.length)).filter(root=>!enabled.some(active=>isWithin(root,active)));
     const protectedPaths=['E:\\VRChat',...next.roots,...next.detachedRoots];
     if(next.backupDir!==undefined&&(typeof next.backupDir!=='string'||!path.isAbsolute(next.backupDir)))throw new Error('备份路径必须为绝对路径。');
     assertSourceSeparation(this.dataDir,[...next.roots,...next.detachedRoots],next.backupDir);
@@ -292,6 +294,13 @@ export class Store {
   removeRoot(root:string):void {
     const [resolved]=normalizeSourceRoots([root]);
     this.saveSettings({roots:this.rootPaths.filter(current=>sourcePathKey(current)!==sourcePathKey(resolved))},[resolved]);
+  }
+  /** Validate the complete selection before one atomic metadata-only update. */
+  removeRoots(roots:string[]):void {
+    const resolved=normalizeSourceRoots(roots),registered=new Set(this.rootPaths.map(sourcePathKey));
+    if(!resolved.length||resolved.some(root=>!registered.has(sourcePathKey(root))))throw new Error('素材目录未登记。');
+    const selected=new Set(resolved.map(sourcePathKey));
+    this.saveSettings({roots:this.rootPaths.filter(root=>!selected.has(sourcePathKey(root)))},resolved);
   }
   /** Retain old aggregate annotations while removing a proven category shelf
    * from current product views. No filesystem or record deletion is involved. */

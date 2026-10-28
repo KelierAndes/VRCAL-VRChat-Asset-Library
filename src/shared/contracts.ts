@@ -137,6 +137,7 @@ export interface LibraryAPI {
   attemptXianyu(id:string):Promise<void>;openImageSearch(id:string):Promise<void>;setXianyuEnabled(enabled:boolean):Promise<boolean>;
   updateState():Promise<UpdateState>;checkForUpdates():Promise<UpdateState>;downloadUpdate():Promise<UpdateState>;installUpdate():Promise<boolean>;cancelUpdate():Promise<void>;openUpdatePage():Promise<void>;
   removeRoot(root:string):Promise<boolean>;
+  removeRoots(roots:string[]):Promise<boolean>;
   snapshot():Promise<Snapshot>; list(query:AssetQuery):Promise<AssetPage>; get(id:string):Promise<AssetRecord|null>;
   setContextMenuPreferences(value:ContextMenuPreferences):Promise<AppSettings>;recycleAssets(ids:string[],scope?:'card'|'file'):Promise<AssetRecycleResult>;
   hiddenAssets(query?:AssetQuery):Promise<AssetPage>;setHidden(ids:string[],hidden:boolean):Promise<void>;forceRematch(ids:string[]):Promise<void>;
