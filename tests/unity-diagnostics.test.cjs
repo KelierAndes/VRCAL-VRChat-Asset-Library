@@ -130,3 +130,52 @@ test('repeating the same exception stack does not grow detail or request another
  f.write(f.header()+exception);const first=await f.read();f.append(exception);const next=await f.read();
  assert.equal(next.issues[0].count,2);assert.equal(next.issues[0].detail,first.issues[0].detail);assert.equal(unityDiagnosticAnalysisKey(next),unityDiagnosticAnalysisKey(first));
 });
+
+const destroyedInstaller="MissingReferenceException: The object of type 'ModularAvatarMenuInstaller' has been destroyed but you are still trying to access it.\n";
+const destroyedObjectHint='Your script should either check if it is null or you should not destroy the object.\n';
+const menuPreviewFrames=[
+ 'UnityEngine.Component.GetComponent (System.Type type) (at <00000000000000000000000000000000>:0)',
+ 'nadena.dev.modular_avatar.core.editor.MenuPreviewGUI+VisitorContext.PushMenuInstaller (nadena.dev.modular_avatar.core.ModularAvatarMenuInstaller installer) (at Packages/nadena.dev.modular-avatar/Editor/Inspector/Menu/MenuPreviewGUI.cs:259)',
+ 'nadena.dev.modular_avatar.core.editor.MenuPreviewGUI+VisitorContext.PushNode (nadena.dev.modular_avatar.core.ModularAvatarMenuInstaller installer) (at Packages/nadena.dev.modular-avatar/Editor/Inspector/Menu/MenuPreviewGUI.cs:252)',
+ 'nadena.dev.modular_avatar.core.ModularAvatarMenuInstallTarget.Visit (nadena.dev.modular_avatar.core.menu.NodeContext context) (at Packages/nadena.dev.modular-avatar/Runtime/ModularAvatarMenuInstallTarget.cs:26)',
+ 'nadena.dev.modular_avatar.core.editor.MAMenuItemInspector.OnInnerInspectorGUI () (at Packages/nadena.dev.modular-avatar/Editor/Inspector/Menu/MAMenuItemInspector.cs:58)',
+].join('\n')+'\n';
+test('retains Unity destroyed-object guidance and diagnoses the MA menu preview call chain',async t=>{
+ const f=fixture(t);f.write(f.header()+destroyedInstaller+destroyedObjectHint+menuPreviewFrames);
+ const result=await f.read();assert.equal(result.issues.length,1);const issue=result.issues[0];
+ assert.equal(issue.kind,'exception');assert.match(issue.detail,/ModularAvatarMenuInstallTarget\.Visit/);
+ assert.match(issue.detail,/Your script should either check if it is null/);
+ const advice=issue.suggestions.join('\n');assert.match(advice,/菜单预览/);assert.match(advice,/已销毁/);
+ assert.match(advice,/不能.*(?:上传|构建)/);assert.match(advice,/Inspector/);assert.match(advice,/Missing|None/);
+ assert.match(advice,/备份/);assert.match(advice,/Unity.*MA.*NDMF.*SDK/);
+ assert.equal(fs.readFileSync(f.logPath,'utf8'),f.header()+destroyedInstaller+destroyedObjectHint+menuPreviewFrames);
+});
+test('specializes MA advice when delayed stack frames arrive without creating another issue',async t=>{
+ const f=fixture(t);f.write(f.header()+destroyedInstaller+destroyedObjectHint);
+ const initial=await f.read();assert.equal(initial.issues.length,1);assert(!initial.issues[0].suggestions.join('\n').includes('菜单预览'));
+ f.append(menuPreviewFrames);const complete=await f.read();assert.equal(complete.issues[0].id,initial.issues[0].id);assert.equal(complete.issues[0].count,1);
+ assert.match(complete.issues[0].suggestions.join('\n'),/菜单预览/);
+ const detail=complete.issues[0].detail;f.append(destroyedInstaller+destroyedObjectHint+menuPreviewFrames);
+ const repeated=await f.read();assert.equal(repeated.issues[0].count,2);assert.equal(repeated.issues[0].detail,detail);
+});
+test('does not infer a destroyed MA install target from unrelated exceptions or later output',async t=>{
+ for(const body of [
+  destroyedInstaller+destroyedObjectHint+'  at Example.Update () (at Assets/Example.cs:9)\n',
+  'NullReferenceException: object is null\n'+menuPreviewFrames,
+  "MissingReferenceException: The object of type 'Transform' has been destroyed but you are still trying to access it.\n"+menuPreviewFrames,
+  destroyedInstaller+'Ordinary unrelated output\n'+menuPreviewFrames,
+  destroyedInstaller+destroyedObjectHint+'Ordinary unrelated output\n'+menuPreviewFrames,
+  destroyedInstaller+menuPreviewFrames.split('\n').filter(line=>!line.includes('MenuInstallTarget')).join('\n'),
+  destroyedInstaller+menuPreviewFrames.split('\n').filter(line=>!line.includes('PushMenuInstaller')).join('\n'),
+ ]){
+  const f=fixture(t);f.write(f.header()+body);const report=await f.read();assert.equal(report.issues.length,1);
+  assert(!report.issues[0].suggestions.join('\n').includes('菜单预览'));
+ }
+});
+test('keeps standard destroyed-object stacks for other types without MA-specific advice',async t=>{
+ const f=fixture(t),message="MissingReferenceException: The object of type 'Transform' has been destroyed but you are still trying to access it.\n";
+ f.write(f.header()+message+destroyedObjectHint+'  at Example.Update () (at Assets/Example.cs:9)\n');
+ const report=await f.read();assert.equal(report.issues.length,1);const issue=report.issues[0];
+ assert.match(issue.detail,/Your script should either check if it is null/);assert.match(issue.detail,/Example\.Update/);
+ assert(!issue.suggestions.join('\n').includes('菜单预览'));
+});

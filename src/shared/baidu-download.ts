@@ -1,6 +1,8 @@
 export interface BaiduShareFile {id:string;name:string;directory:boolean;sizeText:string}
-export interface BaiduDownloadTask {id:string;name:string;state:'downloading'|'paused'|'completed'|'interrupted'|'cancelled';receivedBytes:number;totalBytes:number;downloadBps:number;startedAt:string;finishedAt?:string;error?:string;assetId?:string;importError?:string}
-export interface BaiduDownloadState {phase:'idle'|'loading'|'ready'|'error';title:string;message:string;files:BaiduShareFile[];downloadDir?:string;tasks:BaiduDownloadTask[];canGoBack:boolean;busy:boolean;loggedIn:boolean;queued?:number}
+export interface BaiduDownloadTask {id:string;name:string;state:'downloading'|'paused'|'completed'|'interrupted'|'cancelled';receivedBytes:number;totalBytes:number;downloadBps:number;startedAt:string;finishedAt?:string;error?:string;assetId?:string;importError?:string;archived?:boolean}
+export interface DownloadExtractionOptions {autoExtract:boolean;recycleArchives:boolean}
+export interface DownloadExtractionJob {id:string;taskIds:string[];name:string;state:'extracting'|'registering'|'completed'|'failed';directory?:string;assetId?:string;files:number;bytes:number;recycledNames:string[];message:string;startedAt:string;finishedAt?:string}
+export interface BaiduDownloadState {phase:'idle'|'loading'|'ready'|'error';title:string;message:string;files:BaiduShareFile[];downloadDir?:string;tasks:BaiduDownloadTask[];canGoBack:boolean;busy:boolean;loggedIn:boolean;queued?:number;extractionOptions?:DownloadExtractionOptions;extractions?:DownloadExtractionJob[]}
 export function parseBaiduShare(text:unknown,code:unknown=''):{url:string;code:string} {
  if(typeof text!=='string'||text.length>8192||typeof code!=='string'||code.length>20)throw new Error('请输入有效的百度网盘分享链接。');
  const matches=text.match(/https?:\/\/[^\s<>「」"']+/g)??[];

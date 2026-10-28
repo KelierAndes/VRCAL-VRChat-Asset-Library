@@ -1,0 +1,30 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MA 菜单预览报错：先核对调用链，再处理引用</title><style>
+ :root{color-scheme:light;--ink:#18262c;--muted:#596b74;--line:#d9e2e7;--accent:#056894}*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:16px/1.85 "Segoe UI","Microsoft YaHei",sans-serif}header{padding:28px 5vw;background:#12232c;color:#fff;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}header span{color:#a7d4e6;font-size:14px}.layout{max-width:1360px;margin:36px auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;padding:0 26px}nav{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow:auto;font-size:13px}nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 12px;border-left:2px solid var(--line)}nav a:hover{color:var(--accent);border-color:var(--accent)}main{background:#fff;border:1px solid var(--line);border-radius:16px;padding:40px;min-width:0}h1{font-size:30px;line-height:1.45;margin:0 0 20px}h2{font-size:23px;margin-top:44px;padding-top:20px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px}a{color:var(--accent);text-underline-offset:3px}p{margin:16px 0}li{margin:8px 0}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:18px 0;font-size:14px;line-height:1.7}th,td{border:1px solid var(--line);padding:11px 13px;text-align:left;vertical-align:top}th{background:#eaf3f7}tr:nth-child(even) td{background:#f8fafb}code{font-size:.91em;background:#edf2f5;border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}figure{margin:24px 0}img{display:block;max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}footer{font-size:13px;color:var(--muted);margin-top:40px;border-top:1px solid var(--line);padding-top:18px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;max-height:none;margin:0 0 18px;display:flex;flex-wrap:wrap}nav a{padding:5px 10px}main{padding:22px}h1{font-size:25px}}@media print{body{background:white;font-size:11pt}header,nav{display:none}.layout{display:block;margin:0;padding:0}main{padding:0;border:0}h2,h3{break-after:avoid}tr,figure{break-inside:avoid}a{color:inherit}}
+ </style><header><strong>VRCAL · 使用说明</strong><span>1.4.0-preview.16 · 本地报告与使用说明</span></header><div class="layout"><nav aria-label="目录"><a href="#section-2">这条报错说明了什么</a><a href="#section-3">在应用里查看原始线索</a><a href="#section-4">建议的人工排查顺序</a><a href="#section-5">本版改动与验收范围</a></nav><main><h1 id="section-1">MA 菜单预览报错：先核对调用链，再处理引用</h1>
+<p>适用版本：1.4.0-preview.16，2026-10-28。本页说明本应用的日志识别和人工排查顺序，不提供自动修改工程或第三方插件的修补程序。</p>
+<h2 id="section-2">这条报错说明了什么</h2>
+<p>如果 <code>MissingReferenceException</code> 提到已销毁的 <code>ModularAvatarMenuInstaller</code>，并且同一异常堆栈同时出现 <code>MenuPreviewGUI…PushMenuInstaller</code> 和 <code>ModularAvatarMenuInstallTarget.Visit</code>，本应用会将其识别为 MA Inspector 菜单预览中的失效引用调用链。</p>
+<p>这段调用链说明菜单预览访问了已销毁的 Menu Installer；它不能单独确定引用为什么失效，也不能证明角色构建或上传失败。只有相近的组件名称、普通 <code>NullReferenceException</code> 或另一次日志中的调用链，不会套用这个专门结论。</p>
+<p>截至 2026-10-28 核对的 MA 官方主分支中，Menu Install Target 的 <code>Visit</code> 将其 <code>installer</code> 引用交给菜单访问上下文，Inspector 预览随后读取 Installer 的组件与菜单。这与该调用链吻合，是定位预览访问阶段的依据，不是用户实际安装版本或根因的证明。见 <a href="https://github.com/bdunderscore/modular-avatar/blob/main/Runtime/ModularAvatarMenuInstallTarget.cs">Menu Install Target 源码</a> 与 <a href="https://github.com/bdunderscore/modular-avatar/blob/main/Editor/Inspector/Menu/MenuPreviewGUI.cs">MenuPreviewGUI 源码</a>。</p>
+<h2 id="section-3">在应用里查看原始线索</h2>
+<ol>
+<li>在 <strong>改模工作台</strong> 选择对应 Unity 工程，点击 <strong>查看 Unity 报错</strong>。</li>
+<li>确认页面的 <strong>当前工程</strong> 和状态为 <strong>已核对工程归属</strong>。未核对、属于其他工程或已过期的日志不作为本工程的新问题展示。</li>
+<li>点击 <strong>立即检查</strong>，或等待页面的定时读取。展开 <strong>查看已脱敏的原始报错</strong>，核对异常首行及后续堆栈。</li>
+<li>记录在 Unity 中执行的具体操作、对应对象、时间和插件版本。应用显示的是已观察到的日志；旧记录仍在或短时间没有新日志，都不能替代重现检查。</li>
+</ol>
+<p>这些中文基础建议在本地生成，不要求开启 AI。若另行开启日志 AI 分析，发送范围及同意开关仍按 <a href="PRIVACY.zh-CN.html">隐私说明</a> 执行。日志已过滤常见凭据、链接和个人路径，但转发前仍需检查插件输出。</p>
+<h2 id="section-4">建议的人工排查顺序</h2>
+<ol>
+<li>先保留完整堆栈和触发步骤。解除 Inspector 锁定，选中无关对象，再重新选择菜单对象，观察相同步骤是否产生新报错。这用于排查预览状态，不代表引用已经修复。</li>
+<li>若仍能重现，先备份场景与相关 Prefab，保留未保存的改动，再重开工程复测，以区分暂存的预览状态与持久引用问题。不要为此直接丢弃改动或执行 Prefab 的 Apply All。</li>
+<li>检查相关 Menu Install Target 的 Installer 是否显示 Missing 或 None。确认对象归属后，通过 MA 的 Select Menu 重新指定有效菜单；只有确认目标已废弃，才考虑移除这个失效目标。不要批量删除 MA 组件或直接修改插件源码。</li>
+<li>记录 Unity、MA、NDMF、VRChat SDK 的实际版本，以及发生阶段：选择对象、撤销、删除、构建或上传。按实际版本核对兼容性与发行说明，必要时先在工程副本中通过 VCC 等官方支持的方式更新；升级不是保证修复。</li>
+<li>若构建或上传也失败，另外保留该阶段的独立错误与堆栈，不把菜单预览错误直接当作根因。</li>
+</ol>
+<p>MA 官方说明将 Menu Install Target 与 Menu Installer 的 Select Menu 功能联系起来，通常无需手动新建目标组件；应核对实际菜单归属再调整。操作参考：<a href="https://modular-avatar.nadena.dev/docs/reference/menu-install-target">Menu Install Target</a>、<a href="https://modular-avatar.nadena.dev/docs/reference/menu-installer">Menu Installer</a>。安装与版本操作参考：<a href="https://modular-avatar.nadena.dev/docs/intro">官方安装说明</a>、<a href="https://modular-avatar.nadena.dev/docs/upgrading">官方升级说明</a>。这些页面会随上游更新，不能据主分支行号假定你安装的版本。</p>
+<h2 id="section-5">本版改动与验收范围</h2>
+<p>本应用现在会保留 Unity 已销毁对象提示后的堆栈，堆栈分批到达时继续补充原问题记录，并据完整调用链更新中文建议；重复记录继续合并计数。</p>
+<p>已静态核对自有桥 <code>assets/unity/VRCALMASetup.cs</code>：它不创建 Menu Install Target，也不写入已有目标的 <code>installer</code> 字段；装配会实例化 Prefab、按条件调用 MA 的公开 Setup Outfit 接口，并可能在新建节点添加 Menu Installer。这个核对不能排除作者预设、对象删除／撤销、版本差异或装配步骤之间的交互，不能据此排除与本应用操作相关。</p>
+<p>验证使用合成日志，不修改 Unity 工程、场景、Prefab 或第三方 MA 包。<strong>第三方异常尚未在真实工程复现，本版不宣称修复了 MA 的菜单预览异常。</strong> 实际引用修改与效果仍由用户在可恢复副本中确认。</p>
+<p><a href="RELEASE_1.4.0-preview.16.zh-CN.html">本版说明</a> · <a href="AVATAR_WORKBENCH.zh-CN.md">改模工作台</a> · <a href="USER_AGREEMENT.zh-CN.html">用户协议</a></p><footer>离线文档，无统计脚本。截图为隔离资料库中的实际应用界面。功能与验证边界详见正文。</footer></main></div></html>

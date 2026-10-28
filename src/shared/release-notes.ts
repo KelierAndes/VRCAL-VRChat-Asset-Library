@@ -14,6 +14,11 @@ export interface ReleaseNote {
 // neither semver sorting nor this list determines the running/latest version.
 // This is bundled documentation and never requires a GitHub request.
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
+  {version:'1.4.0-preview.16',date:'2026-10-28',channel:'preview',title:'历史 ZIP 合并解压与 MA 菜单预览诊断',sections:[
+    {kind:'added',items:['百度下载记录支持勾选同一素材的模型包、材质包，一起解压到一个新目录并直接入库，无需全局扫描；每个 ZIP 使用独立子目录。','新增下载后自动解压 ZIP、成功入库后将原 ZIP 移至系统回收站两项设置，默认均关闭并保存选择；自动解压按本次批量下载中的同商品组处理。']},
+    {kind:'improved',items:['历史 UUID 下载目录不搬动；保留原包时保留其既有标注。解压结果单独登记，失败保留原包，有可用结果时可重试入库；重试入库不回收原包。','Unity 日志保留已销毁对象的后续提示和堆栈，精确识别 MA Inspector 菜单预览的失效 Menu Installer 引用并给出中文排查建议。']},
+    {kind:'notes',items:['解压仅支持 ZIP，不展开 RAR、7z 或 Unitypackage，不执行包内代码或自动导入工程。历史解压与入库无需登录或联网，需等待下载及入库空闲。','MA 本次只改善本应用的日志解析和建议；第三方异常尚未在真实工程复现，不宣称已经修复。公开预览需手动下载，新增文案暂为中文。']}
+  ]},
   {version:'1.4.0-preview.15',date:'2026-10-26',channel:'preview',title:'深层素材扫描与外部工程加入',sections:[
     {kind:'fixed',items:['修复多层分类目录、压缩包和 Unity 工程因固定层数限制漏读；素材文件列表同步支持深层子目录。读取数量达到上限时明确提示。','修复改模工作台添加扫描范围外的工程后提示“请选择已登记的 Unity 工程”；先登记选中工程再读取，重复加入沿用原记录并恢复可用状态。']},
     {kind:'improved',items:['改模工作台可直接拖入外部 Unity 工程根目录，无需移动工程或先全局扫描；与按钮添加共用验证和登记流程。','随程序补齐当前运行依赖的版权与许可全文。']},

@@ -31,7 +31,15 @@ export function redactUnityDiagnosticText(input:string,projectRoot?:string):stri
   .replace(/\/(?:Users|home|tmp|var|Volumes|mnt|media)\/[^\r\n"<>]*/g,'[本地路径已隐藏]');
  return text.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g,'').slice(0,MAX_DETAIL);
 }
-function suggestions(kind:UnityDiagnosticIssue['kind'],code?:string):string[]{
+function suggestions(kind:UnityDiagnosticIssue['kind'],code?:string,detail=''):string[]{
+ if(kind==='exception'&&/^MissingReferenceException:.*\bModularAvatarMenuInstaller\b.*\bdestroyed\b/i.test(detail)
+  &&/\bMenuPreviewGUI[+.](?:VisitorContext\.)?PushMenuInstaller\s*\(/.test(detail)
+  &&/\bModularAvatarMenuInstallTarget\.Visit\s*\(/.test(detail))return [
+   '这条调用链发生在 MA 的 Inspector 菜单预览：Menu Install Target 访问了已销毁的 Menu Installer。仅凭此日志不能判定角色构建或上传失败，也不能确定引用失效的来源。',
+   '先记录触发操作与完整堆栈，解除 Inspector 锁定、切换到无关对象后重新选择菜单对象，核对是否仍有新报错；这一步用于排查预览状态，不代表引用已修复。',
+   '若仍可重现，先备份场景／Prefab，再检查相关 Menu Install Target 的 Installer 是否显示 Missing／None；确认归属后通过 MA 的 Select Menu 重新指定有效菜单，或只移除确认已废弃的失效目标。不要批量删除 MA 组件。',
+   '保留未保存改动后，可重开工程复测以区分暂存预览状态与持久引用问题。记录 Unity、MA、NDMF、VRChat SDK 版本及触发阶段（选中对象／撤销／删除／构建／上传）；核对兼容性和发行说明，不保证升级即可修复。',
+  ];
  if(code==='CS0246'||code==='CS0234')return ['先查看最早出现的编译错误，核对缺失类型对应的包或命名空间。','在 VCC／Unity Package Manager 中核对当前工程的 SDK 与插件版本及依赖；不要直接删除 Library 或修改脚本。','完成必要调整后重新编译，确认同一文件和错误码是否再次出现。'];
  if(kind==='compile')return ['优先处理列表中最早出现的编译错误，后续错误可能由它引起。','核对报错文件、行号和最近一次有记录的改动；修改前保留可恢复副本。','重新编译后核对 Unity Console，本列表保留的历史记录不等于仍在报错。'];
  if(kind==='exception')return ['查看异常堆栈最先出现的 Assets／Packages 文件位置，核对对象引用及相关插件版本。','记录触发问题的操作；再次执行相同步骤以核实是否重现。'];
@@ -148,7 +156,18 @@ export class UnityDiagnosticsMonitor {
   }else if(/^(?:[\w.]+)?Exception\s*:/.test(line))kind='exception';
   else if(/^(?:error|warning|fatal error|assertion failed)\b\s*[:\[]/i.test(line)||/^\[.*?\]\s*(?:error|warning)\b/i.test(line)){severity=/^(?:\[.*?\]\s*)?warning\b/i.test(line)?'warning':'error';if(/import|package/i.test(line))kind='import';}
   else {
-   if(c.lastIssue&&/^\s+(?:at\s|\w[\w.<>`]+[.:])|^\w[\w.<>`]+[.:][^\r\n]+\(/.test(line)){const issue=c.issues.get(c.lastIssue);if(issue){const detail=redactUnityDiagnosticText(line,c.projectRoot);if(!issue.detail.split('\n').includes(detail))issue.detail=(issue.detail+'\n'+detail).slice(0,MAX_DETAIL);}}
+   const issue=c.lastIssue?c.issues.get(c.lastIssue):undefined;
+   // Unity puts this explanatory line between a destroyed-object exception and its stack.
+   // Keep only the recognized continuation; ordinary output still terminates the stack.
+   const destroyedObjectHint=issue?.kind==='exception'&&/^MissingReferenceException:/.test(issue.message)
+    &&/^Your script should either check if it is null or you should not destroy the object\.$/.test(line.trim());
+   if(issue&&(destroyedObjectHint||/^\s+(?:at\s|\w[\w.<>`]+[.:])|^\w[\w.<>`]+[.:][^\r\n]+\(/.test(line))){
+    const detail=redactUnityDiagnosticText(line,c.projectRoot);
+    if(!issue.detail.split('\n').includes(detail)){
+     issue.detail=(issue.detail+'\n'+detail).slice(0,MAX_DETAIL);
+     issue.suggestions=suggestions(issue.kind,issue.code,issue.detail);
+    }
+   }
    else if(line.trim())c.lastIssue=undefined;
    return;
   }

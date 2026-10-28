@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "checkedOn": "2026-10-26",
-  "applicationVersion": "1.4.0-preview.15",
-  "lockfileSha256": "e4befaebd579652ae07b38c90cbcd3d3fca5c512868e7c3968ea2708fd313e98",
+  "checkedOn": "2026-10-28",
+  "applicationVersion": "1.4.0-preview.16",
+  "lockfileSha256": "39292afcbfb4f58b69997b4077da9c15263879026f6246cab80ae21c4d93c572",
   "scope": "Non-dev package entries in package-lock.json; Electron runtime, embedded fflate, fonts and inline icons are listed separately in THIRD_PARTY_NOTICES.md.",
   "packages": [
     {

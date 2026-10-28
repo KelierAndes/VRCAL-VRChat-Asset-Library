@@ -19,6 +19,7 @@ const CACHES=new Set(['library','temp','obj','logs','usersettings','.git','.svn'
 const SOFTWARE=/^(?:unity(?:hub)?|vrchat[ _-]*creator[ _-]*companion|vrc[ _-]*companion)$/i;
 const PREVIEW=/^(?:preview(?:image)?|cover|thumbnail|サムネイル|封面|预览)(?:[-_ .()\d]|$)/i;
 const DOC=/(?:read[ _-]?me|説明|说明|booth|网址|url|credit|license|利用規約)/i;
+const EXTRACTED_DOWNLOAD=/^.{1,70}--vrcal-unpacked-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const LIMIT=2000;
 const pause=()=>new Promise<void>(resolve=>setImmediate(resolve));
 const isPackage=(name:string)=>/\.(?:zip|rar|7z|unitypackage)$/i.test(name);
@@ -125,7 +126,11 @@ export class Scanner {
    * loose model sources prove a product boundary, so variants stay one bundle. */
   private async sourceContainer(directory:string,budget={remaining:5000,truncated:false}):Promise<boolean>{
     if(this.cancelled||!this.store.isPathActive(directory))return false;
-    const key=sourcePathKey(directory),cached=this.bucketCache.get(key);if(cached!==undefined)return cached;
+    const key=sourcePathKey(directory);
+    // An explicitly selected unpacked download is one read-only bundle, even when
+    // its ZIPs contain category shelves. Naming never grants write/recycle authority.
+    if(EXTRACTED_DOWNLOAD.test(path.basename(directory))&&(this.store.settings().directSources??[]).some(source=>sourcePathKey(source)===key))return false;
+    const cached=this.bucketCache.get(key);if(cached!==undefined)return cached;
     if(budget.remaining--<=0){if(!budget.truncated)this.error(directory,new Error('目录识别达到本次读取上限，部分子目录尚未识别；请添加更具体的素材目录。'));budget.truncated=true;return false}
     let entries:fs.Dirent[];try{entries=await fsp.readdir(directory,{withFileTypes:true})}catch{return false}
     const category=isSourceBucketName(path.basename(directory));

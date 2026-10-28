@@ -8,17 +8,17 @@
 
 [![Windows CI](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/actions/workflows/ci.yml/badge.svg)](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/actions/workflows/ci.yml) · [贡献指南](CONTRIBUTING.md) · [社区讨论](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/discussions) · [路线图](docs/ROADMAP.md)
 
-**浏览、扫描和联网补全保持只读；主动导入会写入选定 Unity 工程，确认删除会将原素材移入系统回收站。** 整理信息、封面缓存和备份保存在用户选择的位置。
+**浏览、扫描和联网补全保持只读；主动解压写入新目录，主动导入写入选定 Unity 工程。** 确认删除或勾选解压成功后回收原包，会将对应原文件移入系统回收站。整理信息、封面缓存和备份保存在用户选择的位置。
 
 [用户协议与功能使用说明](docs/USER_AGREEMENT.zh-CN.md) · [隐私说明](docs/PRIVACY.zh-CN.md)（账号页面读取的验证范围见本次发布说明）
 
 [第三方组件、资源与参考来源](THIRD_PARTY_NOTICES.md) · [运行依赖许可全文索引](licenses/README.md)
 
-**本轮版本：1.4.0-preview.15。** 修复深层目录的素材、压缩包与工程漏读；改模工作台可直接添加或拖入外部工程，先登记再检查，无需移动工程或先全局扫描。[扫描说明](docs/SCANNING_AND_COVERS.zh-CN.md) · [本版说明](docs/RELEASE_1.4.0-preview.15.zh-CN.md)。
+**本轮版本：1.4.0-preview.16。** 百度历史 ZIP 可多选解压到一个新素材目录并直接入库；下载后自动解压、成功入库后回收原包均为默认关闭的可选设置。另改善 MA 菜单预览报错的日志解析与中文建议，不宣称修复第三方插件异常。[下载与解压指南](docs/DOWNLOADS.zh-CN.md) · [本版说明](docs/RELEASE_1.4.0-preview.16.zh-CN.md)。
 
 ## 下载与开始使用
 
-**[1.4.0-preview.15 对应版本与下载](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.15)**：选择 `x64.exe` 可直接运行；选择 `x64-Folder.zip` 则先完整解压，再运行其中的 `VRC素材库.exe`，以后直接从该目录启动。解压目录运行目前需要从发布页手动更新；单文件版保留原有更新方式。`Source.zip` 仅用于开发。公开预览不进入稳定版自动更新通道。
+**[1.4.0-preview.16 发布与下载入口](https://github.com/NecoAya/VRCAL-VRChat-Asset-Library/releases/tag/v1.4.0-preview.16)**：选择 `x64.exe` 可直接运行；选择 `x64-Folder.zip` 则先完整解压，再运行其中的 `VRC素材库.exe`，以后直接从该目录启动。解压目录运行目前需要从发布页手动更新；单文件版保留原有更新方式。`Source.zip` 仅用于开发。公开预览不进入稳定版自动更新通道。
 
 旧版官方附件继续停止提供。 版本记录、Git 历史及其原许可保留；GitHub 根据标签提供的历史 Source code 快照仍可访问。撤下下载不等于撤销旧版授权，详见 [许可变更说明](docs/LICENSING.md)。
 
@@ -49,6 +49,8 @@
 当前发布包未进行代码签名。请从本仓库 Releases 下载，并用随包 SHA-256 清单核对文件。
 
 ## 本次更新与更新记录
+
+**preview.16：历史 ZIP 合并解压与 MA 菜单预览诊断。** 同一素材的模型包、材质包可手动勾选后解压到一个新目录，各包使用独立子目录并立即入库；旧 UUID 原包不搬动，保留原包时既有标注保持。两项可选自动设置默认关闭。MA 仅改善本应用的日志解析与建议，真实第三方异常仍待复现。[本版说明](docs/RELEASE_1.4.0-preview.16.zh-CN.md) · [MA 排查指南](docs/MA_MENU_PREVIEW_DIAGNOSTICS.zh-CN.md)。
 
 **preview.15：深层扫描与外部工程。** 不再按固定层数截断目录识别和文件列表，达到数量上限明确提示。工程添加与工作台拖入共用登记流程，重复加入恢复原记录；扫描保持原素材不变。[本版说明](docs/RELEASE_1.4.0-preview.15.zh-CN.md)。
 
@@ -129,7 +131,7 @@
 
 ## 数据与文件
 
-应用引用原文件。隐藏与移除扫描路径只影响应用记录；明确确认“删除（移入回收站）”会移动所选原素材及选中文件夹内的文件，不永久删除。可从 Windows 回收站还原到原路径后刷新，人工信息保留。Unity 工程和资料库受保护，不提供任意重命名操作。压缩包只读查看目录，不自动解压；Unity 工程仅在用户主动导入后写入所选内容，文件浏览与扫描不会改动工程。目录链接、Unity 缓存和软件安装目录不参与素材索引。
+应用引用原文件。隐藏与移除扫描路径只影响应用记录；明确确认“删除（移入回收站）”会移动所选原素材及选中文件夹内的文件，不永久删除。可从 Windows 回收站还原到原路径后刷新，人工信息保留。Unity 工程和资料库受保护，不提供任意重命名操作。压缩包目录查看与普通扫描保持只读；百度下载页面可主动解压 ZIP，或开启默认关闭的下载后自动解压，结果写入新目录并定点入库。另行勾选成功入库后回收原包时才尝试系统回收站，重试入库保留原包。此选项不改变 BOOTH 下载行为。Unity 工程仅在用户主动导入后写入所选内容，文件浏览与扫描不会改动工程。目录链接、Unity 缓存和软件安装目录不参与素材索引。
 
 BOOTH 补全发送商品名称、编号等检索线索。人工资料优先，商品下架或联网失败时已有资料仍可浏览。BOOTH 请求共享至少三秒的启动间隔，网站限制与验证仍由网站决定。
 

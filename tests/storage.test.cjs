@@ -50,3 +50,9 @@ test('migration retains the selected-profile cookie key and account history but 
  const before=Object.fromEntries(['library.sqlite','session/Local State','booth-session/Cookies','booth-session-cookies.bin','booth-downloads.json'].map(name=>[name,digest(path.join(source,name))]));await copyLibraryData(source,target,[],true);
  for(const [name,hash] of Object.entries(before)){assert.equal(digest(path.join(source,name)),hash);assert.equal(digest(path.join(target,name)),hash)}assert(!fs.existsSync(path.join(target,'session','unrelated-cache')));
 });
+
+
+test('library migration retains completed extraction receipts and download settings without moving original downloads',async t=>{
+ const root=fixture(t),source=path.join(root,'old'),target=path.join(root,'new'),downloads=path.join(root,'downloads');fs.mkdirSync(downloads);const store=new Store(source,[]);store.close();const zip=path.join(downloads,'original.zip');fs.writeFileSync(zip,'SYNTHETIC ARCHIVE');const before=digest(zip);
+ const journals={'baidu-downloads.json':{schema:1,extractionOptions:{autoExtract:true,recycleArchives:false},tasks:[]},'download-folders.json':{schema:1,groups:[]},'download-extractions.json':{schema:1,jobs:[{id:'synthetic',state:'completed',directory:downloads}]}};for(const [name,value]of Object.entries(journals))fs.writeFileSync(path.join(source,name),JSON.stringify(value));await copyLibraryData(source,target,[],true);for(const name of Object.keys(journals)){assert.equal(fs.readFileSync(path.join(target,name),'utf8'),JSON.stringify(journals[name]));assert.equal(fs.readFileSync(path.join(source,name),'utf8'),JSON.stringify(journals[name]))}assert.equal(digest(zip),before);
+});

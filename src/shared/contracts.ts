@@ -3,7 +3,7 @@ import type {ProjectProductPage,ProjectProductRegistration} from './project-prod
 import type {ContextMenuPreferences} from './context-menu';
 import type {AssetRecycleResult} from './recycle-contracts';
 import type {StorageLocation,BaiduState,CloudPage,CloudQuery} from './cloud-contracts';
-import type {BaiduDownloadState} from './baidu-download';
+import type {BaiduDownloadState,DownloadExtractionOptions} from './baidu-download';
 import type {ProjectFilePage,ImportSourceChoice,ProjectImportPreview,ProjectImportJob,ProjectImportOptions} from './project-contracts';
 export const CATEGORIES = ['未分类','模型','服装','头发','饰品','贴图','动作','特效','工具','工程'] as const;
 export type Category = typeof CATEGORIES[number];
@@ -118,6 +118,10 @@ export interface LibraryAPI {
   downloadBaiduFiles(ids:string[]):Promise<void>;
   cancelBaiduDownloadBatch():Promise<void>;
   retryBaiduDownloadImport(id:string):Promise<void>;
+  setBaiduExtractionOptions(options:DownloadExtractionOptions):Promise<void>;
+  extractBaiduDownloads(ids:string[],recycle:boolean):Promise<void>;
+  retryBaiduExtractionImport(id:string):Promise<void>;
+  revealBaiduExtraction(id:string):Promise<void>;
   controlBaiduDownload(id:string,action:'pause'|'resume'|'cancel'):Promise<void>;
   revealBaiduDownload(id:string):Promise<void>;
   openBaidu(directoryPath?:string):Promise<void>;
