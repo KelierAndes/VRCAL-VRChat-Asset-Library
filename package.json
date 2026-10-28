@@ -1,6 +1,6 @@
 {
   "name": "vrchat-asset-library",
-  "version": "1.4.0-preview.17",
+  "version": "1.4.0",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
@@ -125,11 +125,18 @@
       "docs/MA_MENU_PREVIEW_DIAGNOSTICS.zh-CN.html",
       "docs/images/download-extraction-result-preview16.png",
       "docs/images/download-extraction-options-preview16.png",
+      "docs/RELEASE_1.4.0.zh-CN.md",
+      "docs/RELEASE_1.4.0.zh-CN.html",
       "docs/RELEASE_1.4.0-preview.17.zh-CN.md",
       "docs/RELEASE_1.4.0-preview.17.zh-CN.html",
       "docs/SOURCE_LOCATIONS.zh-CN.md",
       "docs/SOURCE_LOCATIONS.zh-CN.html",
-      "docs/images/source-locations-selection-preview17.png"
+      "docs/images/source-locations-selection-preview17.png",
+      "docs/RELEASE_1.4.0.en.md",
+      "docs/RELEASE_1.4.0.ja.md",
+      "docs/QUICK_START.en.md",
+      "docs/QUICK_START.ja.md",
+      "docs/USER_GUIDE.md"
     ],
     "asar": true,
     "win": {
